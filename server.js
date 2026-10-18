@@ -13,9 +13,19 @@ const path = require('path');
 const express = require('express');
 const session = require('express-session');
 
-const MySqlSessionStore = require('./session-store');
+const PgSessionStore = require('./session-store');
 
-const { testConnection } = require('./db');
+const pool = require('./db');
+
+/** Quick connectivity probe used at boot so misconfiguration fails loudly. */
+async function testConnection() {
+  const client = await pool.connect();
+  try {
+    await client.query('SELECT 1 AS ok');
+  } finally {
+    client.release();
+  }
+}
 const { attachUser, requireLogin, requireStaff, requireAdmin } = require('./middleware/auth');
 
 const authRoutes = require('./routes/auth');
@@ -50,9 +60,9 @@ app.use(
   session({
     name: 'cspc.sid',
     secret: sessionSecret,
-    // Durable MySQL-backed store: logins survive server restarts. The old
+    // Durable PostgreSQL-backed store: logins survive server restarts. The old
     // in-memory default dropped every session whenever the process recycled.
-    store: new MySqlSessionStore(),
+    store: new PgSessionStore(),
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -166,11 +176,11 @@ app.use((err, req, res, next) => {
 async function start() {
   try {
     await testConnection();
-    console.log('[db] MySQL connection established.');
+    console.log('[db] PostgreSQL connection established.');
   } catch (err) {
-    console.error('\n[db] Could not connect to MySQL:', err.message);
-    console.error('[db] Check your .env settings and make sure MySQL is running.');
-    console.error('[db] First time? Run:  npm run init-db\n');
+    console.error('\n[db] Could not connect to PostgreSQL:', err.message);
+    console.error('[db] Check your .env settings and make sure PostgreSQL is running.');
+    console.error('[db] Set DATABASE_URL in .env (e.g. postgres://user:pass@host:5432/dbname).');
     process.exit(1);
   }
 
