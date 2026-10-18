@@ -145,7 +145,7 @@ router.get('/availability', async (req, res, next) => {
       params.push(Number(req.query.building_id));
     }
 
-    const { rows } = await pool.query(
+    const { rows: bookings } = await pool.query(
       `SELECT res.id, res.room_id, r.name AS room_name, b.name AS building_name,
               res.res_date, res.start_time, res.end_time, res.status,
               u.full_name AS requested_by
