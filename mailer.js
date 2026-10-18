@@ -122,7 +122,7 @@ async function sendPasswordResetOtp({ email, name, otp, minutes = 10 }) {
 
   try {
     const info = await getTransporter().sendMail({
-      from: process.env.MAIL_FROM || `"CSPC Reservation Portal" <${smtpUser()}>`,
+      from: process.env.MAIL_FROM || 'onboarding@resend.dev',
       to: email,
       subject: `${otp} is your password reset code`,
       text: plainText({ name, otp, minutes }),
@@ -191,7 +191,7 @@ async function sendPasswordChangedAlert({ email, name }) {
 
   try {
     const info = await getTransporter().sendMail({
-      from: process.env.MAIL_FROM || `"CSPC Reservation Portal" <${smtpUser()}>`,
+      from: process.env.MAIL_FROM || 'onboarding@resend.dev',
       to: email,
       subject: 'Your CSPC Reservation Portal password was changed',
       text,
