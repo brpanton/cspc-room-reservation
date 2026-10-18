@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Log in - CSPC Lab &amp; Room Reservation</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="/css/style.css" rel="stylesheet" />
+  <link rel="icon" type="image/jpeg" href="/img/hornet-logo.jpg" />
+</head>
+<body>
+  <div id="navbar-placeholder"></div>
+
+  <main class="auth-wrap">
+    <div class="card auth-card" id="login-card">
+      <div class="auth-hero">
+        <h1>CSPC Lab &amp; Room Reservation</h1>
+        <p>Sign in with your school ID number or CSPC email to book a laboratory or room.</p>
+      </div>
+
+      <div class="card-body auth-body">
+        <div id="login-alert" class="d-none" role="alert"></div>
+
+        <!-- One-click Google SSO sits above everything else: the fastest way in. -->
+        <button type="button" class="btn btn-sso" id="sso-google">
+          <svg class="sso-icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+          </svg>
+          <span>Sign in with CSPC Google</span>
+        </button>
+
+        <div class="auth-divider" aria-hidden="true"><span>or</span></div>
+
+        <div class="auth-mode-toggle" aria-label="Login mode selector">
+          <button type="button" class="auth-mode-btn active" data-auth-mode="user" aria-pressed="true">User Login</button>
+          <button type="button" class="auth-mode-btn" data-auth-mode="admin" aria-pressed="false">Admin Login</button>
+        </div>
+
+        <div class="auth-mode-banner" id="auth-mode-banner">
+          <span class="admin-portal-badge">Administrator Portal</span>
+        </div>
+
+        <form id="login-form" novalidate>
+          <div class="identifier-toggle" id="login-identifier-toggle" role="group" aria-label="Choose how to sign in">
+            <button type="button" class="identifier-btn active" data-login-identifier-mode="id" aria-pressed="true">🎓 School ID</button>
+            <button type="button" class="identifier-btn" data-login-identifier-mode="email" aria-pressed="false"><svg class="identifier-icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> CSPC Email</button>
+          </div>
+          <div class="mb-3 mt-3">
+            <label class="form-label" for="school_id" id="school_id_label">School ID number</label>
+            <input type="text" class="form-control" id="school_id" name="school_id"
+                   placeholder="e.g. 2021-00123" autocomplete="username" required />
+            <div class="form-text identifier-hint" id="school_id_hint">Use the ID number on your school ID. Choose “CSPC Email” to sign in with your @cspc.edu.ph or @my.cspc.edu.ph address instead.</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label" for="password">Password</label>
+            <input type="password" class="form-control" id="password" name="password"
+                   placeholder="Your password" autocomplete="current-password" required />
+          </div>
+
+          <button type="submit" class="btn btn-cspc w-100" id="login-btn">Log in</button>
+        </form>
+
+        <p class="auth-register-link text-center text-muted-sm mt-3 mb-0" data-registration-link>
+          No account yet? <a href="/register.html">Register here</a>
+        </p>
+
+        <div class="auth-support mt-4" aria-label="Support links">
+          <a href="#" id="forgot-password-link">Forgot password?</a>
+          <span class="auth-support-sep" aria-hidden="true">&middot;</span>
+          <a href="#" id="support-link">IT Support / Help desk</a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="modal fade" id="password-reset-modal" tabindex="-1" aria-labelledby="password-reset-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="password-reset-title">Password recovery</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted-sm mb-3">Enter your school email or ID to receive a password reset link.</p>
+          <form id="password-reset-form">
+            <div class="mb-3">
+              <label class="form-label" for="reset-email">CSPC email or ID</label>
+              <input type="text" class="form-control" id="reset-email" name="reset-email"
+                     placeholder="e.g. 2021-00123 or name@cspc.edu.ph" required />
+            </div>
+            <div class="d-flex justify-content-end gap-2">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-cspc">Send reset link</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade support-modal" id="support-modal" tabindex="-1" aria-labelledby="support-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content support-modal-content">
+        <div class="modal-header support-modal-header">
+          <div>
+            <h5 class="modal-title" id="support-title">IT Support / Help desk</h5>
+            <p class="support-modal-subtitle">Submit a secure support request</p>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body support-modal-body">
+          <div class="support-contact-row mb-3">
+            <p class="mb-2"><strong>Email:</strong> <a href="mailto:helpdesk@cspc.edu.ph">helpdesk@cspc.edu.ph</a></p>
+            <p class="mb-2"><strong>Phone:</strong> <a href="tel:+634xxx12345">+63 (xxx) xxx-12345</a></p>
+            <p class="mb-0 text-muted-sm">Office hours: Monday to Friday, 8:00 AM - 5:00 PM</p>
+          </div>
+
+          <form id="support-form" novalidate>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label" for="support-fullname">Full Name</label>
+                <input type="text" class="form-control" id="support-fullname" name="support-fullname"
+                       placeholder="e.g. Maria Dela Cruz" required />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="support-role">Role / Department</label>
+                <input type="text" class="form-control" id="support-role" name="support-role"
+                       placeholder="Student, Faculty, System Admin" required />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="support-email">Email Address / Contact Number</label>
+                <input type="text" class="form-control" id="support-email" name="support-email"
+                       placeholder="e.g. name@cspc.edu.ph or 09XX-XXX-XXXX" required />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="support-category">Issue Category</label>
+                <select class="form-select" id="support-category" name="support-category" required>
+                  <option value="" selected disabled>Select an issue type</option>
+                  <option value="Password Reset">Password Reset</option>
+                  <option value="Login Error">Login Error</option>
+                  <option value="Room Booking Issue">Room Booking Issue</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="support-description">Detailed Description</label>
+                <textarea class="form-control" id="support-description" name="support-description" rows="5"
+                          placeholder="Describe the issue, what happened, and when it occurred." required></textarea>
+              </div>
+            </div>
+
+            <div class="support-security-note mt-3">
+              <strong>Security Notice:</strong> Never share your current password or sensitive credentials through this support form.
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-4">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+              <button type="submit" class="btn btn-cspc">Submit request</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="portal-footer">
+    CSPC Lab &amp; Room Reservation System &middot; Computer Studies Department
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/app.js"></script>
+  <script src="/js/cookie-consent.js"></script>
+  <script src="/js/login.js"></script>
+</body>
+</html>

@@ -1,0 +1,466 @@
+/* =============================================================
+   CSPC Reservation - modal login card component
+   Drop-in stylesheet for #login-card-modal. Load AFTER style.css.
+
+   Everything is scoped to .login-card-modal so it never leaks onto
+   the auth pages or the existing visitor modal. Reuses the shared
+   site helpers (.auth-divider, .btn-sso, global .alert) so the card
+   is visually identical to the rest of the portal: deep navy glass,
+   frosted border, vibrant blue pill CTAs, cyan kicker + mint accents.
+   ============================================================= */
+
+/* --- overlay: dark slate glass backdrop ------------------------------ */
+/* Bootstrap paints .modal-backdrop as a sibling element, so it cannot be
+   styled from inside the modal. The JS adds this class when the login card
+   opens (and removes it when it closes) to blur + tint the page behind. */
+.modal-backdrop.login-card-backdrop {
+  /* Colourful wash instead of near-black: the blurred page + these blue/violet
+     pools are what the frosted panel refracts. */
+  background:
+    radial-gradient(900px 520px at 16% 10%, rgba(37, 99, 235, 0.4), transparent 65%),
+    radial-gradient(820px 500px at 86% 84%, rgba(14, 165, 233, 0.3), transparent 62%),
+    radial-gradient(700px 440px at 72% 18%, rgba(99, 102, 241, 0.24), transparent 66%),
+    linear-gradient(160deg, rgba(9, 13, 22, 0.7), rgba(15, 23, 42, 0.64));
+  opacity: 1;
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+}
+
+/* --- dialog + glass container ---------------------------------------- */
+.login-card-modal .modal-dialog {
+  max-width: 440px;
+}
+
+.login-card-modal .modal-content {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 22px;
+  /* Thin white sheen over a faint navy tint — the heavy lifting is done by
+     backdrop-filter, so the glass shows the blurred page through it. */
+  background:
+    linear-gradient(
+      150deg,
+      rgba(255, 255, 255, 0.12),
+      rgba(255, 255, 255, 0.03) 42%,
+      rgba(255, 255, 255, 0.08)
+    ),
+    linear-gradient(155deg, rgba(11, 18, 32, 0.52), rgba(8, 12, 24, 0.44));
+  box-shadow:
+    0 40px 90px -28px rgba(2, 6, 23, 0.95),
+    0 0 90px -32px rgba(37, 99, 235, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 0 44px rgba(59, 130, 246, 0.07);
+  backdrop-filter: blur(42px) saturate(190%) brightness(1.08);
+  -webkit-backdrop-filter: blur(42px) saturate(190%) brightness(1.08);
+}
+
+/* Thin glass-gradient ring hugging the panel edge (border-image cannot do
+   rounded corners, so a pseudo-element is used instead). */
+.login-card-modal .modal-content::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    140deg,
+    rgba(191, 219, 255, 0.8),
+    rgba(59, 130, 246, 0.2) 32%,
+    rgba(56, 189, 248, 0.45) 68%,
+    rgba(191, 219, 255, 0.65)
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0.95;
+}
+
+/* Everything that makes the panel read as REAL glass, layered in one
+   pseudo-element (top to bottom): fine noise = frost texture, a diagonal
+   specular streak = light catching the surface, then the bright aurora
+   pools = colour for the blur to smear. */
+.login-card-modal .modal-content::before {
+  content: "";
+  position: absolute;
+  inset: -24px;
+  border-radius: inherit;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='gn'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23gn)' opacity='0.4'/%3E%3C/svg%3E"),
+    linear-gradient(
+      115deg,
+      rgba(255, 255, 255, 0.16),
+      rgba(255, 255, 255, 0.03) 16%,
+      rgba(255, 255, 255, 0) 30%,
+      rgba(255, 255, 255, 0) 68%,
+      rgba(255, 255, 255, 0.05) 92%,
+      rgba(255, 255, 255, 0.12)
+    ),
+    radial-gradient(110% 34% at 16% 0%, rgba(59, 130, 246, 0.55), transparent 62%),
+    radial-gradient(90% 26% at 92% 2%, rgba(56, 189, 248, 0.42), transparent 60%),
+    radial-gradient(80% 22% at 55% 0%, rgba(99, 102, 241, 0.3), transparent 65%),
+    radial-gradient(70% 18% at 80% 100%, rgba(37, 99, 235, 0.25), transparent 60%);
+  pointer-events: none;
+}
+
+/* Gentle drift so the light inside the glass slowly shifts. */
+@media (prefers-reduced-motion: no-preference) {
+  .login-card-modal .modal-content::before {
+    animation: loginCardGlassDrift 16s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes loginCardGlassDrift {
+  from {
+    transform: translate3d(-10px, -6px, 0) scale(1.02);
+  }
+  to {
+    transform: translate3d(10px, 4px, 0) scale(1.02);
+  }
+}
+
+/* --- header: kicker + title + close ---------------------------------- */
+.login-card-modal .modal-header {
+  position: relative;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1.4rem 1.4rem 0.35rem;
+  border-bottom: 0;
+  background: transparent;
+}
+
+.login-card-heading {
+  min-width: 0;
+}
+
+.login-card-kicker-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.login-card-kicker {
+  color: #38bdf8;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* Mint "System online" pill - the portal's live-status accent. */
+.login-card-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.16rem 0.55rem;
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.12);
+  color: #86efac;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.login-card-status::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.22);
+}
+
+
+
+.login-card-title {
+  margin: 0;
+  color: #fff;
+  font-size: 1.32rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.login-card-modal .btn-close {
+  flex: 0 0 auto;
+  margin-top: 0.15rem;
+  padding: 0.6rem;
+  border-radius: 12px;
+  /* background-COLOR (not the shorthand) so Bootstrap's X image survives. */
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  filter: invert(1) grayscale(1) brightness(1.8);
+  opacity: 0.75;
+  transition: opacity 0.18s ease, background-color 0.18s ease, transform 0.15s ease;
+}
+
+.login-card-modal .btn-close:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+  opacity: 1;
+  transform: rotate(90deg);
+}
+
+/* --- body ------------------------------------------------------------ */
+.login-card-modal .modal-body {
+  position: relative;
+  padding: 0.9rem 1.4rem 1.5rem;
+}
+
+/* --- role segment control (User Login / Admin Login) ------------------ */
+.login-role-segment {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+  padding: 0.3rem;
+  margin-bottom: 1.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  /* Frosted glass track instead of a flat dark bar */
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+}
+
+.login-role-btn {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cspc-muted, #93a4bd);
+  padding: 0.68rem 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.login-role-btn:hover:not(.active) {
+  background: rgba(59, 130, 246, 0.12);
+  color: #dbeafe;
+}
+
+.login-role-btn.active {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: #fff;
+  box-shadow:
+    0 10px 18px -10px rgba(37, 99, 235, 0.95),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.login-role-btn:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 1px;
+}
+
+/* Cyan badge that appears in the kicker row while Admin Login is active. */
+.login-card-admin-badge {
+  display: none;
+  padding: 0.16rem 0.6rem;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.14);
+  color: #7dd3fc;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.login-card-modal.login-card-admin .login-card-admin-badge {
+  display: inline-block;
+}
+
+/* --- form fields ------------------------------------------------------ */
+.login-card-field {
+  margin-bottom: 1rem;
+}
+
+.login-card-label {
+  display: block;
+  margin-bottom: 0.4rem;
+  color: #cbd5e1;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.login-card-input {
+  display: block;
+  width: 100%;
+  min-height: 50px;
+  padding: 0.7rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  /* Frosted field: very light tint + strong blur so the panel glass reads through */
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow:
+    inset 0 1px 2px rgba(2, 6, 23, 0.35),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  color: #f1f5f9;
+  font-size: 0.95rem;
+  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.login-card-input::placeholder {
+  color: rgba(148, 163, 184, 0.6);
+}
+
+.login-card-input:hover {
+  border-color: rgba(148, 163, 184, 0.42);
+}
+
+.login-card-input:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(96, 165, 250, 0.9);
+  box-shadow:
+    0 0 0 0.22rem rgba(37, 99, 235, 0.25),
+    inset 0 1px 2px rgba(2, 6, 23, 0.3),
+    0 0 22px -6px rgba(59, 130, 246, 0.45);
+  color: #fff;
+}
+
+.login-card-input.is-invalid {
+  border-color: rgba(248, 113, 113, 0.75);
+  background-image: none;
+}
+
+/* --- primary action ---------------------------------------------------- */
+.login-card-submit {
+  width: 100%;
+  min-height: 52px;
+  margin-top: 0.15rem;
+  border-radius: 999px;
+  background-image: linear-gradient(135deg, #3b82f6, #2563eb);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  box-shadow: 0 16px 32px -16px rgba(59, 130, 246, 1);
+}
+
+.login-card-submit:hover,
+.login-card-submit:focus {
+  background-image: linear-gradient(135deg, #4f8ffb, #1d4ed8);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+  box-shadow: 0 20px 36px -16px rgba(37, 99, 235, 1);
+}
+
+.login-card-submit:disabled {
+  opacity: 0.7;
+}
+
+/* --- divider + Google SSO (bottom of the card, per spec) --------------- */
+.login-card-modal .auth-divider {
+  margin: 1.25rem 0 1rem;
+}
+
+.login-card-sso.btn-sso {
+  border-radius: 999px;
+  min-height: 50px;
+  /* Light-glass white pill: translucent white + blur so the frosted
+     panel shows through instead of a flat sticker. */
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    0 10px 24px -14px rgba(2, 6, 23, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+}
+
+/* --- footer link -------------------------------------------------------- */
+.login-card-footer {
+  margin: 1.15rem 0 0;
+  text-align: center;
+  color: var(--cspc-muted, #93a4bd);
+  font-size: 0.88rem;
+}
+
+.login-card-footer a,
+.login-card-footer button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #7cb0ff;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.login-card-footer a:hover,
+.login-card-footer button:hover,
+.login-card-footer a:focus,
+.login-card-footer button:focus {
+  color: #a9caff;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* --- inline alert spacing (global .alert already supplies the glass) ---- */
+.login-card-alert:not(.d-none) {
+  margin-bottom: 1rem;
+}
+
+/* --- responsive ---------------------------------------------------------- */
+@media (max-width: 575.98px) {
+  .login-card-modal .modal-dialog {
+    margin: 0.75rem;
+  }
+
+  .login-card-modal .modal-header {
+    padding: 1.15rem 1.05rem 0.25rem;
+  }
+
+  .login-card-modal .modal-body {
+    padding: 0.75rem 1.05rem 1.25rem;
+  }
+
+  .login-card-title {
+    font-size: 1.12rem;
+  }
+
+  .login-role-btn {
+    padding: 0.6rem 0.3rem;
+    font-size: 0.78rem;
+  }
+
+  .login-card-input {
+    min-height: 48px;
+  }
+
+  .login-card-modal .btn-close:hover {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-card-modal .btn-close,
+  .login-role-btn,
+  .login-card-input {
+    transition: none;
+  }
+
+  .login-card-modal .btn-close:hover {
+    transform: none;
+  }
+}
+
+
+

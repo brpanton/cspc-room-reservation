@@ -1,0 +1,15 @@
+id | int(11) | NO
+school_id | varchar(50) | NO
+full_name | varchar(120) | NO
+email | varchar(150) | NO
+password_hash | varchar(255) | NO
+role | enum('student','faculty','custodian','admin') | NO
+admin_level | enum('Super Admin','Assistant Admin') | YES
+department | varchar(120) | YES
+avatar_url | varchar(255) | YES
+is_active | tinyint(1) | NO
+must_change_password | tinyint(1) | NO
+created_by_admin_id | int(11) | YES
+login_count | int(11) | NO
+google_sub | varchar(64) | YES
+created_at | timestamp | NO

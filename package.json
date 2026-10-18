@@ -1,0 +1,30 @@
+{
+  "name": "cspc-reservation-portal",
+  "version": "1.0.0",
+  "description": "CSPC Lab & Room Reservation System - Express + MySQL backend with a vanilla HTML/CSS/JS frontend.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "init-db": "node scripts/init-db.js"
+  },
+  "keywords": [
+    "cspc",
+    "reservation",
+    "express",
+    "mysql"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "multer": "^2.4.0",
+    "mysql2": "^3.11.3",
+    "nodemailer": "^10.1.1"
+  },
+  "devDependencies": {
+    "heic-convert": "^2.1.0"
+  }
+}
