@@ -7,25 +7,25 @@
  * 2. Seeds demo buildings, rooms and one account per role.
  *
  * It is safe to re-run: schema.sql uses CREATE TABLE IF NOT EXISTS and the
- * seeders use INSERT ... ON DUPLICATE KEY UPDATE / "skip if exists" checks.
+ * seeders use INSERT ... ON CONFLICT DO UPDATE / "skip if exists" checks.
+ *
+ * Requires DATABASE_URL in .env pointing to the PostgreSQL server (e.g.
+ * postgres://user:pass@localhost:5432/postgres). The script will create the
+ * target database (default cspc_reservation) if it does not exist.
  */
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
-const mysql = require('mysql2/promise');
+const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
 const DB_NAME = process.env.DB_NAME || 'cspc_reservation';
 
-const BASE_CONFIG = {
-  host: process.env.DB_HOST || 'localhost',
-  port: Number(process.env.DB_PORT || 3306),
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  multipleStatements: true,
-  dateStrings: true
-};
+const rootPool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
 
 /** Splits schema.sql into individual statements (strips comments first). */
 function splitStatements(sql) {
@@ -39,19 +39,38 @@ function splitStatements(sql) {
 }
 
 async function main() {
-  console.log(`[init-db] Connecting to MySQL at ${BASE_CONFIG.host}:${BASE_CONFIG.port} as ${BASE_CONFIG.user}...`);
-  const root = await mysql.createConnection(BASE_CONFIG);
+  console.log(`[init-db] Connecting to PostgreSQL as DATABASE_URL...`);
+  const root = await rootPool.connect();
+
+  try {
+    // ---- 0. Create target database if missing ----------------------------
+    const { rows: dbRows } = await root.query(
+      'SELECT 1 FROM pg_database WHERE datname = $1',
+      [DB_NAME]
+    );
+    if (!dbRows.length) {
+      await root.query(`CREATE DATABASE "${DB_NAME}"`);
+      console.log(`[init-db] Created database "${DB_NAME}".`);
+    } else {
+      console.log(`[init-db] Database "${DB_NAME}" already exists.`);
+    }
+  } finally {
+    root.release();
+  }
 
   // ---- 1. Schema -------------------------------------------------------
+  const appPool = new Pool({
+    connectionString: `${process.env.DATABASE_URL.replace(/\/[^\/]+$/, `/${DB_NAME}`)}`,
+    ssl: { rejectUnauthorized: false }
+  });
+
   const schemaPath = path.join(__dirname, '..', 'schema.sql');
   const schemaSql = fs.readFileSync(schemaPath, 'utf8');
 
   for (const statement of splitStatements(schemaSql)) {
-    await root.query(statement);
+    await appPool.query(statement);
   }
   console.log(`[init-db] Schema applied (database "${DB_NAME}").`);
-
-  await root.changeUser({ database: DB_NAME });
 
   // ---- 2. Buildings ----------------------------------------------------
   const legacyBuildingNames = [
@@ -62,10 +81,10 @@ async function main() {
     ['MULTI PORPUSE BUILDING', 'MULTI PURPOSE BUILDING']
   ];
   for (const [oldName, newName] of legacyBuildingNames) {
-    const [[legacy]] = await root.query('SELECT id FROM buildings WHERE name = ? LIMIT 1', [oldName]);
-    const [[replacement]] = await root.query('SELECT id FROM buildings WHERE name = ? LIMIT 1', [newName]);
-    if (legacy && !replacement) {
-      await root.query('UPDATE buildings SET name = ?, location = NULL WHERE id = ?', [newName, legacy.id]);
+    const { rows: legacyRows } = await appPool.query('SELECT id FROM buildings WHERE name = $1 LIMIT 1', [oldName]);
+    const { rows: replacementRows } = await appPool.query('SELECT id FROM buildings WHERE name = $1 LIMIT 1', [newName]);
+    if (legacyRows[0] && !replacementRows[0]) {
+      await appPool.query('UPDATE buildings SET name = $1, location = NULL WHERE id = $2', [newName, legacyRows[0].id]);
     }
   }
 
@@ -81,14 +100,14 @@ async function main() {
     ['LSB BUILDING', null]
   ];
   for (const [name, location] of buildings) {
-    await root.query(
-      'INSERT INTO buildings (name, location) VALUES (?, ?) ON DUPLICATE KEY UPDATE location = VALUES(location)',
+    await appPool.query(
+      'INSERT INTO buildings (name, location) VALUES ($1, $2) ON CONFLICT (name) DO UPDATE SET location = EXCLUDED.location',
       [name, location]
     );
   }
   console.log(`[init-db] Seeded ${buildings.length} buildings.`);
 
-  const [buildingRows] = await root.query('SELECT id, name FROM buildings');
+  const { rows: buildingRows } = await appPool.query('SELECT id, name FROM buildings');
   const buildingId = Object.fromEntries(buildingRows.map((b) => [b.name, b.id]));
 
   // ---- 3. Rooms / Labs -------------------------------------------------
@@ -141,22 +160,23 @@ async function main() {
   const desiredTargetRooms = rooms
     .filter(([building]) => targetBuildingIds.includes(building))
     .map(([, name]) => name);
-  const placeholders = targetBuildingIds.map(() => '?').join(', ');
-  const roomNamePlaceholders = desiredTargetRooms.map(() => '?').join(', ');
-  await root.query(
+  const placeholders = targetBuildingIds.map((_, i) => `$${i + 1}`).join(', ');
+  const roomNameOffset = targetBuildingIds.length;
+  const roomNamePlaceholders = desiredTargetRooms.map((_, i) => `$${roomNameOffset + i + 1}`).join(', ');
+  await appPool.query(
     `UPDATE rooms SET is_active = 0
      WHERE building_id IN (${placeholders}) AND name NOT IN (${roomNamePlaceholders})`,
     [...targetBuildingIds, ...desiredTargetRooms]
   );
 
   for (const r of rooms) {
-    await root.query(
+    await appPool.query(
       `INSERT INTO rooms (building_id, name, room_type, capacity, has_projector, has_aircon, has_sound)
-       VALUES (?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         room_type = VALUES(room_type), capacity = VALUES(capacity),
-         has_projector = VALUES(has_projector), has_aircon = VALUES(has_aircon),
-         has_sound = VALUES(has_sound), is_active = 1`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (building_id, name) DO UPDATE SET
+         room_type = EXCLUDED.room_type, capacity = EXCLUDED.capacity,
+         has_projector = EXCLUDED.has_projector, has_aircon = EXCLUDED.has_aircon,
+         has_sound = EXCLUDED.has_sound, is_active = 1`,
       r
     );
   }
@@ -172,8 +192,8 @@ async function main() {
     'SPEECH AND LANGUAGE LAB': ['/img/speech-language-lab.jpg', '3rd Floor']
   };
   for (const [labName, [photo, floor]] of Object.entries(casLabPhotos)) {
-    await root.query(
-      'UPDATE rooms SET floor = ?, image_url = ? WHERE building_id = ? AND name = ?',
+    await appPool.query(
+      'UPDATE rooms SET floor = $1, image_url = $2 WHERE building_id = $3 AND name = $4',
       [floor, photo, buildingId['CAS BUILDING'], labName]
     );
   }
@@ -199,8 +219,8 @@ async function main() {
     'PHYSICS LABORATORY': ['/img/physics-lab.jpg', '1st Floor']
   };
   for (const [labName, [photo, floor]] of Object.entries(ccsLabPhotos)) {
-    await root.query(
-      'UPDATE rooms SET floor = ?, image_url = ? WHERE building_id = ? AND name = ?',
+    await appPool.query(
+      'UPDATE rooms SET floor = $1, image_url = $2 WHERE building_id = $3 AND name = $4',
       [floor, photo, buildingId['CCS BUILDING'], labName]
     );
   }
@@ -213,8 +233,8 @@ async function main() {
     'LATHE 2 LABORATORY': ['/img/lathe2-lab.jpg', '1st Floor']
   };
   for (const [labName, [photo, floor]] of Object.entries(citdLabPhotos)) {
-    await root.query(
-      'UPDATE rooms SET floor = ?, image_url = ? WHERE building_id = ? AND name = ?',
+    await appPool.query(
+      'UPDATE rooms SET floor = $1, image_url = $2 WHERE building_id = $3 AND name = $4',
       [floor, photo, buildingId['CITD BUILDING'], labName]
     );
   }
@@ -231,8 +251,8 @@ async function main() {
     'ECTW LABORATORY': ['/img/ectw-lab.jpg', '2nd Floor']
   };
   for (const [labName, [photo, floor]] of Object.entries(lsbLabPhotos)) {
-    await root.query(
-      'UPDATE rooms SET floor = ?, image_url = ? WHERE building_id = ? AND name = ?',
+    await appPool.query(
+      'UPDATE rooms SET floor = $1, image_url = $2 WHERE building_id = $3 AND name = $4',
       [floor, photo, buildingId['LSB BUILDING'], labName]
     );
   }
@@ -261,12 +281,12 @@ async function main() {
     ['ADMIN-0001', 'Ms. Ana Bautista', 'admin@cspc.edu.ph', 'admin', 'Management Information Systems', adminHash]
   ];
   for (const [schoolId, fullName, email, role, dept, hash] of users) {
-    await root.query(
+    await appPool.query(
       `INSERT INTO users (school_id, full_name, email, password_hash, role, department)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         full_name = VALUES(full_name), role = VALUES(role),
-         department = VALUES(department), password_hash = VALUES(password_hash)`,
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (school_id) DO UPDATE SET
+         full_name = EXCLUDED.full_name, role = EXCLUDED.role,
+         department = EXCLUDED.department, password_hash = EXCLUDED.password_hash`,
       [schoolId, fullName, email, hash, role, dept]
     );
   }
@@ -279,18 +299,18 @@ async function main() {
   console.log(`    Password  : ${demoPassword}${process.env.SEED_DEMO_PASSWORD ? '' : '  (randomly generated)'}`);
   console.log('\n  To choose your own, set SEED_ADMIN_PASSWORD / SEED_DEMO_PASSWORD in .env and re-run this script.\n');
 
-  await root.end();
+  await appPool.end();
   console.log('\n[init-db] Done. Start the app with:  npm start');
   console.log('[init-db] Then open http://localhost:' + (process.env.PORT || 3000));
 }
 
 main().catch((err) => {
   console.error('\n[init-db] FAILED:', err.message);
-  if (err.code === 'ER_ACCESS_DENIED_ERROR') {
-    console.error('[init-db] Check DB_USER / DB_PASSWORD in your .env file.');
+  if (err.code === '28P01') {
+    console.error('[init-db] Check DATABASE_URL credentials in your .env file.');
   }
   if (err.code === 'ECONNREFUSED') {
-    console.error('[init-db] MySQL does not appear to be running on that host/port.');
+    console.error('[init-db] PostgreSQL does not appear to be running on that host/port.');
   }
   process.exit(1);
 });

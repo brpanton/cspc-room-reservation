@@ -9,7 +9,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const { pool } = require('../db');
+const pool = require('../db');
 const {
   requireFields,
   parseEmail,
@@ -93,9 +93,9 @@ router.post('/register', async (req, res, next) => {
 
     const department = req.body.department ? String(req.body.department).trim() : null;
 
-    // Uniqueness checks give friendlier messages than the raw MySQL error.
-    const [existing] = await pool.query(
-      'SELECT school_id, email FROM users WHERE school_id = ? OR email = ? LIMIT 1',
+    // Uniqueness checks give friendlier messages than the raw PostgreSQL error.
+    const { rows: existing } = await pool.query(
+      'SELECT school_id, email FROM users WHERE school_id = $1 OR email = $2 LIMIT 1',
       [schoolId, email]
     );
     if (existing.length) {
@@ -106,14 +106,14 @@ router.post('/register', async (req, res, next) => {
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const [result] = await pool.query(
+    const { rows } = await pool.query(
       `INSERT INTO users (school_id, full_name, email, recovery_email, password_hash, role, department)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
       [schoolId, fullName, email, recoveryEmail, passwordHash, role, department]
     );
 
     const user = {
-      id: result.insertId,
+      id: rows[0].id,
       school_id: schoolId,
       full_name: fullName,
       email,
@@ -185,8 +185,8 @@ router.post('/register-admin', async (req, res, next) => {
       throw err;
     }
 
-    const [existing] = await pool.query(
-      'SELECT id FROM users WHERE school_id = ? OR email = ? LIMIT 1',
+    const { rows: existing } = await pool.query(
+      'SELECT id FROM users WHERE school_id = $1 OR email = $2 LIMIT 1',
       [schoolId, email]
     );
     if (existing.length) {
@@ -196,18 +196,18 @@ router.post('/register-admin', async (req, res, next) => {
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const [result] = await pool.query(
+    const { rows } = await pool.query(
       `INSERT INTO users (school_id, full_name, email, password_hash, role, admin_level,
                           department, is_active, must_change_password)
-       VALUES (?, ?, ?, ?, 'admin', ?, ?, 1, 1)`,
-      [schoolId, fullName, email, recoveryEmail, passwordHash, adminLevel, department]
+       VALUES ($1, $2, $3, $4, 'admin', $5, $6, 1, 1) RETURNING id`,
+      [schoolId, fullName, email, passwordHash, adminLevel, department]
     );
 
     // Don't start the session here — the new admin signs in normally (and is
     // forced to change the temporary password on first login).
     res.status(201).json({
       message: `Administrator account for ${fullName} was created. Log in to continue.`,
-      admin_id: result.insertId,
+      admin_id: rows[0].id,
       recovery_email: recoveryEmail
     });
   } catch (err) {
@@ -234,7 +234,7 @@ router.post('/login', async (req, res, next) => {
       throw err;
     }
 
-    const [rows] = await pool.query('SELECT * FROM users WHERE email = ? LIMIT 1', [email]);
+    const { rows } = await pool.query('SELECT * FROM users WHERE email = $1 LIMIT 1', [email]);
 
     // Same generic message for "no such user" and "wrong password" so the
     // endpoint cannot be used to enumerate valid email addresses.
@@ -254,11 +254,11 @@ router.post('/login', async (req, res, next) => {
     // Track logins so the dashboard can greet brand-new vs returning users.
     let loginCount = Number(rows[0].login_count || 0) + 1;
     try {
-      await pool.query('UPDATE users SET login_count = ? WHERE id = ?', [loginCount, rows[0].id]);
+      await pool.query('UPDATE users SET login_count = $1 WHERE id = $2', [loginCount, rows[0].id]);
     } catch (countErr) {
       // Older DBs without the login_count column still work: fall back to
       // comparing the creation date (brand-new account ~= first login).
-      if (countErr.code === 'ER_BAD_FIELD_ERROR') {
+      if (countErr.code === '42P01') {
         const createdAt = rows[0].created_at ? new Date(rows[0].created_at).getTime() : 0;
         loginCount = Date.now() - createdAt < 5 * 60 * 1000 ? 1 : 2;
       } else {
@@ -313,7 +313,7 @@ router.post('/change-password', async (req, res, next) => {
     const currentPassword = String(req.body.current_password);
     const newPassword = parsePassword(req.body.new_password);
 
-    const [rows] = await pool.query('SELECT * FROM users WHERE id = ? LIMIT 1', [req.session.user.id]);
+    const { rows } = await pool.query('SELECT * FROM users WHERE id = $1 LIMIT 1', [req.session.user.id]);
     if (!rows.length) {
       const err = new Error('User not found.');
       err.status = 404;
@@ -336,7 +336,7 @@ router.post('/change-password', async (req, res, next) => {
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
     await pool.query(
-      'UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?',
+      'UPDATE users SET password_hash = $1, must_change_password = 0 WHERE id = $2',
       [passwordHash, req.session.user.id]
     );
 
@@ -570,9 +570,11 @@ router.get('/google/callback', async (req, res) => {
 
     // Match by Google subject first, then by email so people who already
     // registered with their school ID + password get linked instead of duplicated.
-    let [rows] = await pool.query('SELECT * FROM users WHERE google_sub = ? LIMIT 1', [claims.sub]);
+    let rows = await pool.query('SELECT * FROM users WHERE google_sub = $1 LIMIT 1', [claims.sub]);
+    rows = rows.rows;
     if (!rows.length) {
-      [rows] = await pool.query('SELECT * FROM users WHERE email = ? LIMIT 1', [email]);
+      rows = await pool.query('SELECT * FROM users WHERE email = $1 LIMIT 1', [email]);
+      rows = rows.rows;
     }
 
     let isNewAccount = false;
@@ -590,18 +592,19 @@ router.get('/google/callback', async (req, res) => {
       try {
         await pool.query(
           `INSERT INTO users (school_id, full_name, email, password_hash, role, google_sub, login_count)
-           VALUES (?, ?, ?, ?, 'student', ?, 1)`,
+           VALUES ($1, $2, $3, $4, 'student', $5, 1)`,
           [schoolId, fullName, email, placeholderHash, claims.sub]
         );
       } catch (insertErr) {
-        // ER_DUP_ENTRY: an account for this email appeared between our SELECT
-        // and INSERT - re-read it and continue as the matching flow below.
-        if (insertErr.code !== 'ER_DUP_ENTRY') throw insertErr;
-        [rows] = await pool.query('SELECT * FROM users WHERE email = ? LIMIT 1', [email]);
+        // 23505 = unique_violation: an account for this email appeared between
+        // our SELECT and INSERT - re-read it and continue as the matching flow below.
+        if (insertErr.code !== '23505') throw insertErr;
+        rows = await pool.query('SELECT * FROM users WHERE email = $1 LIMIT 1', [email]);
+        rows = rows.rows;
       }
       if (!rows.length) {
-        const [created] = await pool.query('SELECT * FROM users WHERE email = ? LIMIT 1', [email]);
-        rows = created;
+        const created = await pool.query('SELECT * FROM users WHERE email = $1 LIMIT 1', [email]);
+        rows = created.rows;
         isNewAccount = true;
       }
     }
@@ -618,7 +621,7 @@ router.get('/google/callback', async (req, res) => {
     let loginCount = Number(row.login_count || 0) + (isNewAccount ? 0 : 1);
     if (!isNewAccount) {
       try {
-        await pool.query('UPDATE users SET google_sub = ?, login_count = ? WHERE id = ?', [
+        await pool.query('UPDATE users SET google_sub = $1, login_count = $2 WHERE id = $3', [
           claims.sub,
           loginCount,
           row.id
@@ -626,7 +629,7 @@ router.get('/google/callback', async (req, res) => {
       } catch (countErr) {
         // Older DBs without the google_sub/login_count columns still work:
         // fall back to comparing the creation date (new row ~= first login).
-        if (countErr.code !== 'ER_BAD_FIELD_ERROR') throw countErr;
+        if (countErr.code !== '42P01') throw countErr;
         const createdAt = row.created_at ? new Date(row.created_at).getTime() : 0;
         loginCount = Date.now() - createdAt < 5 * 60 * 1000 ? 1 : 2;
       }
@@ -635,7 +638,7 @@ router.get('/google/callback', async (req, res) => {
 
     const user = publicUser(row);
     // Brand-new session id (session-fixation hygiene), saved to the durable
-    // MySQL-backed store BEFORE the redirect: the 302 that follows already
+    // PostgreSQL-backed store BEFORE the redirect: the 302 that follows already
     // carries the HttpOnly cspc.sid cookie, so /dashboard.html - and every
     // page refresh after it, even across server restarts - finds the login.
     await startAuthenticatedSession(req, user);

@@ -8,7 +8,7 @@
  */
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { pool } = require('../db');
+const pool = require('../db');
 const { requireAdmin } = require('../middleware/auth');
 const { sendPasswordChangedAlert } = require('../mailer');
 const {
@@ -27,14 +27,15 @@ const router = express.Router();
 
 router.use(requireAdmin);
 
-/** MySQL error -> friendly HTTP response. */
+/** PostgreSQL error -> friendly HTTP response. */
 function translateDbError(err) {
-  if (err.code === 'ER_DUP_ENTRY') {
+  // 23505 = unique_violation, 23503 = foreign_key_violation
+  if (err.code === '23505') {
     const e = new Error('A record with those details already exists.');
     e.status = 409;
     return e;
   }
-  if (err.code === 'ER_ROW_IS_REFERENCED_2') {
+  if (err.code === '23503') {
     const e = new Error('This record is still used by existing reservations and cannot be deleted. Deactivate it instead.');
     e.status = 409;
     return e;
@@ -60,10 +61,10 @@ router.post('/change-password', async (req, res, next) => {
     const currentPassword = String(req.body.current_password);
     const newPassword = parseStrongPassword(req.body.new_password);
 
-    const [rows] = await pool.query(
+    const { rows } = await pool.query(
       `SELECT id, full_name, email, role, password_hash, avatar_url, school_id,
               department, admin_level, must_change_password
-       FROM users WHERE id = ? LIMIT 1`,
+       FROM users WHERE id = $1 LIMIT 1`,
       [req.session.user.id]
     );
     if (!rows.length) {
@@ -95,7 +96,7 @@ router.post('/change-password', async (req, res, next) => {
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
     await pool.query(
-      'UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?',
+      'UPDATE users SET password_hash = $1, must_change_password = 0 WHERE id = $2',
       [passwordHash, admin.id]
     );
 
@@ -141,11 +142,11 @@ router.post('/buildings', async (req, res, next) => {
     const location = req.body.location ? String(req.body.location).trim() : null;
 
     try {
-      const [result] = await pool.query(
-        'INSERT INTO buildings (name, location) VALUES (?, ?)',
+      const { rows } = await pool.query(
+        'INSERT INTO buildings (name, location) VALUES ($1, $2) RETURNING id',
         [name, location]
       );
-      res.status(201).json({ message: `Building "${name}" created.`, id: result.insertId });
+      res.status(201).json({ message: `Building "${name}" created.`, id: rows[0].id });
     } catch (err) {
       throw translateDbError(err);
     }
@@ -160,11 +161,11 @@ router.put('/buildings/:id', async (req, res, next) => {
     const name = String(req.body.name).trim();
     const location = req.body.location ? String(req.body.location).trim() : null;
 
-    const [result] = await pool.query(
-      'UPDATE buildings SET name = ?, location = ? WHERE id = ?',
+    const result = await pool.query(
+      'UPDATE buildings SET name = $1, location = $2 WHERE id = $3',
       [name, location, req.params.id]
     );
-    if (!result.affectedRows) return res.status(404).json({ error: 'Building not found.' });
+    if (!result.rowCount) return res.status(404).json({ error: 'Building not found.' });
     res.json({ message: `Building #${req.params.id} updated.` });
   } catch (err) {
     next(translateDbError(err));
@@ -173,8 +174,8 @@ router.put('/buildings/:id', async (req, res, next) => {
 
 router.delete('/buildings/:id', async (req, res, next) => {
   try {
-    const [result] = await pool.query('DELETE FROM buildings WHERE id = ?', [req.params.id]);
-    if (!result.affectedRows) return res.status(404).json({ error: 'Building not found.' });
+    const result = await pool.query('DELETE FROM buildings WHERE id = $1', [req.params.id]);
+    if (!result.rowCount) return res.status(404).json({ error: 'Building not found.' });
     res.json({ message: `Building #${req.params.id} and its rooms were deleted.` });
   } catch (err) {
     next(translateDbError(err));
@@ -198,7 +199,7 @@ router.get('/rooms', async (req, res, next) => {
     }
     if (req.query.include_inactive !== '1') where += ' AND r.is_active = 1';
 
-    const [rows] = await pool.query(
+    const { rows } = await pool.query(
       `SELECT r.id, r.name, r.room_type, r.capacity, r.floor, r.image_url,
               r.has_projector, r.has_aircon, r.has_sound, r.is_active,
               r.building_id, b.name AS building_name,
@@ -241,19 +242,20 @@ router.post('/rooms', async (req, res, next) => {
   try {
     const r = readRoomPayload(req.body);
     try {
-      const [result] = await pool.query(
+      const { rows } = await pool.query(
         `INSERT INTO rooms (building_id, name, room_type, capacity, floor, image_url, has_projector, has_aircon, has_sound)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
         [r.buildingId, r.name, r.roomType, r.capacity, r.floor, r.imageUrl, r.projector, r.aircon, r.sound]
       );
-      res.status(201).json({ message: `Room "${r.name}" created.`, id: result.insertId });
+      res.status(201).json({ message: `Room "${r.name}" created.`, id: rows[0].id });
     } catch (err) {
-      if (err.code === 'ER_DUP_ENTRY') {
+      // 23505 = unique_violation, 23503 = foreign_key_violation
+      if (err.code === '23505') {
         const e = new Error(`"${r.name}" already exists in that building.`);
         e.status = 409;
         throw e;
       }
-      if (err.code === 'ER_NO_REFERENCED_ROW_2') {
+      if (err.code === '23503') {
         const e = new Error('The selected building does not exist.');
         e.status = 400;
         throw e;
@@ -271,19 +273,19 @@ router.put('/rooms/:id', async (req, res, next) => {
     const isActive = req.body.is_active === undefined ? 1 : amenity(req.body.is_active);
 
     try {
-      const [result] = await pool.query(
+      const result = await pool.query(
         `UPDATE rooms
-         SET building_id = ?, name = ?, room_type = ?, capacity = ?,
-             floor = ?, image_url = ?,
-             has_projector = ?, has_aircon = ?, has_sound = ?, is_active = ?
-         WHERE id = ?`,
+         SET building_id = $1, name = $2, room_type = $3, capacity = $4,
+             floor = $5, image_url = $6,
+             has_projector = $7, has_aircon = $8, has_sound = $9, is_active = $10
+         WHERE id = $11`,
         [r.buildingId, r.name, r.roomType, r.capacity,
          r.floor, r.imageUrl, r.projector, r.aircon, r.sound, isActive, req.params.id]
       );
-      if (!result.affectedRows) return res.status(404).json({ error: 'Room not found.' });
+      if (!result.rowCount) return res.status(404).json({ error: 'Room not found.' });
       res.json({ message: `Room #${req.params.id} updated.` });
     } catch (err) {
-      if (err.code === 'ER_DUP_ENTRY') {
+      if (err.code === '23505') {
         const e = new Error(`"${r.name}" already exists in that building.`);
         e.status = 409;
         throw e;
@@ -301,19 +303,18 @@ router.put('/rooms/:id', async (req, res, next) => {
  */
 router.delete('/rooms/:id', async (req, res, next) => {
   try {
-    const [[usage]] = await pool.query(
-      'SELECT COUNT(*) AS count FROM reservations WHERE room_id = ?',
+    const { rows: usageRows } = await pool.query(
+      'SELECT COUNT(*) AS count FROM reservations WHERE room_id = $1',
       [req.params.id]
     );
+    const usage = usageRows[0];
 
     if (usage.count > 0) {
-      // For UPDATE (unlike SELECT/INSERT) mysql2 resolves to a single
-      // ResultSetHeader, so it must NOT be destructured as an array.
       const result = await pool.query(
-        'UPDATE rooms SET is_active = 0 WHERE id = ?',
+        'UPDATE rooms SET is_active = 0 WHERE id = $1',
         [req.params.id]
       );
-      if (!result.affectedRows) {
+      if (!result.rowCount) {
         return res.status(404).json({ error: 'Room not found or already deactivated.' });
       }
       return res.json({
@@ -321,8 +322,8 @@ router.delete('/rooms/:id', async (req, res, next) => {
       });
     }
 
-    const [result] = await pool.query('DELETE FROM rooms WHERE id = ?', [req.params.id]);
-    if (!result.affectedRows) return res.status(404).json({ error: 'Room not found.' });
+    const result = await pool.query('DELETE FROM rooms WHERE id = $1', [req.params.id]);
+    if (!result.rowCount) return res.status(404).json({ error: 'Room not found.' });
     res.json({ message: `Room #${req.params.id} deleted.` });
   } catch (err) {
     next(translateDbError(err));
@@ -336,16 +337,16 @@ router.get('/users', async (req, res, next) => {
     const params = [];
     let where = '';
     if (req.query.role) {
-      where = 'WHERE role = ?';
+      where = `WHERE role = $${params.length + 1}`;
       params.push(oneOf(req.query.role, ROLES, 'role'));
     }
     if (req.query.search) {
-      where += (where ? ' AND' : 'WHERE') + ' (full_name LIKE ? OR school_id LIKE ? OR email LIKE ?)';
+      where += (where ? ' AND' : 'WHERE') + ` (full_name LIKE $${params.length + 1} OR school_id LIKE $${params.length + 2} OR email LIKE $${params.length + 3})`;
       const needle = `%${String(req.query.search).trim()}%`;
       params.push(needle, needle, needle);
     }
 
-    const [rows] = await pool.query(
+    const { rows } = await pool.query(
       `SELECT u.id, u.school_id, u.full_name, u.email, u.recovery_email, u.role, u.department, u.is_active, u.created_at,
               (SELECT COUNT(*) FROM reservations r WHERE r.user_id = u.id) AS reservation_count
        FROM users u
@@ -361,7 +362,7 @@ router.get('/users', async (req, res, next) => {
 
 router.get('/administrators', async (req, res, next) => {
   try {
-    const [rows] = await pool.query(
+    const { rows } = await pool.query(
       `SELECT id, school_id, full_name, email, recovery_email, admin_level, is_active, must_change_password, created_at,
               created_by_admin_id
        FROM users
@@ -413,8 +414,8 @@ router.post('/administrators', async (req, res, next) => {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    const [existing] = await pool.query(
-      'SELECT id FROM users WHERE school_id = ? OR email = ? LIMIT 1',
+    const { rows: existing } = await pool.query(
+      'SELECT id FROM users WHERE school_id = $1 OR email = $2 LIMIT 1',
       [schoolId, email]
     );
     if (existing.length) {
@@ -423,22 +424,22 @@ router.post('/administrators', async (req, res, next) => {
       throw err;
     }
 
-    const [result] = await pool.query(
+    const { rows } = await pool.query(
       `INSERT INTO users (school_id, full_name, email, recovery_email, password_hash, role, admin_level,
-                         department, is_active, must_change_password, created_by_admin_id)
-       VALUES (?, ?, ?, ?, 'admin', ?, 'Administration', 1, 1, ?)`,
+                           department, is_active, must_change_password, created_by_admin_id)
+       VALUES ($1, $2, $3, $4, $5, 'admin', $6, 'Administration', 1, 1, $7) RETURNING id`,
       [schoolId, fullName, email, recoveryEmail, passwordHash, adminLevel, req.session.user.id]
     );
 
     await pool.query(
-      'INSERT INTO admin_audit_logs (actor_admin_id, target_admin_id, action, details) VALUES (?, ?, ?, ?)',
-      [req.session.user.id, result.insertId, 'created_admin', `Created new admin ${fullName} (${schoolId}) with ${adminLevel} permissions.`]
+      'INSERT INTO admin_audit_logs (actor_admin_id, target_admin_id, action, details) VALUES ($1, $2, $3, $4)',
+      [req.session.user.id, rows[0].id, 'created_admin', `Created new admin ${fullName} (${schoolId}) with ${adminLevel} permissions.`]
     );
 
     res.status(201).json({
       message: `Administrator ${fullName} was created successfully.`,
       temporary_password: autoGenerate ? password : null,
-      admin_id: result.insertId,
+      admin_id: rows[0].id,
       recovery_email: recoveryEmail
     });
   } catch (err) {
@@ -478,10 +479,11 @@ router.put('/administrators/:id', async (req, res, next) => {
     }
 
     if (targetId === Number(req.session.user.id)) {
-      const [[current]] = await pool.query(
-        'SELECT admin_level, school_id FROM users WHERE id = ? AND role = \'admin\' LIMIT 1',
+      const { rows } = await pool.query(
+        'SELECT admin_level, school_id FROM users WHERE id = $1 AND role = \'admin\' LIMIT 1',
         [targetId]
       );
+      const current = rows[0];
       if (current && (current.admin_level !== adminLevel || current.school_id !== schoolId)) {
         const err = new Error('You cannot change your own Admin ID or permission level.');
         err.status = 400;
@@ -489,21 +491,21 @@ router.put('/administrators/:id', async (req, res, next) => {
       }
     }
 
-    const adminUpdateFields = ['school_id = ?', 'full_name = ?', 'email = ?', 'admin_level = ?'];
+    const adminUpdateFields = ['school_id = $1', 'full_name = $2', 'email = $3', 'admin_level = $4'];
     const adminUpdateValues = [schoolId, fullName, email, adminLevel];
     if (recoveryEmail !== undefined) {
-      adminUpdateFields.push('recovery_email = ?');
+      adminUpdateFields.push(`recovery_email = $${adminUpdateValues.length + 1}`);
       adminUpdateValues.push(recoveryEmail);
     }
     adminUpdateValues.push(targetId);
 
-    const [result] = await pool.query(
-      `UPDATE users SET ${adminUpdateFields.join(', ')} WHERE id = ? AND role = 'admin'`,
+    const result = await pool.query(
+      `UPDATE users SET ${adminUpdateFields.join(', ')} WHERE id = $${adminUpdateValues.length} AND role = 'admin'`,
       adminUpdateValues
     );
-    if (!result.affectedRows) {
-      const [[existing]] = await pool.query('SELECT id FROM users WHERE id = ? AND role = \'admin\'', [targetId]);
-      if (!existing) return res.status(404).json({ error: 'Administrator not found.' });
+    if (!result.rowCount) {
+      const { rows: existingRows } = await pool.query('SELECT id FROM users WHERE id = $1 AND role = \'admin\'', [targetId]);
+      if (!existingRows.length) return res.status(404).json({ error: 'Administrator not found.' });
     }
 
     if (targetId === Number(req.session.user.id)) {
@@ -518,7 +520,7 @@ router.put('/administrators/:id', async (req, res, next) => {
     );
     res.json({ message: `Administrator ${fullName} was updated.` });
   } catch (err) {
-    if (err.code === 'ER_DUP_ENTRY') {
+    if (err.code === '23505') {
       err.status = 409;
       err.message = 'That Admin ID or email address is already assigned to another account.';
     }
@@ -540,18 +542,18 @@ router.patch('/administrators/:id/status', async (req, res, next) => {
       throw err;
     }
 
-    const [result] = await pool.query(
-      'UPDATE users SET is_active = ? WHERE id = ? AND role = \'admin\'',
-      [req.body.is_active ? 1 : 0, targetId]
+    const result = await pool.query(
+      'UPDATE users SET is_active = $1 WHERE id = $2 AND role = \'admin\'',
+      [req.body.is_active ? true : false, targetId]
     );
-    if (!result.affectedRows) {
-      const [[existing]] = await pool.query('SELECT id FROM users WHERE id = ? AND role = \'admin\'', [targetId]);
-      if (!existing) return res.status(404).json({ error: 'Administrator not found.' });
+    if (!result.rowCount) {
+      const { rows: existingRows } = await pool.query('SELECT id FROM users WHERE id = $1 AND role = \'admin\'', [targetId]);
+      if (!existingRows.length) return res.status(404).json({ error: 'Administrator not found.' });
     }
 
     const action = req.body.is_active ? 'reactivated_admin' : 'deactivated_admin';
     await pool.query(
-      'INSERT INTO admin_audit_logs (actor_admin_id, target_admin_id, action, details) VALUES (?, ?, ?, ?)',
+      'INSERT INTO admin_audit_logs (actor_admin_id, target_admin_id, action, details) VALUES ($1, $2, $3, $4)',
       [req.session.user.id, targetId, action, `Administrator #${targetId} was ${req.body.is_active ? 'reactivated' : 'deactivated'}.`]
     );
     res.json({ message: `Administrator #${targetId} ${req.body.is_active ? 'reactivated' : 'deactivated'}.` });
@@ -562,7 +564,7 @@ router.patch('/administrators/:id/status', async (req, res, next) => {
 
 router.get('/support-tickets', async (req, res, next) => {
   try {
-    const [rows] = await pool.query(
+    const { rows } = await pool.query(
       `SELECT id, full_name, role_department, contact, category, status, description, created_at, updated_at
        FROM support_tickets
        ORDER BY created_at DESC
@@ -577,12 +579,12 @@ router.get('/support-tickets', async (req, res, next) => {
 router.patch('/support-tickets/:id/status', async (req, res, next) => {
   try {
     const status = oneOf(req.body.status, ['Open', 'In Progress', 'Resolved'], 'status');
-    const [result] = await pool.query(
-      'UPDATE support_tickets SET status = ? WHERE id = ?',
+    const result = await pool.query(
+      'UPDATE support_tickets SET status = $1 WHERE id = $2',
       [status, req.params.id]
     );
 
-    if (!result.affectedRows) {
+    if (!result.rowCount) {
       return res.status(404).json({ error: 'Support ticket not found.' });
     }
 
@@ -612,14 +614,14 @@ router.post('/users', async (req, res, next) => {
 
     const passwordHash = await bcrypt.hash(password, 10);
     try {
-      const [result] = await pool.query(
+      const { rows } = await pool.query(
         `INSERT INTO users (school_id, full_name, email, recovery_email, password_hash, role, department, is_active)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
         [schoolId, fullName, email, recoveryEmail, passwordHash, role, department, isActive]
       );
-      res.status(201).json({ message: `Account for ${fullName} created.`, id: result.insertId });
+      res.status(201).json({ message: `Account for ${fullName} created.`, id: rows[0].id });
     } catch (err) {
-      if (err.code === 'ER_DUP_ENTRY') {
+      if (err.code === '23505') {
         const e = new Error('That ID number or email address is already registered.');
         e.status = 409;
         throw e;
@@ -663,24 +665,24 @@ router.put('/users/:id', async (req, res, next) => {
     }
 
     try {
-      const updateFields = ['full_name = ?', 'email = ?', 'role = ?', 'department = ?', 'is_active = ?'];
+      const updateFields = ['full_name = $1', 'email = $2', 'role = $3', 'department = $4', 'is_active = $5'];
       const updateValues = [fullName, email, role, department, isActive];
       if (passwordHash) {
-        updateFields.push('password_hash = ?');
+        updateFields.push(`password_hash = $${updateValues.length + 1}`);
         updateValues.push(passwordHash);
       }
       if (recoveryEmail !== undefined) {
-        updateFields.push('recovery_email = ?');
+        updateFields.push(`recovery_email = $${updateValues.length + 1}`);
         updateValues.push(recoveryEmail);
       }
       updateValues.push(targetId);
 
-      const [result] = await pool.query(
-        `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`,
+      const result = await pool.query(
+        `UPDATE users SET ${updateFields.join(', ')} WHERE id = $${updateValues.length}`,
         updateValues
       );
 
-      if (!result.affectedRows) return res.status(404).json({ error: 'User not found.' });
+      if (!result.rowCount) return res.status(404).json({ error: 'User not found.' });
 
       // Keep the admin's own navbar in sync when editing themselves.
       if (targetId === req.session.user.id) {
@@ -691,7 +693,7 @@ router.put('/users/:id', async (req, res, next) => {
 
       res.json({ message: `Account #${targetId} updated.` });
     } catch (err) {
-      if (err.code === 'ER_DUP_ENTRY') {
+      if (err.code === '23505') {
         const e = new Error('That email address belongs to another account.');
         e.status = 409;
         throw e;
@@ -714,15 +716,15 @@ router.delete('/users/:id', async (req, res, next) => {
       return res.status(400).json({ error: 'You cannot delete your own account.' });
     }
 
-    const [[usage]] = await pool.query(
-      'SELECT COUNT(*) AS count FROM reservations WHERE user_id = ?',
+    const { rows: usageRows } = await pool.query(
+      'SELECT COUNT(*) AS count FROM reservations WHERE user_id = $1',
       [targetId]
     );
+    const usage = usageRows[0];
 
     if (usage.count > 0) {
-      // See the note in DELETE /rooms/:id - UPDATE is not a row array.
-      const result = await pool.query('UPDATE users SET is_active = 0 WHERE id = ?', [targetId]);
-      if (!result.affectedRows) {
+      const result = await pool.query('UPDATE users SET is_active = $1 WHERE id = $2', [false, targetId]);
+      if (!result.rowCount) {
         return res.status(404).json({ error: 'User not found or already deactivated.' });
       }
       return res.json({
@@ -730,8 +732,8 @@ router.delete('/users/:id', async (req, res, next) => {
       });
     }
 
-    const [result] = await pool.query('DELETE FROM users WHERE id = ?', [targetId]);
-    if (!result.affectedRows) return res.status(404).json({ error: 'User not found.' });
+    const result = await pool.query('DELETE FROM users WHERE id = $1', [targetId]);
+    if (!result.rowCount) return res.status(404).json({ error: 'User not found.' });
     res.json({ message: `Account #${targetId} deleted.` });
   } catch (err) {
     next(translateDbError(err));
@@ -739,4 +741,7 @@ router.delete('/users/:id', async (req, res, next) => {
 });
 
 module.exports = router;
+
+
+
 
