@@ -1,0 +1,988 @@
+/* Admin dashboard: summary stats + reservation approvals + room/user management. */
+'use strict';
+
+(async function () {
+  const P = window.Portal;
+  const {
+    api,
+    requireRole,
+    renderNavbar,
+    escapeHtml,
+    formatTime,
+    formatDateShort,
+    statusBadge,
+    emptyRow,
+    toastOk,
+    toastError,
+    busy,
+    ROOM_TYPE_LABELS,
+    roleBadge,
+    queryParam
+  } = P;
+
+  document.body.classList.add('admin-dashboard-page');
+
+  const me = await requireRole('admin');
+  if (!me) return;
+  renderNavbar(me, 'admin');
+
+  function updateDashboardClock() {
+    const stamp = document.getElementById('dashboard-timestamp');
+    if (!stamp) return;
+    const now = new Date();
+    stamp.textContent = now.toLocaleString(P.getLocale(), {
+      weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+    });
+  }
+
+  function renderActivityFeed() {
+    const feed = document.getElementById('activity-feed');
+    if (!feed) return;
+
+    const items = [
+      { title: 'CCS Lab 1 booked by Juan Dela Cruz', time: '2 hours ago' },
+      { title: 'Room request approved for Engineering Hall', time: '4 hours ago' },
+      { title: 'Faculty schedule updated for CAS Building', time: 'Today' },
+      { title: 'Lab cleanup reminder sent to custodians', time: 'Yesterday' }
+    ];
+
+    feed.innerHTML = items.map((item) => `
+      <li class="activity-item">
+        <span class="activity-bullet" aria-hidden="true"></span>
+        <div class="activity-copy">
+          <strong>${escapeHtml(item.title)}</strong>
+          <span>${escapeHtml(item.time)}</span>
+        </div>
+      </li>
+    `).join('');
+  }
+
+  function renderMiniCalendar() {
+    const host = document.getElementById('mini-calendar');
+    if (!host) return;
+
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const today = new Date();
+    const start = new Date(today);
+    const dayIdx = (today.getDay() + 6) % 7;
+    start.setDate(today.getDate() - dayIdx);
+
+    let html = '';
+    weekdays.forEach((day) => {
+      html += `<div class="calendar-head">${day}</div>`;
+    });
+
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(start);
+      date.setDate(start.getDate() + i);
+      const isToday = date.toDateString() === today.toDateString();
+      const occupancy = (i + 1) % 3 === 0 ? 'Busy' : 'Open';
+      html += `
+        <div class="mini-calendar-day ${isToday ? 'active' : ''}">
+          <strong>${date.getDate()}</strong>
+          <span class="availability" aria-hidden="true"></span>
+          <span>${occupancy}</span>
+        </div>`;
+    }
+
+    host.innerHTML = html;
+  }
+
+  function renderProgressCard(cardId, value, total, label) {
+    const card = document.getElementById(cardId)?.closest('.card');
+    if (!card) return;
+
+    const body = card.querySelector('.card-body');
+    const percent = Math.min(100, Math.round((value / total) * 100));
+    let progress = body.querySelector('.mini-progress');
+    let meta = body.querySelector('.mini-progress-label');
+
+    if (!progress) {
+      progress = document.createElement('div');
+      progress.className = 'mini-progress';
+      progress.innerHTML = '<span></span>';
+      body.appendChild(progress);
+    }
+
+    const bar = progress.querySelector('span');
+    if (bar) bar.style.width = `${percent}%`;
+
+    if (!meta) {
+      meta = document.createElement('div');
+      meta.className = 'mini-progress-label';
+      body.appendChild(meta);
+    }
+
+    meta.innerHTML = `<span>${escapeHtml(label)}</span><span>${percent}%</span>`;
+  }
+
+  document.querySelectorAll('.shortcut-btn').forEach((button) => {
+    button.addEventListener('click', () => {
+      const action = button.dataset.shortcut;
+      if (action === 'new-room') {
+        document.querySelector('[data-target="#pane-rooms"]')?.click();
+        return;
+      }
+      if (action === 'pending') {
+        document.querySelector('[data-target="#pane-reservations"]')?.click();
+        const pendingBtn = document.querySelector('#status-filters [data-status="Pending"]');
+        if (pendingBtn) pendingBtn.click();
+        return;
+      }
+      if (action === 'all-users') {
+        document.querySelector('[data-target="#pane-users"]')?.click();
+      }
+    });
+  });
+
+  const passwordChangeModal = new bootstrap.Modal(document.getElementById('password-change-modal'));
+  const passwordChangeForm = document.getElementById('password-change-form');
+
+  if (queryParam('must_change_password') === '1') {
+    passwordChangeModal.show();
+  }
+
+  passwordChangeForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const newPassword = document.getElementById('new-password').value;
+    const confirmPassword = document.getElementById('confirm-new-password').value;
+    if (newPassword !== confirmPassword) {
+      toastError('Your new password and confirmation do not match.');
+      return;
+    }
+
+    try {
+      const data = await api('/api/auth/change-password', {
+        method: 'POST',
+        body: {
+          current_password: document.getElementById('current-password').value,
+          new_password: newPassword
+        }
+      });
+      toastOk(data.message);
+      passwordChangeModal.hide();
+      passwordChangeForm.reset();
+      window.history.replaceState({}, '', '/admin-dashboard.html');
+    } catch (err) {
+      toastError(err.message);
+    }
+  });
+
+  const state = { status: '', items: [] };
+
+  const reservationsBody = document.getElementById('reservations-body');
+  const buildingsBody = document.getElementById('buildings-body');
+  const roomsBody = document.getElementById('rooms-body');
+  const usersBody = document.getElementById('users-body');
+  const adminsBody = document.getElementById('admins-body');
+  const supportBody = document.getElementById('support-body');
+
+  /* ------------------------------------------------------ reservation overview */
+
+  renderActivityFeed();
+  renderMiniCalendar();
+  updateDashboardClock();
+  setInterval(updateDashboardClock, 60000);
+
+  async function loadStats() {
+    try {
+      const data = await api('/api/reservations/stats');
+      document.getElementById('stat-total').textContent = data.totals.total;
+      document.getElementById('stat-pending').textContent = data.totals.pending;
+      document.getElementById('stat-approved').textContent = data.totals.approved;
+      document.getElementById('stat-rejected').textContent = data.totals.rejected;
+
+      renderProgressCard('stat-total', Number(data.totals.total || 0), Math.max(10, Number(data.totals.total || 0)), 'Total');
+      renderProgressCard('stat-pending', Number(data.totals.pending || 0), Math.max(8, Number(data.totals.total || 0)), 'Pending');
+      renderProgressCard('stat-approved', Number(data.totals.approved || 0), Math.max(8, Number(data.totals.total || 0)), 'Approved');
+      renderProgressCard('stat-rejected', Number(data.totals.rejected || 0), Math.max(8, Number(data.totals.total || 0)), 'Rejected');
+    } catch (err) {
+      toastError(`Could not load statistics: ${err.message}`);
+    }
+  }
+
+  async function loadOverviewCounters() {
+    try {
+      const [roomsRes, usersRes, buildingsRes] = await Promise.all([
+        api('/api/admin/rooms?include_inactive=1'),
+        api('/api/admin/users'),
+        api('/api/buildings')
+      ]);
+
+      const rooms = roomsRes.rooms || [];
+      const users = usersRes.users || [];
+      const buildings = buildingsRes.buildings || [];
+
+      const roleCounts = { student: 0, faculty: 0, custodian: 0, admin: 0 };
+      users.forEach((user) => {
+        if (roleCounts[user.role] !== undefined) roleCounts[user.role] += 1;
+      });
+
+      document.getElementById('stat-rooms').textContent = rooms.filter((r) => r.is_active !== 0).length;
+      document.getElementById('stat-buildings').textContent = buildings.length;
+      document.getElementById('stat-users').textContent = users.length;
+      document.getElementById('stat-students').textContent = roleCounts.student;
+      document.getElementById('stat-faculty').textContent = roleCounts.faculty;
+      document.getElementById('stat-admins').textContent = roleCounts.admin;
+      document.getElementById('stat-custodians').textContent = roleCounts.custodian;
+    } catch (err) {
+      toastError(`Could not load inventory counters: ${err.message}`);
+    }
+  }
+
+  async function loadReservations() {
+    reservationsBody.innerHTML = emptyRow(9, 'Loading...');
+    const params = new URLSearchParams();
+    if (state.status) params.set('status', state.status);
+    params.set('limit', '200');
+
+    try {
+      const data = await api(`/api/reservations?${params.toString()}`);
+      state.items = data.reservations || [];
+      renderReservations();
+    } catch (err) {
+      reservationsBody.innerHTML = emptyRow(9, `Could not load reservations: ${err.message}`);
+    }
+  }
+
+  function renderReservations() {
+    if (!state.items.length) {
+      reservationsBody.innerHTML = emptyRow(9, 'No reservations match this filter yet.');
+      return;
+    }
+
+    reservationsBody.innerHTML = state.items.map((r) => {
+      const canDecide = r.status === 'Pending';
+      const canCancel = r.status !== 'Cancelled';
+      let actions = '';
+
+      if (canDecide) {
+        actions += `
+          <button class="btn btn-sm btn-success" data-action="approve" data-id="${r.id}">Approve</button>
+          <button class="btn btn-sm btn-outline-danger ms-1" data-action="reject" data-id="${r.id}">Reject</button>
+        `;
+      }
+      if (canCancel) {
+        actions += `<button class="btn btn-sm btn-outline-secondary ms-1" data-action="cancel" data-id="${r.id}">Cancel</button>`;
+      }
+      if (!actions) actions = '<span class="text-muted-sm">-</span>';
+
+      const equipment = (r.equipment || []).length
+        ? `<div class="text-muted-sm">${(r.equipment || []).map(escapeHtml).join(', ')}</div>`
+        : '';
+
+      return `
+        <tr data-row-id="${r.id}">
+          <td>#${r.id}</td>
+          <td>
+            <div class="fw-semibold">${escapeHtml(r.requested_by || r.user_name || 'Unknown user')}</div>
+            <div class="text-muted-sm">${escapeHtml(r.requester_school_id || r.user_id || '-')}</div>
+          </td>
+          <td>
+            <div class="fw-semibold">${escapeHtml(r.room_name)}</div>
+            <div class="text-muted-sm">${escapeHtml(r.building_name)}</div>
+          </td>
+          <td>${escapeHtml(formatDateShort(r.res_date))}</td>
+          <td class="text-nowrap">${escapeHtml(formatTime(r.start_time))}<br />${escapeHtml(formatTime(r.end_time))}</td>
+          <td style="max-width: 260px">
+            <div>${escapeHtml(r.purpose)}</div>
+            ${equipment}
+          </td>
+          <td>${escapeHtml(r.attendees)}</td>
+          <td>${statusBadge(r.status)}</td>
+          <td class="text-end text-nowrap">${actions}</td>
+        </tr>`;
+    }).join('');
+
+    reservationsBody.querySelectorAll('button[data-action]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = Number(btn.getAttribute('data-id'));
+        const reservation = state.items.find((r) => r.id === id);
+        if (!reservation) return;
+        const action = btn.getAttribute('data-action');
+        if (action === 'cancel') return cancelReservation(reservation);
+        openDecision(reservation, action === 'approve' ? 'Approved' : 'Rejected');
+      });
+    });
+  }
+
+  const modalEl = document.getElementById('decision-modal');
+  const modal = new bootstrap.Modal(modalEl);
+  const decisionTitle = document.getElementById('decision-title');
+  const decisionSummary = document.getElementById('decision-summary');
+  const decisionRemarks = document.getElementById('decision-remarks');
+  const decisionConfirm = document.getElementById('decision-confirm');
+  let pendingDecision = null;
+
+  function openDecision(reservation, status) {
+    pendingDecision = { id: reservation.id, status };
+    const verb = status === 'Approved' ? 'Approve' : 'Reject';
+    decisionTitle.textContent = `${verb} reservation #${reservation.id}`;
+    decisionSummary.textContent = `${reservation.room_name} - ${formatDateShort(reservation.res_date)}, ${formatTime(reservation.start_time)} to ${formatTime(reservation.end_time)} (requested by ${reservation.requested_by || 'Unknown'}).`;
+    decisionRemarks.value = '';
+    decisionConfirm.className = `btn ${status === 'Approved' ? 'btn-success' : 'btn-danger'}`;
+    decisionConfirm.textContent = `${verb} request`;
+    modal.show();
+  }
+
+  decisionConfirm.addEventListener('click', async () => {
+    if (!pendingDecision) return;
+    busy(decisionConfirm, true, 'Saving...');
+    try {
+      const data = await api(`/api/reservations/${pendingDecision.id}/decision`, {
+        method: 'PATCH',
+        body: { status: pendingDecision.status, remarks: decisionRemarks.value.trim() }
+      });
+      toastOk(data.message);
+      modal.hide();
+      await Promise.all([loadStats(), loadReservations()]);
+    } catch (err) {
+      toastError(err.message);
+    } finally {
+      busy(decisionConfirm, false);
+    }
+  });
+
+  async function cancelReservation(reservation) {
+    if (!window.confirm(`Cancel reservation #${reservation.id} for "${reservation.room_name}"?`)) return;
+    try {
+      const data = await api(`/api/reservations/${reservation.id}/cancel`, { method: 'PATCH' });
+      toastOk(data.message);
+      await Promise.all([loadStats(), loadReservations()]);
+    } catch (err) {
+      toastError(err.message);
+    }
+  }
+
+  document.querySelectorAll('#status-filters button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#status-filters button').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.status = btn.getAttribute('data-status');
+      loadReservations();
+    });
+  });
+
+  /* ------------------------------------------------------ buildings management */
+
+  let buildings = [];
+  let rooms = [];
+  let users = [];
+
+  const buildingModal = new bootstrap.Modal(document.getElementById('building-modal'));
+  const roomModal = new bootstrap.Modal(document.getElementById('room-modal'));
+  const userModal = new bootstrap.Modal(document.getElementById('user-modal'));
+  const buildingForm = document.getElementById('building-form');
+  const roomForm = document.getElementById('room-form');
+  const userForm = document.getElementById('user-form');
+  const editing = { building: null, room: null, user: null };
+
+  async function loadBuildings() {
+    try {
+      const data = await api('/api/buildings');
+      buildings = data.buildings || [];
+      renderBuildings();
+      if (roomForm && roomForm.building_id) populateRoomBuildingOptions();
+    } catch (err) {
+      buildingsBody.innerHTML = emptyRow(5, `Could not load buildings: ${err.message}`);
+    }
+  }
+
+  function renderBuildings() {
+    if (!buildings.length) {
+      buildingsBody.innerHTML = emptyRow(5, 'No buildings yet. Add the first one.');
+      return;
+    }
+    buildingsBody.innerHTML = buildings.map((b) => `
+      <tr>
+        <td>#${b.id}</td>
+        <td class="fw-semibold">${escapeHtml(b.name)}</td>
+        <td>${escapeHtml(b.location || '-')}</td>
+        <td>${escapeHtml(b.room_count)}</td>
+        <td class="text-end text-nowrap">
+          <button class="btn btn-sm btn-outline-cspc" data-edit-building="${b.id}">Edit</button>
+          <button class="btn btn-sm btn-outline-danger ms-1" data-del-building="${b.id}">Delete</button>
+        </td>
+      </tr>`).join('');
+
+    buildingsBody.querySelectorAll('[data-edit-building]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = Number(btn.getAttribute('data-edit-building'));
+        const building = buildings.find((b) => b.id === id);
+        openBuildingModal(building);
+      });
+    });
+
+    buildingsBody.querySelectorAll('[data-del-building]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = Number(btn.getAttribute('data-del-building'));
+        const building = buildings.find((b) => b.id === id);
+        const warning = building && building.room_count > 0 ? `\n\nWarning: its ${building.room_count} room(s) will also be removed.` : '';
+        if (!window.confirm(`Delete "${building ? building.name : 'this building'}"?${warning}`)) return;
+        try {
+          const data = await api(`/api/admin/buildings/${id}`, { method: 'DELETE' });
+          toastOk(data.message);
+          await Promise.all([loadBuildings(), loadRooms()]);
+        } catch (err) {
+          toastError(err.message);
+        }
+      });
+    });
+  }
+
+  function openBuildingModal(building) {
+    editing.building = building ? building.id : null;
+    document.getElementById('building-modal-title').textContent = building ? `Edit building #${building.id}` : 'Add building';
+    buildingForm.name.value = building ? building.name : '';
+    buildingForm.location.value = building ? (building.location || '') : '';
+    buildingModal.show();
+  }
+
+  document.getElementById('new-building-btn').addEventListener('click', () => openBuildingModal(null));
+
+  buildingForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const saveBtn = document.getElementById('building-save');
+    busy(saveBtn, true, 'Saving...');
+    try {
+      const payload = {
+        name: buildingForm.name.value.trim(),
+        location: buildingForm.location.value.trim()
+      };
+      const data = editing.building
+        ? await api(`/api/admin/buildings/${editing.building}`, { method: 'PUT', body: payload })
+        : await api('/api/admin/buildings', { method: 'POST', body: payload });
+      toastOk(data.message);
+      buildingModal.hide();
+      await Promise.all([loadBuildings(), loadRooms()]);
+    } catch (err) {
+      toastError(err.message);
+    } finally {
+      busy(saveBtn, false);
+    }
+  });
+
+  /* ------------------------------------------------------ room management */
+
+  const showInactive = document.getElementById('show-inactive-rooms');
+
+  function populateRoomBuildingOptions() {
+    const select = document.getElementById('room-building');
+    if (!select) return;
+    select.innerHTML = buildings.map((b) => `<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('');
+  }
+
+  async function loadRooms() {
+    try {
+      const qs = showInactive.checked ? '?include_inactive=1' : '';
+      const data = await api(`/api/admin/rooms${qs}`);
+      rooms = data.rooms || [];
+      renderRooms();
+    } catch (err) {
+      roomsBody.innerHTML = emptyRow(9, `Could not load rooms: ${err.message}`);
+    }
+  }
+
+  function amenityList(r) {
+    const out = [];
+    if (r.has_projector) out.push('Projector');
+    if (r.has_aircon) out.push('Aircon');
+    if (r.has_sound) out.push('Sound');
+    return out.length ? out.map((a) => `<span class="amenity-pill">${a}</span>`).join('') : '<span class="text-muted-sm">-</span>';
+  }
+
+  function renderRooms() {
+    if (!rooms.length) {
+      roomsBody.innerHTML = emptyRow(9, 'No rooms found.');
+      return;
+    }
+
+    roomsBody.innerHTML = rooms.map((r) => `
+      <tr>
+        <td>#${r.id}</td>
+        <td class="fw-semibold">${escapeHtml(r.name)}${r.floor ? `<div class="text-muted-sm fw-normal">${escapeHtml(r.floor)}</div>` : ''}</td>
+        <td>${escapeHtml(r.building_name)}</td>
+        <td>${escapeHtml(ROOM_TYPE_LABELS[r.room_type] || r.room_type)}</td>
+        <td>${escapeHtml(r.capacity)}</td>
+        <td>${amenityList(r)}</td>
+        <td>${r.is_active ? '<span class="badge text-bg-success">Active</span>' : '<span class="badge text-bg-secondary">Inactive</span>'}</td>
+        <td>${escapeHtml(r.reservation_count)}</td>
+        <td class="text-end text-nowrap">
+          <button class="btn btn-sm btn-outline-cspc" data-edit-room="${r.id}">Edit</button>
+          ${r.is_active ? `<button class="btn btn-sm btn-outline-danger ms-1" data-del-room="${r.id}">Delete</button>` : `<button class="btn btn-sm btn-outline-success ms-1" data-react-room="${r.id}">Reactivate</button>`}
+        </td>
+      </tr>`).join('');
+
+    roomsBody.querySelectorAll('[data-edit-room]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = Number(btn.getAttribute('data-edit-room'));
+        openRoomModal(rooms.find((r) => r.id === id));
+      });
+    });
+
+    roomsBody.querySelectorAll('[data-del-room]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = Number(btn.getAttribute('data-del-room'));
+        const room = rooms.find((r) => r.id === id);
+        const warning = room && room.reservation_count > 0 ? `\n\nIt has ${room.reservation_count} reservation(s), so it will be deactivated instead of deleted.` : '';
+        if (!window.confirm(`Delete "${room ? room.name : 'this room'}"?${warning}`)) return;
+        try {
+          const data = await api(`/api/admin/rooms/${id}`, { method: 'DELETE' });
+          toastOk(data.message);
+          await Promise.all([loadRooms(), loadBuildings()]);
+        } catch (err) {
+          toastError(err.message);
+        }
+      });
+    });
+
+    roomsBody.querySelectorAll('[data-react-room]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = Number(btn.getAttribute('data-react-room'));
+        const room = rooms.find((r) => r.id === id);
+        if (!room) return;
+        if (!window.confirm(`Reactivate "${room.name}"?`)) return;
+        try {
+          const data = await api(`/api/admin/rooms/${room.id}`, {
+            method: 'PUT',
+            body: {
+              building_id: room.building_id,
+              name: room.name,
+              room_type: room.room_type,
+              capacity: room.capacity,
+              floor: room.floor,
+              image_url: room.image_url,
+              has_projector: room.has_projector,
+              has_aircon: room.has_aircon,
+              has_sound: room.has_sound,
+              is_active: 1
+            }
+          });
+          toastOk(data.message);
+          await loadRooms();
+        } catch (err) {
+          toastError(err.message);
+        }
+      });
+    });
+  }
+
+  function openRoomModal(room) {
+    editing.room = room ? room.id : null;
+    document.getElementById('room-modal-title').textContent = room ? `Edit room #${room.id}` : 'Add room';
+    if (!buildings.length) {
+      toastError('Create a building first.');
+      return;
+    }
+    roomForm.building_id.value = room ? room.building_id : buildings[0].id;
+    roomForm.name.value = room ? room.name : '';
+    roomForm.room_type.value = room ? room.room_type : 'laboratory';
+    roomForm.capacity.value = room ? room.capacity : 40;
+    roomForm.floor.value = room && room.floor ? room.floor : '';
+    roomForm.image_url.value = room && room.image_url ? room.image_url : '';
+    roomForm.has_projector.checked = room ? Boolean(room.has_projector) : false;
+    roomForm.has_aircon.checked = room ? Boolean(room.has_aircon) : false;
+    roomForm.has_sound.checked = room ? Boolean(room.has_sound) : false;
+    roomForm.is_active.checked = room ? Boolean(room.is_active) : true;
+    roomModal.show();
+  }
+
+  document.getElementById('new-room-btn').addEventListener('click', () => openRoomModal(null));
+  if (showInactive) showInactive.addEventListener('change', loadRooms);
+
+  roomForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const saveBtn = document.getElementById('room-save');
+    busy(saveBtn, true, 'Saving...');
+    try {
+      const payload = {
+        building_id: roomForm.building_id.value,
+        name: roomForm.name.value.trim(),
+        room_type: roomForm.room_type.value,
+        capacity: roomForm.capacity.value,
+        floor: roomForm.floor.value.trim(),
+        image_url: roomForm.image_url.value.trim(),
+        has_projector: roomForm.has_projector.checked,
+        has_aircon: roomForm.has_aircon.checked,
+        has_sound: roomForm.has_sound.checked,
+        is_active: roomForm.is_active.checked
+      };
+      const data = editing.room
+        ? await api(`/api/admin/rooms/${editing.room}`, { method: 'PUT', body: payload })
+        : await api('/api/admin/rooms', { method: 'POST', body: payload });
+      toastOk(data.message);
+      roomModal.hide();
+      await Promise.all([loadRooms(), loadBuildings()]);
+    } catch (err) {
+      toastError(err.message);
+    } finally {
+      busy(saveBtn, false);
+    }
+  });
+
+  /* ------------------------------------------------------ user management */
+
+  const roleFilter = document.getElementById('user-role-filter');
+  const userSearch = document.getElementById('user-search');
+
+  async function loadUsers() {
+    const params = new URLSearchParams();
+    if (roleFilter.value) params.set('role', roleFilter.value);
+    if (userSearch.value.trim()) params.set('search', userSearch.value.trim());
+    try {
+      const data = await api(`/api/admin/users?${params.toString()}`);
+      users = data.users || [];
+      renderUsers();
+    } catch (err) {
+      usersBody.innerHTML = emptyRow(9, `Could not load users: ${err.message}`);
+    }
+  }
+
+  function renderUsers() {
+    if (!users.length) {
+      usersBody.innerHTML = emptyRow(9, 'No user accounts match this filter.');
+      return;
+    }
+
+    usersBody.innerHTML = users.map((u) => `
+      <tr>
+        <td>#${u.id}</td>
+        <td>${escapeHtml(u.school_id)}</td>
+        <td class="fw-semibold">${escapeHtml(u.full_name)}</td>
+        <td>${escapeHtml(u.email)}</td>
+        <td>${roleBadge(u.role)}</td>
+        <td>${escapeHtml(u.department || '-')}</td>
+        <td>${u.is_active ? '<span class="badge text-bg-success">Active</span>' : '<span class="badge text-bg-secondary">Inactive</span>'}</td>
+        <td>${escapeHtml(u.reservation_count)}</td>
+        <td class="text-end text-nowrap">
+          <button class="btn btn-sm btn-outline-cspc" data-edit-user="${u.id}">Edit</button>
+          ${Number(u.id) === Number(me.id) ? '<span class="text-muted-sm ms-2">You</span>' : `<button class="btn btn-sm btn-outline-danger ms-1" data-del-user="${u.id}">Delete</button>`}
+        </td>
+      </tr>`).join('');
+
+    usersBody.querySelectorAll('[data-edit-user]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = Number(btn.getAttribute('data-edit-user'));
+        openUserModal(users.find((u) => u.id === id));
+      });
+    });
+
+    usersBody.querySelectorAll('[data-del-user]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = Number(btn.getAttribute('data-del-user'));
+        const user = users.find((u) => u.id === id);
+        if (!user) return;
+        const warning = user.reservation_count > 0 ? `\n\nThis account has ${user.reservation_count} reservation(s), so it will be deactivated instead of deleted.` : '';
+        if (!window.confirm(`Delete the account of "${user.full_name}"?${warning}`)) return;
+        try {
+          const data = await api(`/api/admin/users/${user.id}`, { method: 'DELETE' });
+          toastOk(data.message);
+          await loadUsers();
+        } catch (err) {
+          toastError(err.message);
+        }
+      });
+    });
+  }
+
+  function openUserModal(user) {
+    editing.user = user ? user.id : null;
+    document.getElementById('user-modal-title').textContent = user ? `Edit account #${user.id}` : 'Add user account';
+    const schoolIdGroup = document.getElementById('user-school-id-group');
+    if (schoolIdGroup) schoolIdGroup.classList.toggle('d-none', Boolean(user));
+    userForm.school_id.value = user ? user.school_id : '';
+    userForm.full_name.value = user ? user.full_name : '';
+    userForm.email.value = user ? user.email : '';
+    userForm.recovery_email.value = user ? (user.recovery_email || '') : '';
+    userForm.role.value = user ? user.role : 'student';
+    userForm.department.value = user ? (user.department || '') : '';
+    userForm.password.value = '';
+    userForm.password.required = !user;
+    document.getElementById('user-password-hint').textContent = user ? '(leave blank to keep current)' : '(required)';
+    userModal.show();
+  }
+
+  document.getElementById('new-user-btn').addEventListener('click', () => openUserModal(null));
+  roleFilter.addEventListener('change', loadUsers);
+  userSearch.addEventListener('input', loadUsers);
+
+  userForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const saveBtn = document.getElementById('user-save');
+    busy(saveBtn, true, 'Saving...');
+    try {
+      const payload = {
+        school_id: userForm.school_id.value.trim(),
+        full_name: userForm.full_name.value.trim(),
+        email: userForm.email.value.trim(),
+        recovery_email: userForm.recovery_email.value.trim() || undefined,
+        role: userForm.role.value,
+        department: userForm.department.value.trim(),
+        password: userForm.password.value.trim() || undefined
+      };
+
+      const data = editing.user
+        ? await api(`/api/admin/users/${editing.user}`, { method: 'PUT', body: payload })
+        : await api('/api/admin/users', { method: 'POST', body: payload });
+      toastOk(data.message);
+      userModal.hide();
+      await loadUsers();
+    } catch (err) {
+      toastError(err.message);
+    } finally {
+      busy(saveBtn, false);
+    }
+  });
+
+  /* ------------------------------------------------------ admin management */
+
+  const adminModal = new bootstrap.Modal(document.getElementById('admin-modal'));
+  const adminForm = document.getElementById('admin-form');
+  let editingAdminId = null;
+
+  async function loadAdmins() {
+    try {
+      const data = await api('/api/admin/administrators');
+      const admins = data.admins || [];
+      if (!admins.length) {
+        adminsBody.innerHTML = emptyRow(7, 'No administrator accounts yet.');
+        return;
+      }
+
+      adminsBody.innerHTML = admins.map((admin) => `
+        <tr data-admin-id="${admin.id}">
+          <td>${escapeHtml(admin.school_id)}</td>
+          <td class="fw-semibold">${escapeHtml(admin.full_name)}</td>
+          <td>${escapeHtml(admin.email)}</td>
+          <td>${escapeHtml(admin.admin_level || 'Assistant Admin')}</td>
+          <td>${escapeHtml(formatDateShort(admin.created_at))}</td>
+          <td>${admin.is_active ? '<span class="badge text-bg-success">Active</span>' : '<span class="badge text-bg-secondary">Inactive</span>'}</td>
+          <td class="text-end text-nowrap">
+            <button class="btn btn-sm btn-outline-cspc" type="button" data-admin-action="edit" data-admin-id="${admin.id}">Edit</button>
+            <button class="btn btn-sm ${admin.is_active ? 'btn-outline-warning' : 'btn-outline-success'} ms-1" type="button" data-admin-action="toggle" data-admin-id="${admin.id}" data-admin-active="${admin.is_active ? '1' : '0'}">${admin.is_active ? 'Deactivate' : 'Reactivate'}</button>
+          </td>
+        </tr>`).join('');
+
+      adminsBody.querySelectorAll('[data-admin-action]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          const id = Number(button.getAttribute('data-admin-id'));
+          const admin = admins.find((item) => Number(item.id) === id);
+          if (!admin) return;
+
+          if (button.getAttribute('data-admin-action') === 'edit') {
+            editingAdminId = id;
+            document.getElementById('admin-modal-title').textContent = 'Edit administrator';
+            document.getElementById('admin-save').textContent = 'Save changes';
+            adminForm.full_name.value = admin.full_name;
+            adminForm.school_id.value = admin.school_id;
+            adminForm.email.value = admin.email;
+            adminForm.recovery_email.value = admin.recovery_email || '';
+            adminForm.admin_level.value = admin.admin_level || 'Assistant Admin';
+            document.getElementById('admin-password').value = '';
+            document.getElementById('admin-password').closest('.col-md-6').classList.add('d-none');
+            document.getElementById('admin-auto-generate-password').closest('.col-md-6').classList.add('d-none');
+            document.getElementById('admin-first-login-notice').classList.add('d-none');
+            adminModal.show();
+            return;
+          }
+
+          const isActive = button.getAttribute('data-admin-active') === '1';
+          const actionLabel = isActive ? 'deactivate' : 'reactivate';
+          if (isActive && id === Number(me.id)) {
+            toastError('You cannot deactivate your own active administrator account.');
+            return;
+          }
+          if (!window.confirm(`Are you sure you want to ${actionLabel} ${admin.full_name}'s account?`)) return;
+
+          try {
+            const result = await api(`/api/admin/administrators/${id}/status`, {
+              method: 'PATCH',
+              body: { is_active: !isActive }
+            });
+            toastOk(result.message);
+            await loadAdmins();
+          } catch (err) {
+            toastError(err.message);
+          }
+        });
+      });
+    } catch (err) {
+      adminsBody.innerHTML = emptyRow(7, `Could not load admins: ${err.message}`);
+    }
+  }
+
+  document.getElementById('new-admin-btn').addEventListener('click', () => {
+    editingAdminId = null;
+    adminForm.reset();
+    document.getElementById('admin-modal-title').textContent = 'Add new admin';
+    document.getElementById('admin-save').textContent = 'Create admin';
+    document.getElementById('admin-password').closest('.col-md-6').classList.remove('d-none');
+    document.getElementById('admin-auto-generate-password').closest('.col-md-6').classList.remove('d-none');
+    document.getElementById('admin-first-login-notice').classList.remove('d-none');
+    document.getElementById('admin-auto-generate-password').checked = true;
+    document.getElementById('admin-password').value = '';
+    adminModal.show();
+  });
+
+  adminForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const saveBtn = document.getElementById('admin-save');
+    busy(saveBtn, true, editingAdminId ? 'Saving...' : 'Creating...');
+
+    try {
+      const payload = {
+        full_name: adminForm.full_name.value.trim(),
+        school_id: adminForm.school_id.value.trim(),
+        email: adminForm.email.value.trim(),
+        recovery_email: adminForm.recovery_email.value.trim() || undefined,
+        admin_level: adminForm.admin_level.value,
+        ...(editingAdminId ? {} : {
+          password: adminForm.password.value.trim() || undefined,
+          auto_generate_password: adminForm.auto_generate_password.checked
+        })
+      };
+
+      const data = await api(editingAdminId
+        ? `/api/admin/administrators/${editingAdminId}`
+        : '/api/admin/administrators', {
+        method: editingAdminId ? 'PUT' : 'POST',
+        body: payload
+      });
+
+      toastOk(data.message + (data.temporary_password ? ` Temporary password: ${data.temporary_password}` : ''));
+      adminModal.hide();
+      if (editingAdminId === Number(me.id)) {
+        me.full_name = payload.full_name;
+        me.email = payload.email;
+        renderNavbar(me, 'admin');
+      }
+      adminForm.reset();
+      editingAdminId = null;
+      document.getElementById('admin-password').closest('.col-md-6').classList.remove('d-none');
+      document.getElementById('admin-auto-generate-password').closest('.col-md-6').classList.remove('d-none');
+      document.getElementById('admin-first-login-notice').classList.remove('d-none');
+      await loadAdmins();
+    } catch (err) {
+      toastError(err.message);
+    } finally {
+      busy(saveBtn, false);
+    }
+  });
+
+  /* ------------------------------------------------------ support ticket management */
+
+  function supportStatusBadge(status) {
+    const map = {
+      Open: 'primary',
+      'In Progress': 'warning',
+      Resolved: 'success'
+    };
+    const tone = map[status] || 'secondary';
+    return `<span class="badge rounded-pill text-bg-${tone}">${escapeHtml(status || 'Open')}</span>`;
+  }
+
+  async function loadSupportTickets() {
+    try {
+      const data = await api('/api/admin/support-tickets');
+      const tickets = data.tickets || [];
+      if (!tickets.length) {
+        supportBody.innerHTML = emptyRow(9, 'No support tickets submitted yet.');
+        return;
+      }
+
+      supportBody.innerHTML = tickets.map((ticket) => `
+        <tr>
+          <td>#${ticket.id}</td>
+          <td class="fw-semibold">${escapeHtml(ticket.full_name)}</td>
+          <td>${escapeHtml(ticket.role_department || '-')}</td>
+          <td>${escapeHtml(ticket.contact || '-')}</td>
+          <td>${escapeHtml(ticket.category)}</td>
+          <td>${supportStatusBadge(ticket.status)}</td>
+          <td style="max-width: 300px; white-space: normal;">${escapeHtml(ticket.description || '-')}</td>
+          <td>${escapeHtml(new Date(ticket.created_at).toLocaleString(P.getLocale()))}</td>
+          <td class="text-end text-nowrap">
+            <button class="btn btn-sm btn-outline-cspc" type="button" data-ticket-status="In Progress" data-ticket-id="${ticket.id}">In progress</button>
+            <button class="btn btn-sm btn-outline-success ms-1" type="button" data-ticket-status="Resolved" data-ticket-id="${ticket.id}">Resolve</button>
+          </td>
+        </tr>`).join('');
+
+      supportBody.querySelectorAll('[data-ticket-status]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = Number(btn.getAttribute('data-ticket-id'));
+          const status = btn.getAttribute('data-ticket-status');
+          try {
+            const data = await api(`/api/admin/support-tickets/${id}/status`, {
+              method: 'PATCH',
+              body: { status }
+            });
+            toastOk(data.message);
+            await loadSupportTickets();
+          } catch (err) {
+            toastError(err.message);
+          }
+        });
+      });
+    } catch (err) {
+      supportBody.innerHTML = emptyRow(9, `Could not load support tickets: ${err.message}`);
+    }
+  }
+
+  /* ------------------------------------------------------ init */
+
+  document.querySelectorAll('.admin-nav-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const targetSelector = btn.getAttribute('data-target');
+      const targetPane = targetSelector ? document.querySelector(targetSelector) : null;
+      const overview = document.getElementById('admin-overview');
+
+      document.querySelectorAll('.tab-pane').forEach((pane) => {
+        pane.classList.remove('show', 'active');
+        pane.classList.add('fade');
+      });
+
+      if (targetPane) {
+        targetPane.classList.add('show', 'active');
+        targetPane.classList.remove('fade');
+      }
+
+      if (overview) {
+        const isReservations = targetSelector === '#pane-reservations';
+        overview.classList.toggle('is-collapsed', !isReservations);
+        if (!isReservations) {
+          const resourceSummary = overview.querySelector('.resource-summary');
+          if (resourceSummary) resourceSummary.open = false;
+        }
+      }
+
+      document.querySelectorAll('.admin-nav-btn').forEach((item) => item.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  const adminLogoutBtn = document.getElementById('admin-logout');
+  if (adminLogoutBtn) {
+    adminLogoutBtn.addEventListener('click', async () => {
+      adminLogoutBtn.disabled = true;
+      try {
+        await api('/api/auth/logout', { method: 'POST' });
+      } catch {
+        // Ignore logout failures and send the admin to the login page.
+      }
+      window.location.replace('/index.html?logged_out=1');
+    });
+  }
+
+  document.addEventListener('portal-locale-change', () => {
+    updateDashboardClock();
+    loadStats();
+    loadOverviewCounters();
+    loadReservations();
+    loadBuildings();
+    loadRooms();
+    loadUsers();
+    loadAdmins();
+    loadSupportTickets();
+  });
+
+  await Promise.all([loadStats(), loadOverviewCounters(), loadReservations(), loadBuildings(), loadRooms(), loadUsers(), loadAdmins(), loadSupportTickets()]);
+})();

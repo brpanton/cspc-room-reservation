@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Management - CSPC Lab &amp; Room Reservation</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="/css/style.css" rel="stylesheet" />
+  <link rel="icon" type="image/jpeg" href="/img/hornet-logo.jpg" />
+</head>
+<body>
+  <div id="navbar-placeholder"></div>
+
+  <main class="container py-4">
+    <h1 class="page-title h4">System management</h1>
+    <p class="text-muted-sm mb-4">
+      Maintain buildings, rooms and user accounts. Admins only.
+    </p>
+
+    <ul class="nav nav-tabs mb-3" id="admin-tabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tab-buildings" data-bs-toggle="tab"
+                data-bs-target="#pane-buildings" type="button" role="tab">Buildings</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-rooms" data-bs-toggle="tab"
+                data-bs-target="#pane-rooms" type="button" role="tab">Rooms</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-users" data-bs-toggle="tab"
+                data-bs-target="#pane-users" type="button" role="tab">Users</button>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+      <!-- ------------------------------------------------------ buildings -->
+      <div class="tab-pane fade show active" id="pane-buildings" role="tabpanel">
+        <div class="card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Buildings</span>
+            <button class="btn btn-sm btn-cspc" id="new-building-btn" type="button">Add building</button>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-portal table-hover mb-0">
+              <thead>
+                <tr><th>#</th><th>Name</th><th>Location</th><th>Rooms</th><th class="text-end">Actions</th></tr>
+              </thead>
+              <tbody id="buildings-body">
+                <tr><td colspan="5" class="text-center text-muted-sm py-4">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---------------------------------------------------------- rooms -->
+      <div class="tab-pane fade" id="pane-rooms" role="tabpanel">
+        <div class="card">
+          <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span>Rooms &amp; laboratories</span>
+            <div class="d-flex align-items-center gap-3">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="show-inactive-rooms" />
+                <label class="form-check-label text-muted-sm" for="show-inactive-rooms">Show deactivated</label>
+              </div>
+              <button class="btn btn-sm btn-cspc" id="new-room-btn" type="button">Add room</button>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-portal table-hover mb-0">
+              <thead>
+                <tr>
+                  <th>#</th><th>Room</th><th>Building</th><th>Type</th>
+                  <th>Capacity</th><th>Amenities</th><th>Status</th>
+                  <th>Bookings</th><th class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="rooms-body">
+                <tr><td colspan="9" class="text-center text-muted-sm py-4">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---------------------------------------------------------- users -->
+      <div class="tab-pane fade" id="pane-users" role="tabpanel">
+        <div class="card">
+          <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span>User accounts</span>
+            <div class="d-flex align-items-center gap-2">
+              <select class="form-select form-select-sm" id="user-role-filter" style="width: auto">
+                <option value="">All roles</option>
+                <option value="student">Students</option>
+                <option value="faculty">Faculty</option>
+                <option value="custodian">Custodians</option>
+                <option value="admin">Admins</option>
+              </select>
+              <input type="search" class="form-control form-control-sm" id="user-search"
+                     placeholder="Search name / ID / email" style="width: 220px" />
+              <button class="btn btn-sm btn-cspc" id="new-user-btn" type="button">Add user</button>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-portal table-hover mb-0">
+              <thead>
+                <tr>
+                  <th>#</th><th>ID number</th><th>Name</th><th>Email</th>
+                  <th>Role</th><th>Department</th><th>Status</th><th>Bookings</th>
+                  <th class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="users-body">
+                <tr><td colspan="9" class="text-center text-muted-sm py-4">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="portal-footer">
+    CSPC Lab &amp; Room Reservation System &middot; Computer Studies Department
+  </footer>
+
+  <!-- Building modal ---------------------------------------------------- -->
+  <div class="modal fade" id="building-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="building-modal-title">Building</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form id="building-form">
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label" for="building-name">Name</label>
+              <input type="text" class="form-control" id="building-name" name="name" required />
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="building-location">Location</label>
+              <input type="text" class="form-control" id="building-location" name="location" />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-cspc" id="building-save">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Room modal -------------------------------------------------------- -->
+  <div class="modal fade" id="room-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="room-modal-title">Room</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form id="room-form">
+          <div class="modal-body">
+            <div class="row">
+              <div class="col-sm-6 mb-3">
+                <label class="form-label" for="room-building">Building</label>
+                <select class="form-select" id="room-building" name="building_id" required></select>
+              </div>
+              <div class="col-sm-6 mb-3">
+                <label class="form-label" for="room-name">Room name</label>
+                <input type="text" class="form-control" id="room-name" name="name" required />
+              </div>
+              <div class="col-sm-6 mb-3">
+                <label class="form-label" for="room-type">Type</label>
+                <select class="form-select" id="room-type" name="room_type">
+                  <option value="laboratory">Laboratory</option>
+                  <option value="classroom">Classroom</option>
+                  <option value="hall">Hall</option>
+                  <option value="office">Office</option>
+                </select>
+              </div>
+              <div class="col-sm-6 mb-3">
+                <label class="form-label" for="room-capacity">Capacity</label>
+                <input type="number" class="form-control" id="room-capacity" name="capacity"
+                       min="1" max="1000" value="40" required />
+              </div>
+              <div class="col-sm-6 mb-3">
+                <label class="form-label" for="room-floor">Floor</label>
+                <input type="text" class="form-control" id="room-floor" name="floor"
+                       maxlength="50" placeholder="e.g. 2nd Floor" />
+              </div>
+              <div class="col-sm-6 mb-3">
+                <label class="form-label" for="room-image">Photo URL</label>
+                <input type="text" class="form-control" id="room-image" name="image_url"
+                       maxlength="255" placeholder="/img/room-photo.jpg" />
+              </div>
+            </div>
+            <div class="d-flex flex-wrap gap-3 mb-3">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="room-projector" name="has_projector" />
+                <label class="form-check-label" for="room-projector">Projector</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="room-aircon" name="has_aircon" />
+                <label class="form-check-label" for="room-aircon">Air-conditioning</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="room-sound" name="has_sound" />
+                <label class="form-check-label" for="room-sound">Sound system</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="room-active" name="is_active" checked />
+                <label class="form-check-label" for="room-active">Active</label>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-cspc" id="room-save">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- User modal -------------------------------------------------------- -->
+  <div class="modal fade" id="user-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="user-modal-title">User account</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form id="user-form">
+          <div class="modal-body">
+            <div class="mb-3" id="user-school-id-group">
+              <label class="form-label" for="user-school-id">ID number</label>
+              <input type="text" class="form-control" id="user-school-id" name="school_id" />
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="user-full-name">Full name</label>
+              <input type="text" class="form-control" id="user-full-name" name="full_name" required />
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="user-email">Email</label>
+              <input type="email" class="form-control" id="user-email" name="email" required />
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="user-recovery-email">Recovery email <span class="text-muted-sm">(optional)</span></label>
+              <input type="email" class="form-control" id="user-recovery-email" name="recovery_email" />
+              <div class="form-text">Alternate inbox that receives password-reset codes. Does not change the login email.</div>
+            </div>
+            <div class="row">
+              <div class="col-sm-6 mb-3">
+                <label class="form-label" for="user-role">Role</label>
+                <select class="form-select" id="user-role" name="role">
+                  <option value="student">Student</option>
+                  <option value="faculty">Faculty</option>
+                  <option value="custodian">Custodian</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <div class="col-sm-6 mb-3">
+                <label class="form-label" for="user-department">Department</label>
+                <input type="text" class="form-control" id="user-department" name="department" />
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="user-password">
+                Password <span class="text-muted-sm" id="user-password-hint">(optional on edit)</span>
+              </label>
+              <input type="password" class="form-control" id="user-password" name="password" />
+              <div class="form-text">At least 8 characters. Leave blank to keep the current password.</div>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="user-active" name="is_active" checked />
+              <label class="form-check-label" for="user-active">Active</label>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-cspc" id="user-save">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/app.js"></script>
+  <script src="/js/cookie-consent.js"></script>
+  <script src="/js/admin.js"></script>
+</body>
+</html>

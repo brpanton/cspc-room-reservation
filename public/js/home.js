@@ -1,0 +1,789 @@
+/* Public homepage: shared navigation and live campus building highlights. */
+'use strict';
+
+(async function () {
+  const P = window.Portal;
+  const session = await P.getSession();
+  P.renderNavbar(session.user, 'home');
+
+  const primaryAction = document.getElementById('home-primary-action');
+  if (session.authenticated && primaryAction) {
+    primaryAction.removeAttribute('data-bs-toggle');
+    primaryAction.removeAttribute('data-bs-target');
+    primaryAction.classList.remove('btn');
+    primaryAction.outerHTML = `<a class="btn btn-cspc btn-lg" id="home-primary-action" href="${session.user.role === 'admin' ? '/admin-dashboard.html' : '/dashboard.html'}">${session.user.role === 'admin' ? 'Open admin dashboard →' : 'Open your dashboard →'}</a>`;
+  }
+
+  const loginModalEl = document.getElementById('visitor-login-modal');
+  const registerModalEl = document.getElementById('visitor-register-modal');
+  const loginModal = loginModalEl ? new bootstrap.Modal(loginModalEl) : null;
+  const registerModal = registerModalEl ? new bootstrap.Modal(registerModalEl) : null;
+  const loginForm = document.getElementById('visitor-login-form');
+  const loginAlert = document.getElementById('visitor-login-alert');
+  const loginSubmit = document.getElementById('visitor-login-submit');
+  const loginIdLabel = document.getElementById('visitor-login-id-label');
+  const loginIdInput = document.getElementById('visitor-login-id');
+  let loginMode = 'user';
+
+  function applyLoginMode(mode) {
+    const modeChanged = mode !== loginMode;
+    loginMode = mode;
+    // The User/Admin tabs share one form, so clear typed credentials when
+    // switching roles — keeps user login details out of the admin login.
+    if (modeChanged) {
+      const passwordInput = document.getElementById('visitor-login-password');
+      [loginIdInput, passwordInput].filter(Boolean).forEach((input) => {
+        input.value = '';
+        input.classList.remove('is-invalid');
+      });
+    }
+    document.querySelectorAll('[data-visitor-login-mode]').forEach((item) => {
+      const active = item.dataset.visitorLoginMode === mode;
+      item.classList.toggle('active', active);
+      item.setAttribute('aria-pressed', String(active));
+    });
+    loginIdLabel.textContent = 'CSPC email address';
+    loginIdInput.placeholder = 'Enter your CSPC email address (e.g. name@cspc.edu.ph)';
+    loginIdInput.setAttribute('type', 'email');
+    loginIdInput.setAttribute('inputmode', 'email');
+    loginSubmit.textContent = loginMode === 'admin' ? 'Login' : 'Log in';
+    loginAlert.classList.add('d-none');
+  }
+
+  function showAlert(host, message, type = 'danger') {
+    host.className = `alert alert-${type} mt-3`;
+    host.textContent = message;
+    host.classList.remove('d-none');
+  }
+
+  document.querySelectorAll('[data-visitor-login-mode]').forEach((button) => {
+    button.addEventListener('click', () => applyLoginMode(button.dataset.visitorLoginMode));
+  });
+
+  applyLoginMode('user');
+
+  // One-click Google SSO handoff — the server owns the OAuth details: it
+  // builds the consent-screen URL (with a CSRF state nonce) and verifies the
+  // callback at /api/auth/google[/callback]. Until GOOGLE_CLIENT_ID/SECRET
+  // are set in .env the config endpoint reports { configured: false }, so the
+  // button keeps its friendly "not configured" notice instead of redirecting.
+  const visitorSsoBtn = document.getElementById('visitor-sso-google');
+  if (visitorSsoBtn) {
+    visitorSsoBtn.addEventListener('click', async () => {
+      try {
+        const cfg = await P.api('/api/auth/google/config');
+        if (!cfg.configured) {
+          P.toastInfo('Google sign-in is not configured yet. Please use your school ID and password until the SSO provider is set up.');
+          return;
+        }
+        P.busy(visitorSsoBtn, true, 'Opening Google...');
+        const type = loginMode === 'admin' ? 'admin' : 'user';
+        window.location.assign(`/api/auth/google?type=${type}&return=home`);
+      } catch {
+        P.toastInfo('Unable to start Google sign-in right now. Please try again or use your school ID and password.');
+      }
+    });
+  }
+
+  loginForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    loginAlert.classList.add('d-none');
+    const email = loginIdInput.value.trim().toLowerCase();
+    const password = document.getElementById('visitor-login-password').value;
+    if (!email || !password) {
+      return showAlert(loginAlert, 'Enter your CSPC email address and password.');
+    }
+    if (!/@(my\.)?cspc\.edu\.ph$/i.test(email)) {
+      return showAlert(loginAlert, 'Please use your official @cspc.edu.ph or @my.cspc.edu.ph email address.');
+    }
+
+    P.busy(loginSubmit, true, loginMode === 'admin' ? 'Authenticating...' : 'Signing in...');
+    try {
+      const payload = { email, password, login_type: loginMode };
+      const result = await P.api('/api/auth/login', { method: 'POST', body: payload });
+      P.toastOk(result.message || 'Welcome back!');
+      window.location.assign(result.redirect || '/dashboard.html');
+    } catch (err) {
+      showAlert(loginAlert, err.message);
+      P.busy(loginSubmit, false);
+    }
+  });
+
+  /* ---------------------------------------------- password recovery ---
+     The login modal doubles as a 3-step recovery flow (email -> OTP ->
+     new password) so visitors never leave the page. Backend lives in
+     routes/password-reset.js, mounted under /api/auth. */
+  const authViewTitles = {
+    login: 'Log in to your account',
+    forgot: 'Reset your password',
+    otp: 'Verify your email',
+    reset: 'Choose a new password'
+  };
+  const authViews = {
+    login: document.getElementById('visitor-login-view'),
+    forgot: document.getElementById('visitor-forgot-view'),
+    otp: document.getElementById('visitor-otp-view'),
+    reset: document.getElementById('visitor-reset-view')
+  };
+  const authTitle = document.getElementById('visitor-login-title');
+  const forgotLink = document.getElementById('visitor-forgot-link');
+
+  const forgotForm = document.getElementById('visitor-forgot-form');
+  const forgotAlert = document.getElementById('visitor-forgot-alert');
+  const forgotSubmit = document.getElementById('visitor-forgot-submit');
+  const forgotEmail = document.getElementById('visitor-forgot-email');
+
+  const otpForm = document.getElementById('visitor-otp-form');
+  const otpAlert = document.getElementById('visitor-otp-alert');
+  const otpSubmit = document.getElementById('visitor-otp-submit');
+  const otpInput = document.getElementById('visitor-otp-input');
+  const otpEmailEcho = document.getElementById('visitor-otp-email');
+  const otpResend = document.getElementById('visitor-otp-resend');
+  const resetEmailEcho = document.getElementById('visitor-reset-email');
+
+  const resetForm = document.getElementById('visitor-reset-form');
+  const resetAlert = document.getElementById('visitor-reset-alert');
+  const resetSubmit = document.getElementById('visitor-reset-submit');
+  const resetPassword = document.getElementById('visitor-reset-password');
+  const resetConfirm = document.getElementById('visitor-reset-confirm');
+
+  const RESEND_SECONDS = 60;
+  let recoveryIdentifier = '';
+  let resetToken = '';
+  let resendTimer = null;
+
+  function stopResendTimer() {
+    if (resendTimer) {
+      window.clearInterval(resendTimer);
+      resendTimer = null;
+    }
+  }
+
+  /* Live MM:SS countdown on the "Resend code" button (disabled until 0). */
+  function startResendCountdown(seconds = RESEND_SECONDS) {
+    stopResendTimer();
+    let left = seconds;
+    const render = () => {
+      if (!otpResend) return;
+      if (left > 0) {
+        otpResend.disabled = true;
+        otpResend.textContent = `Resend code in ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+      } else {
+        otpResend.disabled = false;
+        otpResend.textContent = 'Resend code';
+      }
+    };
+    render();
+    resendTimer = window.setInterval(() => {
+      left -= 1;
+      render();
+      if (left <= 0) stopResendTimer();
+    }, 1000);
+  }
+
+  /* Shows one recovery view (or the login view) and updates the title. */
+  function setAuthView(name) {
+    Object.entries(authViews).forEach(([key, el]) => {
+      if (el) el.classList.toggle('d-none', key !== name);
+    });
+    if (authTitle) authTitle.textContent = authViewTitles[name] || authViewTitles.login;
+    [forgotAlert, otpAlert, resetAlert].forEach((el) => el && el.classList.add('d-none'));
+    if (name !== 'otp') stopResendTimer();
+    const firstInput = { forgot: forgotEmail, otp: otpInput, reset: resetPassword }[name];
+    if (firstInput) window.setTimeout(() => firstInput.focus(), 150);
+  }
+
+  forgotLink?.addEventListener('click', () => {
+    // Open the forgot view with a completely blank recovery email field —
+    // never pre-fill it from the login input.
+    forgotEmail.value = '';
+    setAuthView('forgot');
+  });
+
+  document.querySelectorAll('[data-visitor-auth-view]').forEach((button) => {
+    button.addEventListener('click', () => setAuthView(button.dataset.visitorAuthView));
+  });
+
+  /* --- step 1: ask the server to send a code ------------------------- */
+  forgotForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    forgotAlert.classList.add('d-none');
+    const email = String(forgotEmail.value || '').trim().toLowerCase();
+    if (!email) {
+      return showAlert(forgotAlert, 'Enter your recovery email address.');
+    }
+    P.busy(forgotSubmit, true, 'Sending code...');
+    try {
+      const result = await P.api('/api/auth/forgot-password', { method: 'POST', body: { email } });
+      recoveryIdentifier = email;
+      resetToken = '';
+      otpInput.value = '';
+      // Echo where the code was sent: recovery inbox or official CSPC email.
+      const deliveryTo = result.delivery_to;
+      if (otpEmailEcho) {
+        otpEmailEcho.textContent = deliveryTo === 'recovery' ? 'your recovery email' : 'your official CSPC email';
+        otpEmailEcho.classList.toggle('text-primary-emphasis', true);
+      }
+      if (resetEmailEcho) {
+        resetEmailEcho.textContent = email;
+      }
+      setAuthView('otp');
+      startResendCountdown();
+      if (result.email_delivery === 'console') {
+        // Dev fallback: SMTP is not configured, so no email actually left
+        // the server - the OTP was printed to the server console instead.
+        showAlert(otpAlert, 'Heads up: email delivery is not configured on this server, so no email was sent. The 6-digit code was printed in the server console - check with the developer for the code.', 'warning');
+      } else {
+        // result.message is worded by the server to match the actual inbox
+        // (recovery email vs official CSPC email).
+        showAlert(otpAlert, result.message || 'A 6-digit code was sent to your email.', 'info');
+      }
+    } catch (err) {
+      // Stay on the email step so the visitor can fix the address.
+      showAlert(forgotAlert, err.message);
+    } finally {
+      P.busy(forgotSubmit, false);
+    }
+  });
+
+  /* Resend: managed manually (not via P.busy) so the countdown stays in
+     control of the button label; always restart the cooldown afterwards,
+     even when the server answers with its 60s rate-limit message. */
+  otpResend?.addEventListener('click', async () => {
+    if (!recoveryIdentifier || otpResend.disabled) return;
+    otpResend.disabled = true;
+    try {
+      const result = await P.api('/api/auth/forgot-password', { method: 'POST', body: { email: recoveryIdentifier } });
+      otpInput.value = '';
+      if (result.email_delivery === 'console') {
+        showAlert(otpAlert, 'Email delivery is not configured on this server, so no email was sent. The new code was printed in the server console.', 'warning');
+      } else {
+        showAlert(otpAlert, result.message || 'A new code was sent to your email.', 'info');
+      }
+    } catch (err) {
+      showAlert(otpAlert, err.message);
+    } finally {
+      startResendCountdown();
+    }
+  });
+
+  /* --- step 2: verify the 6-digit code -------------------------------- */
+  otpInput?.addEventListener('input', () => {
+    const digits = String(otpInput.value).replace(/\D/g, '').slice(0, 6);
+    if (digits !== otpInput.value) otpInput.value = digits;
+    // Convenience: submit the moment the 6th digit lands.
+    if (digits.length === 6) otpForm.requestSubmit();
+  });
+
+  otpForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    otpAlert.classList.add('d-none');
+    const otp = String(otpInput.value).trim();
+    if (!/^\d{6}$/.test(otp)) return showAlert(otpAlert, 'Enter the 6-digit code from your email.');
+    if (!recoveryIdentifier) return setAuthView('forgot');
+    P.busy(otpSubmit, true, 'Verifying...');
+    try {
+      const result = await P.api('/api/auth/verify-otp', { method: 'POST', body: { identifier: recoveryIdentifier, otp } });
+      resetToken = result.reset_token || '';
+      otpInput.value = '';
+      setAuthView('reset');
+    } catch (err) {
+      showAlert(otpAlert, err.message);
+      otpInput.value = '';
+      otpInput.focus();
+    } finally {
+      P.busy(otpSubmit, false);
+    }
+  });
+
+  /* --- step 3: set the new password ----------------------------------- */
+  resetForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    resetAlert.classList.add('d-none');
+    const password = resetPassword.value;
+    const confirm = resetConfirm.value;
+    if (password.length < 8) return showAlert(resetAlert, 'Password must be at least 8 characters long.');
+    if (password !== confirm) return showAlert(resetAlert, 'Passwords do not match.');
+    if (!resetToken || !recoveryIdentifier) return setAuthView('forgot');
+    P.busy(resetSubmit, true, 'Saving...');
+    try {
+      const result = await P.api('/api/auth/reset-password', {
+        method: 'POST',
+        body: {
+          identifier: recoveryIdentifier,
+          reset_token: resetToken,
+          new_password: password,
+          confirm_password: confirm
+        }
+      });
+      P.toastOk(result.message || 'Your password has been reset. You can now log in.');
+      // Land back on the login view with the email ready to type into.
+      forgotForm?.reset();
+      otpInput.value = '';
+      resetForm.reset();
+      if (loginIdInput) loginIdInput.value = recoveryIdentifier;
+      recoveryIdentifier = '';
+      resetToken = '';
+      setAuthView('login');
+    } catch (err) {
+      showAlert(resetAlert, err.message);
+    } finally {
+      P.busy(resetSubmit, false);
+    }
+  });
+
+  // A fresh open always starts from the login view; closing mid-flow clears
+  // the countdown timer and any half-entered recovery state.
+  loginModalEl?.addEventListener('show.bs.modal', () => setAuthView('login'));
+  loginModalEl?.addEventListener('hidden.bs.modal', () => {
+    stopResendTimer();
+    recoveryIdentifier = '';
+    resetToken = '';
+    forgotForm?.reset();
+    if (otpInput) otpInput.value = '';
+    resetForm?.reset();
+    setAuthView('login');
+  });
+
+  const registerForm = document.getElementById('visitor-register-form');
+  const registerAlert = document.getElementById('visitor-register-alert');
+  const registerSubmit = document.getElementById('visitor-register-submit');
+
+  /* -------------------------------------------------- admin registration --- */
+  // The admin "Create account" uses its own modal/layout: the login footer
+  // link routes here whenever the Admin Login segment is active.
+  const adminRegisterModalEl = document.getElementById('visitor-admin-register-modal');
+  const adminRegisterModal = adminRegisterModalEl ? new bootstrap.Modal(adminRegisterModalEl) : null;
+  const adminRegisterForm = document.getElementById('visitor-admin-register-form');
+  const adminRegisterAlert = document.getElementById('visitor-admin-register-alert');
+  const adminRegisterSubmit = document.getElementById('visitor-admin-register-submit');
+
+  document.getElementById('visitor-login-create-account')?.addEventListener('click', () => {
+    (loginMode === 'admin' ? adminRegisterModal : registerModal)?.show();
+  });
+
+  adminRegisterForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    adminRegisterAlert.classList.add('d-none');
+    const form = event.currentTarget;
+    const schoolId = form.elements.school_id.value.trim().toUpperCase();
+    const fullName = form.elements.full_name.value.trim();
+    const email = form.elements.email.value.trim().toLowerCase();
+    const password = form.elements.password.value;
+    const recoveryEmail = form.elements.recovery_email.value.trim();
+    if (!/^[A-Z]{3,5}-[A-Z0-9]{4,12}$/.test(schoolId)) return showAlert(adminRegisterAlert, 'Admin ID must match a secure format such as ADMIN-0001.');
+    if (fullName.length < 3 || fullName.length > 120) return showAlert(adminRegisterAlert, 'Full name must be between 3 and 120 characters.');
+    if (!/@(my\.)?cspc\.edu\.ph$/i.test(email)) return showAlert(adminRegisterAlert, 'Admin email must use the @cspc.edu.ph or @my.cspc.edu.ph domain.');
+    if (!form.elements.enrollment_code.value.trim()) return showAlert(adminRegisterAlert, 'Enter the enrollment code issued by a Super Admin.');
+    if (password.length < 8 || password.length > 72) return showAlert(adminRegisterAlert, 'Password must be between 8 and 72 characters.');
+    if (password !== form.elements.confirm_password.value) return showAlert(adminRegisterAlert, 'The two passwords do not match.');
+
+    P.busy(adminRegisterSubmit, true, 'Creating admin account...');
+    try {
+      const result = await P.api('/api/auth/register-admin', {
+        method: 'POST',
+        body: {
+          school_id: schoolId,
+          full_name: fullName,
+          email,
+          password,
+          admin_level: form.elements.admin_level.value,
+          department: form.elements.department.value.trim() || 'Administration',
+          enrollment_code: form.elements.enrollment_code.value.trim(),
+          ...(recoveryEmail ? { recovery_email: recoveryEmail } : {})
+        }
+      });
+      adminRegisterModal.hide();
+      P.toastOk(result.message || 'Administrator account created.');
+      // No session yet — send them straight back to Log in (Admin segment).
+      applyLoginMode('admin');
+      window.setTimeout(() => loginModal?.show(), 450);
+    } catch (err) {
+      showAlert(adminRegisterAlert, err.message);
+      P.busy(adminRegisterSubmit, false);
+    }
+  });
+
+  registerForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    registerAlert.classList.add('d-none');
+    const form = event.currentTarget;
+    const schoolId = form.elements.school_id.value.trim();
+    const fullName = form.elements.full_name.value.trim();
+    const email = form.elements.email.value.trim().toLowerCase();
+    const password = form.elements.password.value;
+    const recoveryEmail = form.elements.recovery_email.value.trim();
+    if (!/^[A-Za-z0-9-]{4,50}$/.test(schoolId)) return showAlert(registerAlert, 'ID number may only contain letters, digits and dashes (4-50 characters).');
+    if (fullName.length < 3 || fullName.length > 120) return showAlert(registerAlert, 'Full name must be between 3 and 120 characters.');
+    if (!/@(my\.)?cspc\.edu\.ph$/i.test(email)) return showAlert(registerAlert, 'Email must use the @cspc.edu.ph or @my.cspc.edu.ph domain.');
+    if (recoveryEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recoveryEmail)) {
+      return showAlert(registerAlert, 'Enter a valid recovery email address.');
+    }
+    if (password.length < 8 || password.length > 72) return showAlert(registerAlert, 'Password must be between 8 and 72 characters.');
+    if (password !== form.elements.confirm_password.value) return showAlert(registerAlert, 'The two passwords do not match.');
+
+    P.busy(registerSubmit, true, 'Creating account...');
+    try {
+      const result = await P.api('/api/auth/register', {
+        method: 'POST',
+        body: {
+          school_id: schoolId,
+          full_name: fullName,
+          email,
+          password,
+          role: form.elements.role.value,
+          department: form.elements.department.value.trim(),
+          ...(recoveryEmail ? { recovery_email: recoveryEmail } : {})
+        }
+      });
+      registerModal.hide();
+      P.toastOk(result.message || 'Registration successful.');
+      window.setTimeout(() => window.location.assign('/dashboard.html'), 450);
+    } catch (err) {
+      showAlert(registerAlert, err.message);
+      P.busy(registerSubmit, false);
+    }
+  });
+
+  const query = new URLSearchParams(window.location.search);
+  if (query.get('auth') === 'login' || query.get('error') === 'login_required') loginModal?.show();
+  if (query.get('auth') === 'register') registerModal?.show();
+  if (query.has('logged_out')) P.toastInfo('You have been logged out.');
+  if (query.get('error') === 'admin_required') P.toastError('Administrator access is required.');
+  const GOOGLE_ERROR_MESSAGES = {
+    google_cancelled: ['Google sign-in was cancelled. You can try again or use your school ID instead.', 'warning'],
+    google_not_configured: ['Google sign-in is not configured yet. Please use your school ID and password until the SSO provider is set up.', 'warning'],
+    google_domain: ['Please sign in with your official CSPC Google account (@cspc.edu.ph or @my.cspc.edu.ph).', 'danger'],
+    google_inactive: ['This account has been deactivated. Please contact the administrator.', 'danger'],
+    google_forbidden: ['Access denied. Administrator privileges are required.', 'danger'],
+    google_failed: ['Google sign-in could not be completed. Please log in with your school ID and password.', 'danger']
+  };
+  const googleErrorCode = query.get('error');
+  const googleError = GOOGLE_ERROR_MESSAGES[googleErrorCode];
+  if (googleError) {
+    loginModal?.show();
+    let googleMessage = googleError[0];
+    const usedEmail = googleErrorCode === 'google_domain'
+      ? String(query.get('email') || '').trim().slice(0, 254)
+      : '';
+    if (usedEmail) {
+      googleMessage = `${googleMessage} You signed in as ${usedEmail} - use the Google button again and pick your school account.`;
+    }
+    showAlert(loginAlert, googleMessage, googleError[1]);
+  }
+
+  /* ---------------------------------------------------- guest welcome ---
+     Visitors who open the site while signed out see the login card once
+     per browser session: they can log in, jump to registration, or close
+     it (X / backdrop / Esc) and keep browsing. Skipped when a query-string
+     flow already opened a modal, when signed in, and after the visitor has
+     dismissed it earlier in the same session. Logging out clears the flag
+     so the prompt comes back on their next visit. */
+  const LOGIN_PROMPT_KEY = 'cspc-home-login-prompted';
+  if (query.has('logged_out')) {
+    try { window.sessionStorage.removeItem(LOGIN_PROMPT_KEY); } catch { /* storage unavailable */ }
+  }
+  let guestPromptSeen = false;
+  try {
+    guestPromptSeen = window.sessionStorage.getItem(LOGIN_PROMPT_KEY) === '1';
+    if (!guestPromptSeen) window.sessionStorage.setItem(LOGIN_PROMPT_KEY, '1');
+  } catch { /* storage unavailable - prompt stays silent rather than nag */ }
+  const queryAlreadyPrompted = query.has('auth') || query.has('error');
+  if (loginModal && !session.authenticated && !queryAlreadyPrompted && !guestPromptSeen) {
+    // Short delay so the hero paints before the card slides in.
+    window.setTimeout(() => loginModal.show(), 600);
+  }
+
+  /* ------------------------------------------------------------- data --- */
+
+  let buildings = [];
+  try {
+    const data = await P.api('/api/buildings');
+    buildings = data.buildings || [];
+  } catch {
+    buildings = [];
+  }
+
+  /* --------------------------------------------- featured spaces grid --- */
+
+  const buildingHost = document.getElementById('home-buildings-list');
+  if (buildingHost) {
+    // Skeleton UI while the live Top 3 loads.
+    buildingHost.innerHTML = [1, 2, 3].map((n) => `
+        <div class="col-md-4 home-building-col">
+          <article class="home-building-card building-tone-${n} is-loading" aria-busy="true">
+            <div class="home-building-card-top"><span class="home-building-number">${String(n).padStart(2, '0')}</span><span class="home-building-mark" aria-hidden="true">⌂</span></div>
+            <h3>Loading popular space…</h3>
+            <p>Counting reservations…</p>
+            <div class="home-building-card-footer"><span>— active rooms</span><span aria-hidden="true">↗</span></div>
+          </article>
+        </div>`).join('');
+
+    let popular = [];
+    try {
+      const topData = await P.api('/api/buildings/top-popular');
+      popular = topData.buildings || [];
+    } catch {
+      popular = [];
+    }
+    // Fallback: if no reservation data yet, rank by active room count so the
+    // section still shows meaningful buildings instead of going empty.
+    const featured = (popular.length ? popular : buildings.slice(0, 3)).slice(0, 3);
+    buildingHost.innerHTML = featured.length
+      ? featured.map((building, index) => {
+          const name = building.building_name || building.name;
+          const roomsLabel = `${building.active_rooms ?? building.room_count ?? 0} active rooms`;
+          const resCount = Number(building.total_reservations ?? 0);
+          const sub = building.location || (resCount > 0 ? `${resCount} reservation${resCount === 1 ? '' : 's'} booked` : 'CSPC campus');
+          return `
+        <div class="col-md-4 home-building-col">
+          <article class="home-building-card building-tone-${(index % 3) + 1}">
+            <div class="home-building-card-top"><span class="home-building-number">${String(index + 1).padStart(2, '0')}</span><span class="home-building-mark" aria-hidden="true">⌂</span></div>
+            <h3>${P.escapeHtml(name)}</h3>
+            <p>${P.escapeHtml(sub)}</p>
+            <div class="home-building-card-footer"><span>${P.escapeHtml(roomsLabel)}${resCount > 0 ? ` · ${resCount} bookings` : ''}</span><a href="/rooms-status.html" aria-label="View room status">↗</a></div>
+          </article>
+        </div>`;
+        }).join('')
+      : '<div class="col-12"><div class="home-building-loading">Campus building information will appear here soon.</div></div>';
+  }
+
+  /* -------------------------------------- buildings expand / collapse --- */
+
+  const buildingsToggle = document.getElementById('home-buildings-toggle');
+  const buildingsToggleLabel = document.getElementById('home-buildings-toggle-label');
+  const COLLAPSED_BUILDINGS = 3; // one tidy row on desktop, first three on mobile
+
+  function buildingColumns() {
+    return buildingHost ? Array.from(buildingHost.querySelectorAll('.home-building-col')) : [];
+  }
+
+  /** Pixel height of the first visible row of cards (the 3rd card's bottom). */
+  function collapsedBuildingsHeight() {
+    const cols = buildingColumns();
+    if (cols.length <= COLLAPSED_BUILDINGS) return null;
+    const top = buildingHost.getBoundingClientRect().top;
+    return Math.max(0, Math.round(cols[COLLAPSED_BUILDINGS - 1].getBoundingClientRect().bottom - top));
+  }
+
+  function applyBuildingsHeight(expand, instant = false) {
+    if (!buildingHost) return;
+    const height = collapsedBuildingsHeight();
+    if (height === null) {
+      buildingHost.style.maxHeight = '';
+      return;
+    }
+    if (instant) buildingHost.style.transition = 'none';
+    buildingHost.style.maxHeight = `${expand ? buildingHost.scrollHeight : height}px`;
+    if (instant) {
+      void buildingHost.offsetHeight; // flush so the change isn't animated
+      buildingHost.style.transition = '';
+    }
+  }
+
+  if (buildingHost && buildingsToggle) {
+    const total = buildingColumns().length;
+
+    if (total > COLLAPSED_BUILDINGS) {
+      buildingsToggle.hidden = false;
+      if (buildingsToggleLabel) buildingsToggleLabel.textContent = `Show all ${total} buildings`;
+
+      buildingHost.classList.add('is-collapsed');
+      applyBuildingsHeight(false, true);
+
+      buildingsToggle.addEventListener('click', () => {
+        const expand = buildingsToggle.getAttribute('aria-expanded') !== 'true';
+        buildingsToggle.setAttribute('aria-expanded', String(expand));
+        if (buildingsToggleLabel) {
+          buildingsToggleLabel.textContent = expand ? 'Show less' : `Show all ${total} buildings`;
+        }
+        buildingHost.classList.add('is-animating');
+        buildingHost.classList.toggle('is-collapsed', !expand);
+        applyBuildingsHeight(expand);
+        window.setTimeout(() => buildingHost.classList.remove('is-animating'), 480);
+      });
+
+      let resizeTimer = null;
+      window.addEventListener('resize', () => {
+        window.clearTimeout(resizeTimer);
+        resizeTimer = window.setTimeout(
+          () => applyBuildingsHeight(buildingsToggle.getAttribute('aria-expanded') === 'true', true),
+          150
+        );
+      });
+    }
+  }
+
+  /* ----------------------------------------- quick availability search --- */
+
+  const searchForm = document.getElementById('home-search-form');
+  const searchDate = document.getElementById('home-search-date');
+  const searchTime = document.getElementById('home-search-time');
+  const searchBuilding = document.getElementById('home-search-building');
+  const searchResult = document.getElementById('home-search-result');
+  const searchSubmit = document.getElementById('home-search-submit');
+
+  if (searchDate) {
+    searchDate.value = P.todayIso();
+    searchDate.min = P.todayIso();
+  }
+  if (searchBuilding) {
+    searchBuilding.innerHTML =
+      '<option value="">All buildings</option>' +
+      buildings.map((b) => `<option value="${b.id}">${P.escapeHtml(b.name)}</option>`).join('');
+  }
+
+  /** Shared helpers for reading availability records (times are "HH:MM:SS"). */
+  function minutesFromValue(value) {
+    const [h, m] = String(value || '').split(':').map(Number);
+    return Number.isNaN(h) ? null : h * 60 + (m || 0);
+  }
+
+  function parseSlot(value) {
+    const match = /^(\d{2}:\d{2})-(\d{2}:\d{2})$/.exec(String(value || ''));
+    if (!match) return null;
+    return { start: minutesFromValue(match[1]), end: minutesFromValue(match[2]), label: value };
+  }
+
+  function overlaps(slot, booking) {
+    const bs = minutesFromValue(booking.start_time);
+    const be = minutesFromValue(booking.end_time);
+    if (bs === null || be === null) return false;
+    return bs < slot.end && be > slot.start;
+  }
+
+  /** Green = free, amber = some bookings, red = occupied right now / in slot. */
+  function roomStatus(room, dateValue, slot) {
+    const bookings = room.bookings || [];
+    if (slot) {
+      const clash = bookings.find((b) => overlaps(slot, b));
+      return clash
+        ? { tone: 'occupied', label: 'Booked', detail: `${P.formatTime(clash.start_time)} – ${P.formatTime(clash.end_time)}` }
+        : { tone: 'available', label: 'Free', detail: 'Open in this slot' };
+    }
+    if (dateValue === P.todayIso()) {
+      const now = new Date().getHours() * 60 + new Date().getMinutes();
+      const current = bookings.find((b) => {
+        const bs = minutesFromValue(b.start_time);
+        const be = minutesFromValue(b.end_time);
+        return bs !== null && be !== null && bs <= now && now < be;
+      });
+      if (current) return { tone: 'occupied', label: 'Occupied', detail: `Until ${P.formatTime(current.end_time)}` };
+    }
+    if (!bookings.length) return { tone: 'available', label: 'Available', detail: 'Free all day' };
+    return { tone: 'limited', label: 'Limited', detail: `${bookings.length} booking${bookings.length > 1 ? 's' : ''} today` };
+  }
+
+  /* ------------------------------------- real-time status indicators --- */
+
+  const statusGrid = document.getElementById('home-status-grid');
+
+  function statusCard(room, dateValue, slot) {
+    const status = roomStatus(room, dateValue, slot);
+    const type = P.ROOM_TYPE_LABELS[room.room_type] || room.room_type || 'Space';
+    const meta = [room.building_name, room.capacity ? `Seats ${room.capacity}` : '']
+      .filter(Boolean).map(P.escapeHtml).join(' · ');
+    return `
+      <article class="home-status-card is-${status.tone}">
+        <div class="home-status-card-top">
+          <span class="home-status-badge is-${status.tone}">${P.escapeHtml(status.label)}</span>
+          <span class="home-status-type">${P.escapeHtml(type)}</span>
+        </div>
+        <h3>${P.escapeHtml(room.name)}</h3>
+        <p class="home-status-meta">${meta}</p>
+        <div class="home-status-foot">${P.escapeHtml(status.detail)}</div>
+      </article>`;
+  }
+
+  /** Labs and halls first, then the busiest rooms - our "high-demand" pick. */
+  function highlightRooms(rooms) {
+    const rank = (room) => (room.room_type === 'hall' ? 2 : room.room_type === 'laboratory' ? 1 : 0);
+    return [...rooms]
+      .sort((a, b) => (rank(b) - rank(a))
+        || ((b.bookings || []).length - (a.bookings || []).length)
+        || String(a.name).localeCompare(String(b.name)))
+      .slice(0, 6);
+  }
+
+  async function loadLiveStatus() {
+    if (!statusGrid) return;
+    try {
+      const date = P.todayIso();
+      const data = await P.api(`/api/availability?date=${date}`);
+      const rooms = data.rooms || [];
+      const highlights = highlightRooms(rooms);
+      statusGrid.innerHTML = highlights.length
+        ? highlights.map((room) => statusCard(room, date, null)).join('')
+        : '<div class="home-status-loading">No active rooms to show right now.</div>';
+      // Dynamic counter for the floating hero badge: count rooms with no bookings today.
+      const openRooms = rooms.filter((room) => (room.bookings || []).length === 0);
+      const openCount = openRooms.length;
+      const heroCount = document.getElementById('hero-rooms-count');
+      if (heroCount) heroCount.textContent = openCount > 0 ? `${openCount} Room${openCount === 1 ? '' : 's'} Available Now` : 'Checking Live Availability…';
+      // Hover tooltip preview — list 2-3 open rooms by name.
+      const heroTooltip = document.getElementById('hero-rooms-tooltip');
+      if (heroTooltip) {
+        if (openRooms.length) {
+          const preview = openRooms.slice(0, 3).map((room) => P.escapeHtml(room.name)).join('<br />');
+          const extra = openRooms.length > 3 ? `<br />+${openRooms.length - 3} more open today` : '';
+          heroTooltip.innerHTML = `<b>Open now:</b><br />${preview}${extra}`;
+        } else {
+          heroTooltip.textContent = 'All rooms have bookings today — check another date.';
+        }
+      }
+    } catch {
+      statusGrid.innerHTML = '<div class="home-status-loading">Live availability is temporarily unavailable. Open the full timetable to check rooms.</div>';
+    }
+  }
+
+  searchForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!searchResult) return;
+
+    const slot = parseSlot(searchTime?.value);
+    const date = searchDate?.value || P.todayIso();
+    const params = new URLSearchParams({ date });
+    if (searchBuilding?.value) params.set('building_id', searchBuilding.value);
+
+    P.busy(searchSubmit, true, 'Checking...');
+    try {
+      const data = await P.api(`/api/availability?${params.toString()}`);
+      const rooms = data.rooms || [];
+      const matches = rooms.filter((room) => {
+        const bookings = room.bookings || [];
+        return slot ? !bookings.some((b) => overlaps(slot, b)) : bookings.length === 0;
+      });
+      const when = slot ? `for <strong>${P.escapeHtml(slot.label)}</strong>` : 'all day';
+
+      if (!rooms.length) {
+        searchResult.innerHTML = 'No active rooms are listed for that building yet. Try another building.';
+      } else if (!matches.length) {
+        searchResult.innerHTML = `No rooms are open ${when} on ${P.escapeHtml(P.formatDate(date))}. Try a different time or building.`;
+      } else {
+        const chips = matches.slice(0, 8)
+          .map((room) => `<span class="home-search-chip">${P.escapeHtml(room.name)}</span>`).join('');
+        const extra = matches.length > 8 ? `<span class="home-search-chip">+${matches.length - 8} more</span>` : '';
+        searchResult.innerHTML =
+          `<strong>${matches.length} of ${rooms.length} rooms available</strong> ${when} on <strong>${P.escapeHtml(P.formatDate(date))}</strong>.` +
+          `<div class="home-search-chips">${chips}${extra}</div>`;
+      }
+      searchResult.hidden = false;
+    } catch (err) {
+      P.toastError(`Could not check availability: ${err.message}`);
+    } finally {
+      P.busy(searchSubmit, false);
+    }
+  });
+
+  /* Soft cursor-following 3D parallax tilt on the hornet emblem. */
+  const heroSection=document.querySelector('.home-hero');
+  const heroVisual=document.getElementById('hero-visual');
+  const reduceMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(heroSection&&heroVisual&&!reduceMotion){
+    let f=null;
+    heroVisual.addEventListener('mousemove',e=>{if(f)cancelAnimationFrame(f);f=requestAnimationFrame(()=>{const r=heroVisual.getBoundingClientRect();const px=(e.clientX-r.left)/r.width-0.5;const py=(e.clientY-r.top)/r.height-0.5;heroSection.style.setProperty('--hero-tilt-y',(px*7).toFixed(2)+'deg');heroSection.style.setProperty('--hero-tilt-x',(-py*7).toFixed(2)+'deg');});});
+    heroVisual.addEventListener('mouseleave',()=>{if(f)cancelAnimationFrame(f);heroSection.style.setProperty('--hero-tilt-x','0deg');heroSection.style.setProperty('--hero-tilt-y','0deg');});
+  }
+
+  loadLiveStatus();
+})();

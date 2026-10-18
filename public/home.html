@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Explore CSPC room availability and manage laboratory and room reservations in one place." />
+  <title>Welcome - CSPC Lab &amp; Room Reservation</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="/css/style.css?v=20261016-cookie-banner" rel="stylesheet" />
+  <link rel="icon" type="image/jpeg" href="/img/hornet-logo.jpg" />
+</head>
+<body class="portal-home-page">
+  <div id="navbar-placeholder"></div>
+
+  <main class="container py-4 home-main">
+    <section class="home-hero" id="overview" aria-labelledby="home-title">
+      <div class="home-hero-copy">
+        <span class="home-kicker"><span class="status-dot" aria-hidden="true"></span> CSPC campus facilities</span>
+        <h1 id="home-title">Find the right space.<br /><span>Make every session count.</span></h1>
+        <p>Check room availability, request a laboratory or venue, and keep your campus activities organized—all in one place.</p>
+        <div class="home-hero-actions">
+          <button class="btn btn-cspc btn-lg" id="home-primary-action" type="button" data-bs-toggle="modal" data-bs-target="#visitor-login-modal">Sign in to get started <span aria-hidden="true">→</span></button>
+        </div>
+        <div class="home-trust-note"><span aria-hidden="true">✦</span> Designed for students, faculty, custodians, and administrators</div>
+      </div>
+      <div class="home-hero-visual" id="hero-visual" aria-label="Live learning spaces preview">
+        <div class="home-visual-card" id="hero-card">
+          <div class="home-floating-chip chip-top" tabindex="0"><span>✓</span><b id="hero-rooms-count">12+ Rooms Available Now</b><span class="chip-tooltip" id="hero-rooms-tooltip">Live preview loading…</span></div>
+          <div class="home-visual-topline"><span>ROOM AVAILABILITY</span><span class="home-live-dot"><span class="home-pulse-dot" aria-hidden="true"></span>LIVE</span></div>
+          <div class="home-visual-room"><div><strong>Learning spaces</strong></div></div>
+          <a class="home-visual-cta home-visual-cta-primary" href="/rooms-status.html">Explore room status <span aria-hidden="true">→</span></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="home-search-widget" id="availability" aria-labelledby="home-search-title">
+      <div class="home-search-intro">
+        <span class="home-section-kicker">Quick check · no login</span>
+        <h2 id="home-search-title">See what's free before you sign in</h2>
+        <p>Pick a date, time slot and building to preview live availability across campus.</p>
+      </div>
+      <form class="home-search-form" id="home-search-form" novalidate>
+        <div class="home-search-field">
+          <label for="home-search-date">Date</label>
+          <input type="date" class="form-control" id="home-search-date" />
+        </div>
+        <div class="home-search-field">
+          <label for="home-search-time">Time slot</label>
+          <select class="form-select" id="home-search-time">
+            <option value="">Any time</option>
+            <option value="07:00-10:00">Morning · 7:00–10:00 AM</option>
+            <option value="10:00-13:00">Midday · 10:00 AM–1:00 PM</option>
+            <option value="13:00-16:00">Afternoon · 1:00–4:00 PM</option>
+            <option value="16:00-19:00">Evening · 4:00–7:00 PM</option>
+          </select>
+        </div>
+        <div class="home-search-field">
+          <label for="home-search-building">Building</label>
+          <select class="form-select" id="home-search-building">
+            <option value="">All buildings</option>
+          </select>
+        </div>
+        <button class="btn btn-cspc home-search-submit" id="home-search-submit" type="submit">
+          <span aria-hidden="true">⌕</span> Check availability
+        </button>
+      </form>
+      <div class="home-search-result" id="home-search-result" role="status" aria-live="polite" hidden></div>
+    </section>
+
+    <section class="home-feature-grid" aria-label="Portal benefits">
+      <article class="home-feature-card">
+        <span class="home-feature-icon">⌕</span>
+        <div><h2>Check availability</h2><p>See room schedules before you plan your activity.</p></div>
+      </article>
+      <article class="home-feature-card">
+        <span class="home-feature-icon">▣</span>
+        <div><h2>Request a space</h2><p>Send your reservation details for staff review.</p></div>
+      </article>
+      <article class="home-feature-card">
+        <span class="home-feature-icon">✓</span>
+        <div><h2>Track every request</h2><p>Follow approval updates from your dashboard.</p></div>
+      </article>
+    </section>
+
+    <section class="home-status-section" id="live-status" aria-labelledby="live-status-heading">
+      <div class="home-section-heading">
+        <div><span class="home-section-kicker">Live now</span><h2 id="live-status-heading">High-demand spaces at a glance</h2></div>
+        <a href="/rooms-status.html" class="home-text-link">Full timetable <span aria-hidden="true">→</span></a>
+      </div>
+      <div class="home-status-grid" id="home-status-grid">
+        <div class="home-status-loading">Checking live room availability…</div>
+      </div>
+      <div class="home-status-legend" aria-hidden="true">
+        <span class="home-status-key"><span class="home-status-dot is-available"></span> Available</span>
+        <span class="home-status-key"><span class="home-status-dot is-limited"></span> Limited</span>
+        <span class="home-status-key"><span class="home-status-dot is-occupied"></span> Occupied</span>
+      </div>
+    </section>
+
+    <section class="home-how" id="how-it-works" aria-labelledby="how-heading">
+      <div class="home-how-intro">
+        <span class="home-section-kicker">How it works</span>
+        <h2 id="how-heading">Book a space in three simple steps</h2>
+        <p>From search to approval, everything stays in one place.</p>
+      </div>
+      <ol class="home-how-steps">
+        <li class="home-how-step">
+          <span class="home-how-index">1</span>
+          <h3>Search a room</h3>
+          <p>Filter by building, date and time to find a free laboratory, classroom or hall.</p>
+        </li>
+        <li class="home-how-step">
+          <span class="home-how-index">2</span>
+          <h3>Choose your time</h3>
+          <p>Pick the slot that fits your activity and note the equipment you need.</p>
+        </li>
+        <li class="home-how-step">
+          <span class="home-how-index">3</span>
+          <h3>Submit request</h3>
+          <p>Send it for staff review and track the approval from your dashboard.</p>
+        </li>
+      </ol>
+      <div class="home-how-actions">
+        <button class="btn btn-cspc" type="button" data-bs-toggle="modal" data-bs-target="#visitor-login-modal">Get started <span aria-hidden="true">→</span></button>
+        <a class="btn btn-outline-cspc" href="/rooms-status.html">Browse availability</a>
+      </div>
+    </section>
+
+    <section class="home-buildings-section" id="buildings" aria-labelledby="buildings-heading">
+      <div class="home-section-heading">
+        <div><span class="home-section-kicker">Featured spaces</span><h2 id="buildings-heading">Popular spaces on campus</h2></div>
+        <div class="home-section-actions">
+          <button class="home-toggle-btn" id="home-buildings-toggle" type="button" aria-expanded="false" aria-controls="home-buildings-list" hidden>
+            <span class="home-toggle-label" id="home-buildings-toggle-label">Show all buildings</span>
+            <span class="home-toggle-chevron" aria-hidden="true">⌄</span>
+          </button>
+          <a href="/rooms-status.html" class="home-text-link">View room status <span aria-hidden="true">→</span></a>
+        </div>
+      </div>
+      <div class="row g-3 home-buildings-list" id="home-buildings-list">
+        <div class="col-12"><div class="home-building-loading">Loading campus buildings…</div></div>
+      </div>
+    </section>
+
+    <section class="home-guidelines" id="guidelines" aria-labelledby="guidelines-heading">
+      <div class="home-guidelines-copy">
+        <span class="home-section-kicker">Before you book</span>
+        <h2 id="guidelines-heading">A few things to keep in mind</h2>
+        <p>Help keep CSPC learning spaces ready and welcoming for everyone.</p>
+      </div>
+      <ul>
+        <li><span>01</span> Submit your request in advance with an accurate purpose and attendee count.</li>
+        <li><span>02</span> Wait for approval before using a room; requests are not confirmed bookings.</li>
+        <li><span>03</span> Use equipment responsibly and leave the space clean and ready for others.</li>
+      </ul>
+    </section>
+
+    <section class="home-feedback-strip" aria-label="User feedback">
+      <button class="home-feedback-link" type="button" data-bs-toggle="modal" data-bs-target="#experience-feedback-modal">
+        <span class="home-feedback-icon" aria-hidden="true">📣</span>
+        <span>Help us improve <b class="home-feedback-brand">Hornet</b> by sending your experience feedback</span>
+      </button>
+    </section>
+
+    <footer class="home-footer-panel" aria-label="Site footer">
+      <div class="home-footer-column home-footer-contact">
+        <h3>Contact us</h3>
+        <div class="home-contact-actions" aria-label="Contact channels">
+          <button type="button" aria-label="Website" class="home-contact-btn">◌</button>
+          <button type="button" aria-label="Phone" class="home-contact-btn">☎</button>
+          <button type="button" aria-label="Email" class="home-contact-btn">✉</button>
+        </div>
+
+        <div class="home-social-block">
+          <h4>Follow us</h4>
+          <div class="home-social-actions" aria-label="Social media">
+            <button type="button" aria-label="Facebook" class="home-social-btn home-social-facebook">f</button>
+            <button type="button" aria-label="Twitter / X" class="home-social-btn home-social-x">X</button>
+            <button type="button" aria-label="Instagram" class="home-social-btn home-social-instagram">◎</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="home-footer-column home-footer-status">
+        <h3>You are not logged in. <a href="#" aria-label="Log in">(Log in)</a></h3>
+      </div>
+
+      <div class="home-footer-column home-footer-apps">
+        <h3>Get the mobile app</h3>
+        <div class="home-store-buttons">
+          <button type="button" class="home-store-btn home-store-android" aria-label="Get it on Google Play">
+            <span class="home-store-icon">▶</span>
+            <span class="home-store-text"><small>GET IT ON</small><strong>Google Play</strong></span>
+          </button>
+          <button type="button" class="home-store-btn home-store-apple" aria-label="Download on the App Store">
+            <span class="home-store-icon"></span>
+            <span class="home-store-text"><small>Download on the</small><strong>App Store</strong></span>
+          </button>
+        </div>
+      </div>
+    </footer>
+
+  </main>
+
+  <div class="modal fade visitor-auth-modal" id="experience-feedback-modal" tabindex="-1" aria-labelledby="experience-feedback-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <span class="profile-modal-kicker">We value your feedback</span>
+            <h2 class="modal-title fs-5" id="experience-feedback-title">Share your experience</h2>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="experience-feedback-form" novalidate>
+            <div class="mb-3">
+              <label class="form-label" for="feedback-subject">Subject</label>
+              <input class="form-control" id="feedback-subject" name="subject" placeholder="How can we improve?" required />
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="feedback-message">Your feedback</label>
+              <textarea class="form-control" id="feedback-message" name="message" rows="5" placeholder="Tell us what worked well and what can be improved." required></textarea>
+            </div>
+            <button class="btn btn-cspc w-100" type="submit">Send feedback</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade visitor-auth-modal" id="visitor-login-modal" tabindex="-1" aria-labelledby="visitor-login-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <span class="profile-modal-kicker">Hello</span>
+            <h2 class="modal-title fs-5" id="visitor-login-title">Log in to your account</h2>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <!-- ===================================================== -->
+          <!-- VIEW 1: login (role toggle + credentials + Google SSO) -->
+          <!-- ===================================================== -->
+          <div class="visitor-auth-view" id="visitor-login-view">
+          <!-- 1. Role segment control -->
+          <div class="auth-mode-toggle visitor-auth-mode" aria-label="Login mode selector">
+            <button type="button" class="auth-mode-btn active" data-visitor-login-mode="user" aria-pressed="true">User Login</button>
+            <button type="button" class="auth-mode-btn" data-visitor-login-mode="admin" aria-pressed="false">Admin Login</button>
+          </div>
+
+          <!-- 2 & 3. Identifier + password inputs, then the primary action -->
+          <form id="visitor-login-form" class="mt-3" novalidate>
+            <div class="mb-3">
+              <label class="form-label" for="visitor-login-id" id="visitor-login-id-label">CSPC email address</label>
+              <input class="form-control" id="visitor-login-id" name="email" type="email" inputmode="email" autocomplete="username" placeholder="Enter your CSPC email address (e.g. name@cspc.edu.ph)" required />
+            </div>
+            <div class="mb-3">
+              <div class="visitor-auth-label-row">
+                <label class="form-label mb-0" for="visitor-login-password">Password</label>
+                <button type="button" class="visitor-forgot-link" id="visitor-forgot-link">Forgot password?</button>
+              </div>
+              <input class="form-control" id="visitor-login-password" name="password" type="password" autocomplete="current-password" placeholder="Your password" required />
+            </div>
+            <div id="visitor-login-alert" class="d-none" role="alert"></div>
+            <button class="btn btn-cspc w-100" id="visitor-login-submit" type="submit">Log in</button>
+          </form>
+
+          <!-- 4. Divider -->
+          <div class="auth-divider" aria-hidden="true"><span>or</span></div>
+
+          <!-- 5. Google SSO -->
+          <button type="button" class="btn btn-sso" id="visitor-sso-google">
+            <svg class="sso-icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+            </svg>
+            <span>Sign in with CSPC Google Account</span>
+          </button>
+
+          <!-- 6. Footer -->
+          <p class="visitor-auth-switch mb-0">New to the portal? <button type="button" id="visitor-login-create-account" data-bs-dismiss="modal">Create an account</button></p>
+          </div><!-- /#visitor-login-view -->
+
+          <!-- ===================================================== -->
+          <!-- VIEW 2: forgot password - request a code by email     -->
+          <!-- ===================================================== -->
+          <div class="visitor-auth-view d-none" id="visitor-forgot-view">
+            <p class="identifier-hint">Enter your registered recovery email and we'll send a 6-digit verification code to that inbox.</p>
+            <form id="visitor-forgot-form" novalidate>
+              <div class="mb-3">
+                <label class="form-label" for="visitor-forgot-email">RECOVERY EMAIL ADDRESS</label>
+                <input class="form-control" id="visitor-forgot-email" name="email" type="email" inputmode="email" autocomplete="email" placeholder="Enter your recovery email address" required />
+              </div>
+              <div id="visitor-forgot-alert" class="d-none" role="alert"></div>
+              <button class="btn btn-cspc w-100" id="visitor-forgot-submit" type="submit">Send verification code</button>
+            </form>
+            <p class="visitor-auth-switch mb-0"><button type="button" data-visitor-auth-view="login">&larr; Back to log in</button></p>
+          </div><!-- /#visitor-forgot-view -->
+
+          <!-- ===================================================== -->
+          <!-- VIEW 3: OTP verification + resend timer                -->
+          <!-- ===================================================== -->
+          <div class="visitor-auth-view d-none" id="visitor-otp-view">
+            <p class="identifier-hint">We sent a 6-digit code to <strong id="visitor-otp-email"></strong>. Enter it below before it expires.</p>
+            <form id="visitor-otp-form" novalidate>
+              <div class="mb-3">
+                <label class="form-label" for="visitor-otp-input">Verification code</label>
+                <input class="form-control visitor-otp-input" id="visitor-otp-input" name="otp" type="text" inputmode="numeric" pattern="\d*" autocomplete="one-time-code" maxlength="6" placeholder="000000" required />
+              </div>
+              <div id="visitor-otp-alert" class="d-none" role="alert"></div>
+              <button class="btn btn-cspc w-100" id="visitor-otp-submit" type="submit">Verify code</button>
+            </form>
+            <p class="visitor-auth-resend mb-0">
+              Didn't receive the code?
+              <button type="button" id="visitor-otp-resend" disabled>Resend code in 1:00</button>
+            </p>
+            <p class="visitor-auth-switch mb-0">
+              <button type="button" data-visitor-auth-view="forgot">Use a different email</button><span class="auth-view-sep" aria-hidden="true">&middot;</span><button type="button" data-visitor-auth-view="login">Back to log in</button>
+            </p>
+          </div><!-- /#visitor-otp-view -->
+
+          <!-- ===================================================== -->
+          <!-- VIEW 4: choose a new password                          -->
+          <!-- ===================================================== -->
+          <div class="visitor-auth-view d-none" id="visitor-reset-view">
+            <p class="identifier-hint">Choose a new password for <strong id="visitor-reset-email"></strong>.</p>
+            <form id="visitor-reset-form" novalidate>
+              <div class="mb-3">
+                <label class="form-label" for="visitor-reset-password">New password</label>
+                <input class="form-control" id="visitor-reset-password" name="new_password" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters" required />
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="visitor-reset-confirm">Confirm new password</label>
+                <input class="form-control" id="visitor-reset-confirm" name="confirm_password" type="password" autocomplete="new-password" minlength="8" placeholder="Repeat new password" required />
+              </div>
+              <div id="visitor-reset-alert" class="d-none" role="alert"></div>
+              <button class="btn btn-cspc w-100" id="visitor-reset-submit" type="submit">Reset password</button>
+            </form>
+            <p class="visitor-auth-switch mb-0"><button type="button" data-visitor-auth-view="login">&larr; Back to log in</button></p>
+          </div><!-- /#visitor-reset-view -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade visitor-auth-modal" id="visitor-register-modal" tabindex="-1" aria-labelledby="visitor-register-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <span class="profile-modal-kicker">Join the portal</span>
+            <h2 class="modal-title fs-5" id="visitor-register-title">Create your account</h2>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted-sm">Students and faculty can register here. Staff accounts are issued by an administrator.</p>
+          <div id="visitor-register-alert" class="d-none" role="alert"></div>
+          <form id="visitor-register-form" novalidate>
+            <!-- Row 1: identity -->
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label" for="visitor-register-id">School ID number</label>
+                <input class="form-control" id="visitor-register-id" name="school_id" placeholder="e.g. 2021-00123 or FAC-0100" autocomplete="username" required />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="visitor-register-name">Full name</label>
+                <input class="form-control" id="visitor-register-name" name="full_name" placeholder="e.g. Juan Dela Cruz" autocomplete="name" required />
+              </div>
+            </div>
+            <!-- Row 2: contact + role -->
+            <div class="row g-3 mt-0">
+              <div class="col-md-6">
+                <label class="form-label" for="visitor-register-email">Email address</label>
+                <input class="form-control" id="visitor-register-email" name="email" type="email" placeholder="you@cspc.edu.ph or you@my.cspc.edu.ph" autocomplete="email" required />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="visitor-register-role">I am a</label>
+                <select class="form-select" id="visitor-register-role" name="role" required>
+                  <option value="student">Student</option>
+                  <option value="faculty">Faculty</option>
+                </select>
+              </div>
+            </div>
+            <!-- Recovery email: optional alternate inbox for password-reset codes. -->
+            <div class="row g-3 mt-0">
+              <div class="col-12">
+                <label class="form-label" for="visitor-register-recovery-email">Recovery email address <span class="text-muted-sm">(optional)</span></label>
+                <input class="form-control" id="visitor-register-recovery-email" name="recovery_email" type="email" placeholder="you@cspc.edu.ph or any other inbox" autocomplete="email" />
+                <div class="identifier-hint">If you lose access to your CSPC email, password-reset codes are sent to this address instead. Your login email stays unchanged.</div>
+              </div>
+            </div>
+            <!-- Row 3: department spans the full width so no half-row gap -->
+            <div class="row g-3 mt-0">
+              <div class="col-12">
+                <label class="form-label" for="visitor-register-department">Department <span class="text-muted-sm">(optional)</span></label>
+                <input class="form-control" id="visitor-register-department" name="department" placeholder="e.g. Computer Engineering" />
+              </div>
+            </div>
+            <!-- Row 4: password pair -->
+            <div class="row g-3 mt-0">
+              <div class="col-md-6">
+                <label class="form-label" for="visitor-register-password">Password</label>
+                <input class="form-control" id="visitor-register-password" name="password" type="password" minlength="8" autocomplete="new-password" aria-describedby="visitor-register-password-hint" required />
+                <div class="identifier-hint" id="visitor-register-password-hint">Use at least 8 characters.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="visitor-register-confirm">Confirm password</label>
+                <input class="form-control" id="visitor-register-confirm" name="confirm_password" type="password" minlength="8" autocomplete="new-password" placeholder="Repeat your password" required />
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="visitor-register-footer">
+          <span class="text-muted-sm">Already registered? <button class="visitor-auth-inline-link" type="button" data-bs-target="#visitor-login-modal" data-bs-toggle="modal" data-bs-dismiss="modal">Log in</button></span>
+          <button class="btn btn-cspc" id="visitor-register-submit" type="submit" form="visitor-register-form">Create account</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin "Create account": intentionally a different layout from the
+       student/faculty form — an identity column beside a locked
+       "Enrollment & security" panel gated by an admin enrollment code. -->
+  <div class="modal fade visitor-auth-modal visitor-admin-modal" id="visitor-admin-register-modal" tabindex="-1" aria-labelledby="visitor-admin-register-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <span class="profile-modal-kicker">Administrator access</span>
+            <h2 class="modal-title fs-5" id="visitor-admin-register-title">Create an admin account</h2>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="admin-register-note">
+            <span class="admin-register-note-badge">Admin only</span>
+            <p class="mb-0">Administrator accounts are protected. Use the enrollment code issued by a Super Admin — students and faculty should use the regular registration form.</p>
+          </div>
+          <div id="visitor-admin-register-alert" class="d-none" role="alert"></div>
+          <form id="visitor-admin-register-form" novalidate>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <div class="admin-form-section">
+                  <span class="admin-form-section-title">Administrator profile</span>
+                  <div class="mb-3">
+                    <label class="form-label" for="visitor-admin-register-id">Admin ID number</label>
+                    <input class="form-control" id="visitor-admin-register-id" name="school_id" placeholder="e.g. ADMIN-0001" required />
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label" for="visitor-admin-register-name">Full name</label>
+                    <input class="form-control" id="visitor-admin-register-name" name="full_name" placeholder="e.g. Juan Dela Cruz" required />
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label" for="visitor-admin-register-email">CSPC email address</label>
+                    <input class="form-control" id="visitor-admin-register-email" name="email" type="email" placeholder="name@cspc.edu.ph or name@my.cspc.edu.ph" required />
+                    <div class="identifier-hint">Must use the official @cspc.edu.ph / @my.cspc.edu.ph domain.</div>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label" for="visitor-admin-register-recovery-email">Recovery email address <span class="text-muted-sm">(optional)</span></label>
+                    <input class="form-control" id="visitor-admin-register-recovery-email" name="recovery_email" type="email" placeholder="name@cspc.edu.ph or another inbox" autocomplete="email" />
+                    <div class="identifier-hint">Optional alternate inbox that receives password-reset codes. The admin login email stays unchanged.</div>
+                  </div>
+                  <div class="mb-0">
+                    <label class="form-label" for="visitor-admin-register-department">Department <span class="text-muted-sm">(optional)</span></label>
+                    <input class="form-control" id="visitor-admin-register-department" name="department" placeholder="Administration" />
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="admin-form-section admin-form-section-secure">
+                  <span class="admin-form-section-title">Enrollment &amp; security</span>
+                  <div class="mb-3">
+                    <label class="form-label" for="visitor-admin-register-code">Enrollment code</label>
+                    <input class="form-control" id="visitor-admin-register-code" name="enrollment_code" placeholder="Issued by a Super Admin" autocomplete="off" required />
+                    <div class="identifier-hint">Required — admin accounts cannot be created without it.</div>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label" for="visitor-admin-register-level">Admin level</label>
+                    <select class="form-select" id="visitor-admin-register-level" name="admin_level" required>
+                      <option value="Assistant Admin">Assistant Admin</option>
+                      <option value="Super Admin">Super Admin</option>
+                    </select>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label" for="visitor-admin-register-password">Password</label>
+                    <input class="form-control" id="visitor-admin-register-password" name="password" type="password" minlength="8" autocomplete="new-password" required />
+                  </div>
+                  <div class="mb-0">
+                    <label class="form-label" for="visitor-admin-register-confirm">Confirm password</label>
+                    <input class="form-control" id="visitor-admin-register-confirm" name="confirm_password" type="password" minlength="8" autocomplete="new-password" required />
+                  </div>
+                </div>
+              </div>
+              <div class="col-12 d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <span class="text-muted-sm">Already registered? <button class="visitor-auth-inline-link" type="button" data-bs-target="#visitor-login-modal" data-bs-toggle="modal" data-bs-dismiss="modal">Log in</button></span>
+                <button class="btn btn-cspc" id="visitor-admin-register-submit" type="submit">Create admin account</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/app.js"></script>
+  <script src="/js/cookie-consent.js"></script>
+  <script src="/js/home.js"></script>
+</body>
+</html>
