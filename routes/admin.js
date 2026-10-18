@@ -96,7 +96,7 @@ router.post('/change-password', async (req, res, next) => {
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
     await pool.query(
-      'UPDATE users SET password_hash = $1, must_change_password = 0 WHERE id = $2',
+      'UPDATE users SET password_hash = $1, must_change_password = FALSE WHERE id = $2',
       [passwordHash, admin.id]
     );
 
@@ -311,7 +311,7 @@ router.delete('/rooms/:id', async (req, res, next) => {
 
     if (usage.count > 0) {
       const result = await pool.query(
-        'UPDATE rooms SET is_active = 0 WHERE id = $1',
+        'UPDATE rooms SET is_active = FALSE WHERE id = $1',
         [req.params.id]
       );
       if (!result.rowCount) {
@@ -427,7 +427,7 @@ router.post('/administrators', async (req, res, next) => {
     const { rows } = await pool.query(
       `INSERT INTO users (school_id, full_name, email, recovery_email, password_hash, role, admin_level,
                            department, is_active, must_change_password, created_by_admin_id)
-       VALUES ($1, $2, $3, $4, $5, 'admin', $6, 'Administration', 1, 1, $7) RETURNING id`,
+       VALUES ($1, $2, $3, $4, $5, 'admin', $6, 'Administration', TRUE, TRUE, $7) RETURNING id`,
       [schoolId, fullName, email, recoveryEmail, passwordHash, adminLevel, req.session.user.id]
     );
 

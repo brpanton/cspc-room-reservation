@@ -42,7 +42,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const { pool } = require('../db');
+const pool = require('../db');
 const { requireFields, parseEmail, parsePassword } = require('../middleware/validate');
 const { sendPasswordResetOtp } = require('../mailer');
 
@@ -104,8 +104,8 @@ async function resolveAccountEmail(rawIdentifier) {
   }
 
   // 1) Try recovery_email first (dedicated alternate inbox).
-  let [rows] = await pool.query(
-    'SELECT id, full_name, email, recovery_email, is_active FROM users WHERE LOWER(recovery_email) = LOWER(?) LIMIT 1',
+  let { rows } = await pool.query(
+    'SELECT id, full_name, email, recovery_email, is_active FROM users WHERE LOWER(recovery_email) = LOWER($1) LIMIT 1',
     [email]
   );
   let user = rows[0] || null;
@@ -113,10 +113,10 @@ async function resolveAccountEmail(rawIdentifier) {
 
   // 2) Fallback: match the primary email for users who never saved a recovery email.
   if (!user) {
-    [rows] = await pool.query(
-      'SELECT id, full_name, email, recovery_email, is_active FROM users WHERE LOWER(email) = LOWER(?) LIMIT 1',
+    ({ rows } = await pool.query(
+      'SELECT id, full_name, email, recovery_email, is_active FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
       [email]
-    );
+    ));
     user = rows[0] || null;
     deliveredTo = 'primary';
   }
@@ -168,14 +168,15 @@ router.post('/forgot-password', async (req, res, next) => {
       throw err;
     }
     // Cooldown: one live code per address every RESEND_COOLDOWN_SECONDS.
-    const [[last]] = await pool.query(
-      `SELECT TIMESTAMPDIFF(SECOND, created_at, NOW()) AS age_seconds
+    const { rows: lastRows } = await pool.query(
+      `SELECT EXTRACT(EPOCH FROM (NOW() - created_at)) AS age_seconds
          FROM password_reset_codes
-        WHERE email = ?
+        WHERE email = $1
         ORDER BY id DESC
         LIMIT 1`,
       [rowEmail]
     );
+    const last = lastRows[0] || null;
     if (last && Number(last.age_seconds) < RESEND_COOLDOWN_SECONDS) {
       const wait = RESEND_COOLDOWN_SECONDS - Number(last.age_seconds);
       const err = new Error(`Please wait ${wait} second${wait === 1 ? '' : 's'} before requesting another code.`);
@@ -189,10 +190,10 @@ router.post('/forgot-password', async (req, res, next) => {
 
     // Drop anything older for this address so only the newest code is live
     // (this also sweeps up used/expired rows as a cheap cleanup).
-    await pool.query('DELETE FROM password_reset_codes WHERE email = ?', [rowEmail]);
+    await pool.query('DELETE FROM password_reset_codes WHERE email = $1', [rowEmail]);
     await pool.query(
       `INSERT INTO password_reset_codes (user_id, email, otp_hash, attempts, expires_at)
-       VALUES (?, ?, ?, 0, DATE_ADD(NOW(), INTERVAL ${OTP_TTL_MINUTES} MINUTE))`,
+       VALUES ($1, $2, $3, 0, NOW() + INTERVAL '${OTP_TTL_MINUTES} minutes')`,
       [user.id, rowEmail, otpHash]
     );
 
@@ -255,22 +256,22 @@ router.post('/verify-otp', async (req, res, next) => {
       throw err;
     }
 
-    const [codes] = await pool.query(
+    const { rows: codes } = await pool.query(
       `SELECT id, user_id, otp_hash, attempts, verified_at,
               (expires_at > NOW()) AS is_unexpired
          FROM password_reset_codes
-        WHERE email = ? AND used_at IS NULL
+        WHERE email = $1 AND used_at IS NULL
         ORDER BY id DESC
         LIMIT 1`,
       [email]
     );
-    const code = codes[0];
+    const code = codes.rows[0];
     if (!code) {
       const err = new Error('No active verification code for that email. Request a new one.');
       err.status = 400;
       throw err;
     }
-    if (!Number(code.is_unexpired)) {
+    if (!code.is_unexpired) {
       const err = new Error('That code has expired. Request a new one.');
       err.status = 400;
       throw err;
@@ -281,7 +282,7 @@ router.post('/verify-otp', async (req, res, next) => {
       const attempts = Number(code.attempts) + 1;
       const remaining = MAX_OTP_ATTEMPTS - attempts;
       if (remaining <= 0) {
-        await pool.query('UPDATE password_reset_codes SET attempts = ?, expires_at = NOW() WHERE id = ?', [
+        await pool.query('UPDATE password_reset_codes SET attempts = $1, expires_at = NOW() WHERE id = $2', [
           attempts,
           code.id
         ]);
@@ -289,7 +290,7 @@ router.post('/verify-otp', async (req, res, next) => {
         err.status = 400;
         throw err;
       }
-      await pool.query('UPDATE password_reset_codes SET attempts = ? WHERE id = ?', [attempts, code.id]);
+      await pool.query('UPDATE password_reset_codes SET attempts = $1 WHERE id = $2', [attempts, code.id]);
       const err = new Error(`Incorrect code. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`);
       err.status = 400;
       throw err;
@@ -301,8 +302,8 @@ router.post('/verify-otp', async (req, res, next) => {
     const resetToken = crypto.randomBytes(32).toString('hex');
     await pool.query(
       `UPDATE password_reset_codes
-          SET reset_token_hash = ?, verified_at = COALESCE(verified_at, NOW())
-        WHERE id = ?`,
+          SET reset_token_hash = $1, verified_at = COALESCE(verified_at, NOW())
+        WHERE id = $2`,
       [hashResetToken(resetToken), code.id]
     );
 
@@ -330,26 +331,26 @@ router.post('/reset-password', async (req, res, next) => {
     }
 
     // The token must match the email, be verified, unused and unexpired.
-    const [codes] = await pool.query(
+    const { rows: codes } = await pool.query(
       `SELECT id, user_id
          FROM password_reset_codes
-        WHERE reset_token_hash = ? AND email = ? AND used_at IS NULL
+        WHERE reset_token_hash = $1 AND email = $2 AND used_at IS NULL
           AND verified_at IS NOT NULL AND expires_at > NOW()
         LIMIT 1`,
       [hashResetToken(resetToken), email]
     );
-    const code = codes[0];
+    const code = codes.rows[0];
     if (!code) {
       const err = new Error('This reset request is invalid or has expired. Start over with "Forgot password?".');
       err.status = 400;
       throw err;
     }
 
-    const [users] = await pool.query(
-      'SELECT id, password_hash, is_active FROM users WHERE id = ? LIMIT 1',
+    const { rows: users } = await pool.query(
+      'SELECT id, password_hash, is_active FROM users WHERE id = $1 LIMIT 1',
       [code.user_id]
     );
-    const user = users[0];
+    const user = users.rows[0];
     if (!user || !user.is_active) {
       const err = new Error('This account can no longer recover its password. Please contact the administrator.');
       err.status = 403;
@@ -363,13 +364,13 @@ router.post('/reset-password', async (req, res, next) => {
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
-    await pool.query('UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?', [
+    await pool.query('UPDATE users SET password_hash = $1, must_change_password = FALSE WHERE id = $2', [
       passwordHash,
       user.id
     ]);
     // Single-use: burn the token so it can never be replayed.
     await pool.query(
-      'UPDATE password_reset_codes SET used_at = NOW(), reset_token_hash = NULL WHERE id = ?',
+      'UPDATE password_reset_codes SET used_at = NOW(), reset_token_hash = NULL WHERE id = $1',
       [code.id]
     );
 

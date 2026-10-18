@@ -199,7 +199,7 @@ router.post('/register-admin', async (req, res, next) => {
     const { rows } = await pool.query(
       `INSERT INTO users (school_id, full_name, email, password_hash, role, admin_level,
                           department, is_active, must_change_password)
-       VALUES ($1, $2, $3, $4, 'admin', $5, $6, 1, 1) RETURNING id`,
+       VALUES ($1, $2, $3, $4, 'admin', $5, $6, TRUE, TRUE) RETURNING id`,
       [schoolId, fullName, email, passwordHash, adminLevel, department]
     );
 

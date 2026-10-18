@@ -9,7 +9,7 @@
  *  PATCH  /api/reservations/:id/cancel     -> Cancel (owner or staff)
  */
 const express = require('express');
-const { pool } = require('../db');
+const pool = require('../db');
 const { requireLogin, requireStaff, canManageReservation } = require('../middleware/auth');
 const {
   requireFields,
@@ -38,7 +38,7 @@ const RESERVATION_SELECT = `
          u.full_name AS requested_by, u.school_id AS requester_school_id,
          u.role AS requester_role,
          a.full_name AS approved_by_name,
-         GROUP_CONCAT(e.equipment ORDER BY e.equipment SEPARATOR ',') AS equipment
+         STRING_AGG(e.equipment, ',' ORDER BY e.equipment) AS equipment
   FROM reservations res
   JOIN rooms r       ON r.id = res.room_id
   JOIN buildings b   ON b.id = r.building_id
@@ -66,11 +66,11 @@ async function findConflict(conn, { roomId, date, startTime, endTime, excludeId 
     SELECT res.id, res.start_time, res.end_time, res.status, u.full_name AS requested_by
     FROM reservations res
     JOIN users u ON u.id = res.user_id
-    WHERE res.room_id = ?
-      AND res.res_date = ?
-      AND res.start_time < ?
-      AND res.end_time > ?
-      AND res.status IN (?, ?)`;
+    WHERE res.room_id = $1
+      AND res.res_date = $2
+      AND res.start_time < $3
+      AND res.end_time > $4
+      AND res.status IN ($5, $6)`;
 
   if (excludeId) {
     sql += ' AND res.id <> ?';
@@ -78,7 +78,7 @@ async function findConflict(conn, { roomId, date, startTime, endTime, excludeId 
   }
   sql += ' LIMIT 1 FOR UPDATE';
 
-  const [rows] = await conn.query(sql, params);
+  const { rows } = await conn.query(sql, params);
   return rows[0] || null;
 }
 
@@ -144,8 +144,8 @@ router.post('/', async (req, res, next) => {
     assertNotPast(date, 'date');
 
     // Make sure the room exists and can actually hold the group.
-    const [roomRows] = await conn.query(
-      'SELECT id, name, capacity FROM rooms WHERE id = ? AND is_active = 1',
+    const { rows: roomRows } = await conn.query(
+      'SELECT id, name, capacity FROM rooms WHERE id = $1 AND is_active = TRUE',
       [roomId]
     );
     if (!roomRows.length) {
@@ -175,32 +175,34 @@ router.post('/', async (req, res, next) => {
       throw err;
     }
 
-    const [ins] = await conn.query(
+    const { rows } = await conn.query(
       `INSERT INTO reservations
          (room_id, user_id, res_date, start_time, end_time, purpose, attendees, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending')`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'Pending') RETURNING id`,
       [roomId, req.session.user.id, date, startTime, endTime, purpose, attendees]
     );
 
+    const reservationId = rows[0].id;
+
     for (const item of equipment) {
       await conn.query(
-        'INSERT INTO reservation_equipment (reservation_id, equipment) VALUES (?, ?)',
-        [ins.insertId, item]
+        'INSERT INTO reservation_equipment (reservation_id, equipment) VALUES ($1, $2)',
+        [reservationId, item]
       );
     }
 
     await conn.query(
       `INSERT INTO reservation_logs (reservation_id, actor_id, action, remarks)
-       VALUES (?, ?, 'Submitted', 'Reservation submitted for approval')`,
-      [ins.insertId, req.session.user.id]
+       VALUES ($1, $2, 'Submitted', 'Reservation submitted for approval')`,
+      [reservationId, req.session.user.id]
     );
 
     await conn.commit();
 
-    const [rows] = await pool.query(`${RESERVATION_SELECT} WHERE res.id = ?`, [ins.insertId]);
+    const { rows: resultRows } = await pool.query(`${RESERVATION_SELECT} WHERE res.id = $1`, [reservationId]);
     res.status(201).json({
       message: 'Reservation submitted. It is now Pending for custodian approval.',
-      reservation: shape(rows[0])
+      reservation: shape(resultRows.rows[0])
     });
   } catch (err) {
     try {
@@ -246,7 +248,7 @@ router.get('/', async (req, res, next) => {
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
     const limit = Math.min(Number(req.query.limit) || 100, 500);
 
-    const [rows] = await pool.query(
+    const { rows } = await pool.query(
       `${RESERVATION_SELECT} ${where} ORDER BY res.res_date DESC, res.start_time DESC LIMIT ${limit}`,
       params
     );
@@ -262,45 +264,48 @@ router.get('/stats', async (req, res, next) => {
   try {
     const user = req.session.user;
     const isStaff = user.role === 'admin' || user.role === 'custodian';
-    const scope = isStaff ? '' : 'WHERE res.user_id = ?';
+    const scope = isStaff ? '' : 'WHERE res.user_id = $1';
     const scopeParams = isStaff ? [] : [user.id];
 
-    const [[totals]] = await pool.query(
+    const { rows: totalsRows } = await pool.query(
       `SELECT
          COUNT(*) AS total,
-         COALESCE(SUM(res.status = 'Pending'), 0)   AS pending,
-         COALESCE(SUM(res.status = 'Approved'), 0)  AS approved,
-         COALESCE(SUM(res.status = 'Rejected'), 0)  AS rejected,
-         COALESCE(SUM(res.status = 'Cancelled'), 0) AS cancelled
+         COALESCE(SUM(CASE WHEN res.status = 'Pending' THEN 1 ELSE 0 END), 0)   AS pending,
+         COALESCE(SUM(CASE WHEN res.status = 'Approved' THEN 1 ELSE 0 END), 0)  AS approved,
+         COALESCE(SUM(CASE WHEN res.status = 'Rejected' THEN 1 ELSE 0 END), 0)  AS rejected,
+         COALESCE(SUM(CASE WHEN res.status = 'Cancelled' THEN 1 ELSE 0 END), 0) AS cancelled
        FROM reservations res ${scope}`,
       scopeParams
     );
+    const totals = totalsRows[0];
 
-    const [[today]] = await pool.query(
+    const { rows: todayRows } = await pool.query(
       `SELECT COUNT(*) AS today_count
        FROM reservations res
-       WHERE res.res_date = CURDATE() AND res.status = 'Approved'
-       ${isStaff ? '' : 'AND res.user_id = ?'}`,
+       WHERE res.res_date = CURRENT_DATE AND res.status = 'Approved'
+       ${isStaff ? '' : 'AND res.user_id = $1'}`,
       scopeParams
     );
+    const today = todayRows[0];
 
-    const [[upcoming]] = await pool.query(
+    const { rows: upcomingRows } = await pool.query(
       `SELECT COUNT(*) AS upcoming_count
        FROM reservations res
-       WHERE res.res_date >= CURDATE() AND res.status IN ('Pending','Approved')
-       ${isStaff ? '' : 'AND res.user_id = ?'}`,
+       WHERE res.res_date >= CURRENT_DATE AND res.status IN ('Pending','Approved')
+       ${isStaff ? '' : 'AND res.user_id = $1'}`,
       scopeParams
     );
+    const upcoming = upcomingRows[0];
 
     let inventory = { total_rooms: 0, total_buildings: 0, total_users: 0 };
     if (isStaff) {
-      const [[rooms]] = await pool.query('SELECT COUNT(*) AS total_rooms FROM rooms WHERE is_active = 1');
-      const [[buildings]] = await pool.query('SELECT COUNT(*) AS total_buildings FROM buildings');
-      inventory = { ...inventory, ...rooms, ...buildings };
+      const { rows: roomsRows } = await pool.query('SELECT COUNT(*) AS total_rooms FROM rooms WHERE is_active = TRUE');
+      const { rows: buildingsRows } = await pool.query('SELECT COUNT(*) AS total_buildings FROM buildings');
+      inventory = { ...inventory, ...roomsRows[0], ...buildingsRows[0] };
     }
     if (user.role === 'admin') {
-      const [[users]] = await pool.query('SELECT COUNT(*) AS total_users FROM users');
-      inventory.total_users = users.total_users;
+      const { rows: usersRows } = await pool.query('SELECT COUNT(*) AS total_users FROM users');
+      inventory.total_users = usersRows[0].total_users;
     }
 
     res.json({
@@ -323,10 +328,10 @@ router.get('/stats', async (req, res, next) => {
 // ----------------------------------------------------------- single item ---
 router.get('/:id', async (req, res, next) => {
   try {
-    const [rows] = await pool.query(`${RESERVATION_SELECT} WHERE res.id = ?`, [req.params.id]);
+    const { rows } = await pool.query(`${RESERVATION_SELECT} WHERE res.id = $1`, [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Reservation not found.' });
 
-    const reservation = rows[0];
+    const reservation = rows.rows[0];
     if (!canManageReservation(req.session.user, reservation)) {
       return res.status(403).json({ error: 'You can only view your own reservations.' });
     }
@@ -346,8 +351,8 @@ router.patch('/:id/decision', requireStaff, async (req, res, next) => {
 
     await conn.beginTransaction();
 
-    const [rows] = await conn.query(
-      'SELECT * FROM reservations WHERE id = ? FOR UPDATE',
+    const { rows } = await conn.query(
+      'SELECT * FROM reservations WHERE id = $1 FOR UPDATE',
       [req.params.id]
     );
     if (!rows.length) {
@@ -355,7 +360,7 @@ router.patch('/:id/decision', requireStaff, async (req, res, next) => {
       err.status = 404;
       throw err;
     }
-    const reservation = rows[0];
+    const reservation = rows.rows[0];
 
     if (reservation.status === 'Approved' || reservation.status === 'Rejected') {
       const err = new Error(
@@ -393,23 +398,23 @@ router.patch('/:id/decision', requireStaff, async (req, res, next) => {
 
     await conn.query(
       `UPDATE reservations
-       SET status = ?, approved_by = ?, remarks = ?, decided_at = NOW()
-       WHERE id = ?`,
+       SET status = $1, approved_by = $2, remarks = $3, decided_at = NOW()
+       WHERE id = $4`,
       [status, req.session.user.id, remarks, reservation.id]
     );
 
     await conn.query(
       `INSERT INTO reservation_logs (reservation_id, actor_id, action, remarks)
-       VALUES (?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4)`,
       [reservation.id, req.session.user.id, status, remarks]
     );
 
     await conn.commit();
 
-    const [updated] = await pool.query(`${RESERVATION_SELECT} WHERE res.id = ?`, [reservation.id]);
+    const { rows: updatedRows } = await pool.query(`${RESERVATION_SELECT} WHERE res.id = $1`, [reservation.id]);
     res.json({
       message: `Reservation #${reservation.id} has been ${status.toLowerCase()}.`,
-      reservation: shape(updated[0])
+      reservation: shape(updatedRows.rows[0])
     });
   } catch (err) {
     try {
@@ -426,10 +431,10 @@ router.patch('/:id/decision', requireStaff, async (req, res, next) => {
 // ----------------------------------------------------------------- cancel ---
 router.patch('/:id/cancel', async (req, res, next) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM reservations WHERE id = ?', [req.params.id]);
+    const { rows } = await pool.query('SELECT * FROM reservations WHERE id = $1', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Reservation not found.' });
 
-    const reservation = rows[0];
+    const reservation = rows.rows[0];
     if (!canManageReservation(req.session.user, reservation)) {
       return res.status(403).json({ error: 'You can only cancel your own reservations.' });
     }
@@ -442,12 +447,12 @@ router.patch('/:id/cancel', async (req, res, next) => {
       : `Cancelled by ${req.session.user.full_name}`;
 
     await pool.query(
-      `UPDATE reservations SET status = 'Cancelled', decided_at = NOW(), remarks = ? WHERE id = ?`,
+      `UPDATE reservations SET status = 'Cancelled', decided_at = NOW(), remarks = $1 WHERE id = $2`,
       [remarks, reservation.id]
     );
     await pool.query(
       `INSERT INTO reservation_logs (reservation_id, actor_id, action, remarks)
-       VALUES (?, ?, 'Cancelled', ?)`,
+       VALUES ($1, $2, 'Cancelled', $3)`,
       [reservation.id, req.session.user.id, remarks]
     );
 

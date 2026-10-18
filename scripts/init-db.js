@@ -164,7 +164,7 @@ async function main() {
   const roomNameOffset = targetBuildingIds.length;
   const roomNamePlaceholders = desiredTargetRooms.map((_, i) => `$${roomNameOffset + i + 1}`).join(', ');
   await appPool.query(
-    `UPDATE rooms SET is_active = 0
+    `UPDATE rooms SET is_active = FALSE
      WHERE building_id IN (${placeholders}) AND name NOT IN (${roomNamePlaceholders})`,
     [...targetBuildingIds, ...desiredTargetRooms]
   );
@@ -172,11 +172,11 @@ async function main() {
   for (const r of rooms) {
     await appPool.query(
       `INSERT INTO rooms (building_id, name, room_type, capacity, has_projector, has_aircon, has_sound)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       VALUES ($1, $2, $3, $4, $5::BOOLEAN, $6::BOOLEAN, $7::BOOLEAN)
        ON CONFLICT (building_id, name) DO UPDATE SET
          room_type = EXCLUDED.room_type, capacity = EXCLUDED.capacity,
          has_projector = EXCLUDED.has_projector, has_aircon = EXCLUDED.has_aircon,
-         has_sound = EXCLUDED.has_sound, is_active = 1`,
+         has_sound = EXCLUDED.has_sound, is_active = TRUE`,
       r
     );
   }

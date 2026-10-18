@@ -3,7 +3,7 @@ const fs = require('fs/promises');
 const path = require('path');
 const crypto = require('crypto');
 const multer = require('multer');
-const { pool } = require('../db');
+const pool = require('../db');
 const { requireLogin } = require('../middleware/auth');
 
 const router = express.Router();
@@ -76,8 +76,8 @@ router.post('/avatar', (req, res, next) => {
     await fs.writeFile(savedPath, req.file.buffer, { flag: 'wx' });
 
     const avatarUrl = `/uploads/avatars/${filename}`;
-    const [result] = await pool.query('UPDATE users SET avatar_url = ? WHERE id = ?', [avatarUrl, req.session.user.id]);
-    if (!result.affectedRows) {
+    const result = await pool.query('UPDATE users SET avatar_url = $1 WHERE id = $2', [avatarUrl, req.session.user.id]);
+    if (!result.rowCount) {
       const err = new Error('Your account could not be found.');
       err.status = 404;
       throw err;
@@ -95,7 +95,7 @@ router.post('/avatar', (req, res, next) => {
 
 router.delete('/avatar', async (req, res, next) => {
   try {
-    await pool.query('UPDATE users SET avatar_url = NULL WHERE id = ?', [req.session.user.id]);
+    await pool.query('UPDATE users SET avatar_url = NULL WHERE id = $1', [req.session.user.id]);
     const previousPath = oldAvatarPath(req.session.user.avatar_url);
     req.session.user.avatar_url = null;
     if (previousPath) fs.unlink(previousPath).catch(() => {});
