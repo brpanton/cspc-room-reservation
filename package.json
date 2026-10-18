@@ -22,7 +22,8 @@
     "express-session": "^1.18.0",
     "multer": "^2.4.0",
     "mysql2": "^3.11.3",
-    "nodemailer": "^10.1.1"
+    "nodemailer": "^10.1.1",
+    "pg": "^8.23.1"
   },
   "devDependencies": {
     "heic-convert": "^2.1.0"
