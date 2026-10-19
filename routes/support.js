@@ -1,5 +1,5 @@
 const express = require('express');
-const { pool } = require('../db');
+const pool = require('../db');
 
 const router = express.Router();
 
@@ -42,9 +42,9 @@ router.post('/', async (req, res, next) => {
       throw err;
     }
 
-    const [result] = await pool.query(
+    const { rows } = await pool.query(
       `INSERT INTO support_tickets (full_name, role_department, contact, category, description)
-       VALUES (?, ?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
       [
         payload.full_name,
         payload.role_department,
@@ -56,7 +56,7 @@ router.post('/', async (req, res, next) => {
 
     res.status(201).json({
       message: 'Your support request has been submitted successfully.',
-      ticket_id: result.insertId,
+      ticket_id: rows[0].id,
       category: payload.category
     });
   } catch (err) {

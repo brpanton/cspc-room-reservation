@@ -2,7 +2,7 @@
    Safe to re-run (idempotent). Run: node scripts/seed-ccs-labs.js */
 'use strict';
 require('dotenv').config();
-const { pool } = require('../db');
+const pool = require('../db');
 
 const CCS_LABS = [
   { name: 'MAC LABORATORY', image: '/img/mac-lab.jpg', capacity: 40, floor: '2nd Floor' },
@@ -18,37 +18,42 @@ const CCS_LABS = [
 
 (async () => {
   // ---- 1. Columns (older databases) ----
-  const [cols] = await pool.query('SHOW COLUMNS FROM rooms LIKE "floor"');
+  const { rows: cols } = await pool.query(
+    "SELECT column_name FROM information_schema.columns WHERE table_name = 'rooms' AND column_name = 'floor'"
+  );
   if (!cols.length) {
-    await pool.query('ALTER TABLE rooms ADD COLUMN floor VARCHAR(50) DEFAULT NULL AFTER capacity');
+    await pool.query('ALTER TABLE rooms ADD COLUMN floor VARCHAR(50) DEFAULT NULL');
     console.log('[seed-ccs-labs] Added rooms.floor column.');
   }
-  const [imgCols] = await pool.query('SHOW COLUMNS FROM rooms LIKE "image_url"');
+  const { rows: imgCols } = await pool.query(
+    "SELECT column_name FROM information_schema.columns WHERE table_name = 'rooms' AND column_name = 'image_url'"
+  );
   if (!imgCols.length) {
-    await pool.query('ALTER TABLE rooms ADD COLUMN image_url VARCHAR(255) DEFAULT NULL AFTER floor');
+    await pool.query('ALTER TABLE rooms ADD COLUMN image_url VARCHAR(255) DEFAULT NULL');
     console.log('[seed-ccs-labs] Added rooms.image_url column.');
   }
 
   // ---- 2. CCS building ----
-  const [[ccs]] = await pool.query('SELECT id FROM buildings WHERE name = ? LIMIT 1', ['CCS BUILDING']);
+  const { rows: ccsRows } = await pool.query('SELECT id FROM buildings WHERE name = $1 LIMIT 1', ['CCS BUILDING']);
+  const ccs = ccsRows[0];
   if (!ccs) throw new Error('CCS BUILDING not found in buildings table.');
 
   // ---- 3. Upsert the two labs ----
   for (const lab of CCS_LABS) {
     await pool.query(
       `INSERT INTO rooms (building_id, name, room_type, capacity, floor, image_url, has_projector, has_aircon, has_sound, is_active)
-       VALUES (?, ?, 'laboratory', ?, ?, ?, 0, 0, 0, 1)
-       ON DUPLICATE KEY UPDATE
-         room_type = 'laboratory', capacity = VALUES(capacity),
-         floor = VALUES(floor), image_url = VALUES(image_url), is_active = 1`,
+       VALUES ($1, $2, 'laboratory', $3, $4, $5, FALSE, FALSE, FALSE, TRUE)
+       ON CONFLICT (building_id, name) DO UPDATE SET
+         room_type = EXCLUDED.room_type, capacity = EXCLUDED.capacity,
+         floor = EXCLUDED.floor, image_url = EXCLUDED.image_url, is_active = TRUE`,
       [ccs.id, lab.name, lab.capacity, lab.floor, lab.image]
     );
     console.log(`[seed-ccs-labs] Upserted "${lab.name}" (${lab.floor}, ${lab.image}).`);
   }
 
   // ---- 4. Verify ----
-  const [rows] = await pool.query(
-    'SELECT id, name, room_type, capacity, floor, image_url, is_active FROM rooms WHERE building_id = ? ORDER BY id',
+  const { rows } = await pool.query(
+    'SELECT id, name, room_type, capacity, floor, image_url, is_active FROM rooms WHERE building_id = $1 ORDER BY id',
     [ccs.id]
   );
   console.log('\nCCS BUILDING ROOMS NOW:');
