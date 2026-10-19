@@ -149,6 +149,7 @@
 
   const RESEND_SECONDS = 60;
   let recoveryIdentifier = '';
+  let primaryEmail = '';
   let resetToken = '';
   let resendTimer = null;
 
@@ -216,6 +217,7 @@
     try {
       const result = await P.api('/api/auth/forgot-password', { method: 'POST', body: { email } });
       recoveryIdentifier = email;
+      primaryEmail = result.primary_email || email;
       resetToken = '';
       otpInput.value = '';
       // Echo where the code was sent: recovery inbox or official CSPC email.
@@ -225,7 +227,7 @@
         otpEmailEcho.classList.toggle('text-primary-emphasis', true);
       }
       if (resetEmailEcho) {
-        resetEmailEcho.textContent = email;
+        resetEmailEcho.textContent = primaryEmail;
       }
       setAuthView('otp');
       startResendCountdown();
@@ -310,7 +312,7 @@
       const result = await P.api('/api/auth/reset-password', {
         method: 'POST',
         body: {
-          identifier: recoveryIdentifier,
+          email: primaryEmail || recoveryIdentifier,
           reset_token: resetToken,
           new_password: password,
           confirm_password: confirm

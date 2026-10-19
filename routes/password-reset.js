@@ -226,6 +226,7 @@ router.post('/forgot-password', async (req, res, next) => {
     res.json({
       message,
       delivery_to: deliveryTo,
+      primary_email: resolved.email,
       expires_in_minutes: OTP_TTL_MINUTES,
       email_delivery: delivery.delivered ? 'smtp' : 'console'
     });
