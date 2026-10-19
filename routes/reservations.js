@@ -399,15 +399,38 @@ router.patch('/:id/decision', requireStaff, async (req, res, next) => {
 // ----------------------------------------------------------------- cancel ---
 router.patch('/:id/cancel', async (req, res, next) => {
   if (!requireSession(req, res)) return;
+  let conn;
   try {
-    const { rows } = await pool.query('SELECT * FROM reservations WHERE id = $1', [req.params.id]);
-    if (!rows.length) return res.status(404).json({ error: 'Reservation not found.' });
+    conn = await pool.connect();
+    await conn.query('BEGIN');
 
-    const reservation = rows.rows[0];
+    const { rows } = await conn.query('SELECT * FROM reservations WHERE id = $1 FOR UPDATE', [req.params.id]);
+    if (!rows.length) {
+      await conn.query('ROLLBACK');
+      conn.release();
+      conn = undefined;
+      return res.status(404).json({ error: 'Reservation not found.' });
+    }
+
+    const reservation = rows.rows?.[0];
+    if (!reservation) {
+      await conn.query('ROLLBACK');
+      conn.release();
+      conn = undefined;
+      return res.status(404).json({ error: 'Reservation not found.' });
+    }
+
     if (!canManageReservation(req.session.user, reservation)) {
+      await conn.query('ROLLBACK');
+      conn.release();
+      conn = undefined;
       return res.status(403).json({ error: 'You can only cancel your own reservations.' });
     }
+
     if (reservation.status === 'Cancelled') {
+      await conn.query('ROLLBACK');
+      conn.release();
+      conn = undefined;
       return res.status(409).json({ error: 'This reservation is already cancelled.' });
     }
 
@@ -415,19 +438,56 @@ router.patch('/:id/cancel', async (req, res, next) => {
       ? String(req.body.remarks).trim().slice(0, 255)
       : `Cancelled by ${req.session.user.full_name}`;
 
-    await pool.query(
-      `UPDATE reservations SET status = 'Cancelled', decided_at = NOW(), remarks = $1 WHERE id = $2`,
-      [remarks, reservation.id]
-    );
-    await pool.query(
-      `INSERT INTO reservation_logs (reservation_id, actor_id, action, remarks)
-       VALUES ($1, $2, 'Cancelled', $3)`,
-      [reservation.id, req.session.user.id, remarks]
-    );
+    try {
+      await conn.query(
+        `UPDATE reservations SET status = 'Cancelled', decided_at = NOW(), remarks = $1 WHERE id = $2`,
+        [remarks, reservation.id]
+      );
+    } catch (updateErr) {
+      await conn.query('ROLLBACK');
+      conn.release();
+      conn = undefined;
+      return res.status(500).json({ error: 'Failed to cancel reservation. Please try again.' });
+    }
+
+    // Log insert is best-effort: a failure here must not undo the cancellation.
+    try {
+      await conn.query(
+        `INSERT INTO reservation_logs (reservation_id, actor_id, action, remarks)
+         VALUES ($1, $2, 'Cancelled', $3)`,
+        [reservation.id, req.session.user.id, remarks]
+      );
+    } catch (logErr) {
+      console.error('Failed to write cancellation log:', logErr.message);
+    }
+
+    try {
+      await conn.query('COMMIT');
+    } catch (commitErr) {
+      console.error('Failed to commit cancellation:', commitErr.message);
+      conn.release();
+      conn = undefined;
+      return res.status(500).json({ error: 'Failed to cancel reservation. Please try again.' });
+    }
+
+    conn.release();
+    conn = undefined;
 
     res.json({ message: `Reservation #${reservation.id} has been cancelled.` });
   } catch (err) {
-    next(err);
+    if (conn) {
+      try {
+        await conn.query('ROLLBACK');
+      } catch {
+        /* nothing to roll back */
+      }
+      try { conn.release(); } catch { /* release failure */ }
+    }
+    res.status(500).json({ error: 'Failed to cancel reservation. Please try again.' });
+  } finally {
+    if (conn) {
+      try { conn.release(); } catch { /* release failure */ }
+    }
   }
 });
 
