@@ -78,15 +78,14 @@ function hashResetToken(token) {
 }
 
 /**
- * Resolves the typed recovery email to the account's registered record.
- * First tries the `recovery_email` column; if the user never saved a recovery
- * email, falls back to matching the primary `email` column so they can still
- * recover via their school inbox.
+ * Resolves the typed identifier (email or recovery_email) to the account's
+ * registered record using a SINGLE ground-truth query.
  *
- * Returns { found, email, recoveryEmail, user, deliveredTo }.
+ * Returns { found, user_id, login_email, recovery_email, deliveredTo, user }.
  *   - `found`        : boolean - true when a matching active account exists
- *   - `email`        : the user's primary login email (used to key the OTP row)
- *   - `recoveryEmail`: the recovery email saved on the account (may be NULL)
+ *   - `user_id`      : the account's database primary key (users.id)
+ *   - `login_email`  : the user's primary login email (users.email) - NEVER changed by reset
+ *   - `recovery_email`: the recovery email saved on the account (may be NULL)
  *   - `deliveredTo`  : the inbox that will receive the OTP ('recovery' or 'primary')
  *   - `user`         : the full user row (NULL when not found)
  */
@@ -103,34 +102,30 @@ async function resolveAccountEmail(rawIdentifier) {
     throw Object.assign(new Error('Please enter a valid recovery email address.'), { status: 400 });
   }
 
-  // 1) Try recovery_email first (dedicated alternate inbox).
-  let { rows } = await pool.query(
-    'SELECT id, full_name, email, recovery_email, is_active FROM users WHERE LOWER(recovery_email) = LOWER($1) LIMIT 1',
+  // SINGLE ground-truth lookup: match either the primary login email or the recovery email.
+  const { rows } = await pool.query(
+    `SELECT id, email AS login_email, recovery_email, full_name, is_active
+       FROM users
+      WHERE LOWER(email) = LOWER($1) OR LOWER(recovery_email) = LOWER($1)
+      LIMIT 1`,
     [email]
   );
-  let user = rows[0] || null;
-  let deliveredTo = 'recovery';
-
-  // 2) Fallback: match the primary email for users who never saved a recovery email.
-  if (!user) {
-    ({ rows } = await pool.query(
-      'SELECT id, full_name, email, recovery_email, is_active FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
-      [email]
-    ));
-    user = rows[0] || null;
-    deliveredTo = 'primary';
-  }
+  const user = rows[0] || null;
 
   if (!user) {
-    return { found: false, email: null, recoveryEmail: null, user: null, deliveredTo: null };
+    return { found: false, user_id: null, login_email: null, recovery_email: null, deliveredTo: null, user: null };
   }
   if (!user.is_active) {
     throw Object.assign(new Error('This account can no longer recover its password. Please contact the administrator.'), { status: 403 });
   }
+
+  // Delivery inbox: recovery email if saved, otherwise primary school email.
+  const deliveredTo = user.recovery_email ? 'recovery' : 'primary';
   return {
     found: true,
-    email: user.email,
-    recoveryEmail: user.recovery_email || null,
+    user_id: user.id,
+    login_email: user.login_email,
+    recovery_email: user.recovery_email || null,
     deliveredTo,
     user
   };
@@ -153,12 +148,13 @@ router.post('/forgot-password', async (req, res, next) => {
     }
 
     const user = resolved.user;
-    const primaryEmail = resolved.email;                 // users.email  (login identity - never changed here)
-    const rowEmail = primaryEmail;                       // OTP row is keyed by primary email
+    const userId = resolved.user_id;          // database primary key (users.id)
+    const loginEmail = resolved.login_email;  // users.email - login identity, never changed here
+    const rowEmail = loginEmail;              // OTP row is keyed by primary login email
     // Delivery inbox: recovery email if saved, otherwise primary school email.
-    const deliveryEmail = resolved.deliveredTo === 'recovery' && resolved.recoveryEmail
-      ? resolved.recoveryEmail
-      : primaryEmail;
+    const deliveryEmail = resolved.deliveredTo === 'recovery' && resolved.recovery_email
+      ? resolved.recovery_email
+      : loginEmail;
     const deliveryTo = resolved.deliveredTo;
     const displayName = user.full_name || '';
 
@@ -194,7 +190,7 @@ router.post('/forgot-password', async (req, res, next) => {
     await pool.query(
       `INSERT INTO password_reset_codes (user_id, email, otp_hash, attempts, expires_at)
        VALUES ($1, $2, $3, 0, NOW() + INTERVAL '${OTP_TTL_MINUTES} minutes')`,
-      [user.id, rowEmail, otpHash]
+      [userId, rowEmail, otpHash]
     );
 
     console.log(
@@ -223,10 +219,12 @@ router.post('/forgot-password', async (req, res, next) => {
       message = 'We sent a 6-digit code to your official CSPC email. Check your inbox (and spam folder).';
     }
 
+    // Return ground truth: primary login email and database user id.
     res.json({
       message,
       delivery_to: deliveryTo,
-      primary_email: resolved.email,
+      login_email: loginEmail,
+      user_id: userId,
       expires_in_minutes: OTP_TTL_MINUTES,
       email_delivery: delivery.delivered ? 'smtp' : 'console'
     });
@@ -249,7 +247,8 @@ router.post('/verify-otp', async (req, res, next) => {
       err.status = 404;
       throw err;
     }
-    const rowEmail = resolved.email;
+    const rowEmail = resolved.login_email;
+    const rowUserId = resolved.user_id;
     const otp = String(req.body.otp).trim();
     if (!OTP_RE.test(otp)) {
       const err = new Error('Enter the 6-digit numeric code from your email.');
@@ -261,10 +260,10 @@ router.post('/verify-otp', async (req, res, next) => {
       `SELECT id, user_id, otp_hash, attempts, verified_at,
               (expires_at > NOW()) AS is_unexpired
          FROM password_reset_codes
-        WHERE email = $1 AND used_at IS NULL
+        WHERE email = $1 AND user_id = $2 AND used_at IS NULL
         ORDER BY id DESC
         LIMIT 1`,
-      [rowEmail]
+      [rowEmail, rowUserId]
     );
     const code = codes[0] || null;
     if (!code) {
@@ -308,7 +307,12 @@ router.post('/verify-otp', async (req, res, next) => {
       [hashResetToken(resetToken), code.id]
     );
 
-    res.json({ message: 'Email verified. Choose a new password.', reset_token: resetToken });
+    res.json({
+      message: 'Email verified. Choose a new password.',
+      reset_token: resetToken,
+      login_email: resolved.login_email,
+      user_id: resolved.user_id
+    });
   } catch (err) {
     next(err);
   }
@@ -317,10 +321,9 @@ router.post('/verify-otp', async (req, res, next) => {
 /* ----------------------------------------------------- step 3: reset pw */
 router.post('/reset-password', async (req, res, next) => {
   try {
-    const rawEmail = req.body.email !== undefined ? req.body.email : req.body.identifier;
-    requireFields({ email: rawEmail }, ['email']);
+    const userId = req.body.user_id;
+    requireFields({ user_id: userId }, ['user_id']);
     requireFields(req.body, ['reset_token', 'new_password', 'confirm_password']);
-    const { email } = await resolveAccountEmail(rawEmail);
     const resetToken = String(req.body.reset_token).trim();
     const newPassword = parsePassword(req.body.new_password);
     const confirmPassword = String(req.body.confirm_password);
@@ -331,14 +334,15 @@ router.post('/reset-password', async (req, res, next) => {
       throw err;
     }
 
-    // The token must match the email, be verified, unused and unexpired.
+    // The token must match the user_id, be verified, unused and unexpired.
+    // Never use email here - the code row is keyed by user_id + token hash.
     const { rows: codes } = await pool.query(
       `SELECT id, user_id
          FROM password_reset_codes
-        WHERE reset_token_hash = $1 AND email = $2 AND used_at IS NULL
+        WHERE reset_token_hash = $1 AND user_id = $2 AND used_at IS NULL
           AND verified_at IS NOT NULL AND expires_at > NOW()
         LIMIT 1`,
-      [hashResetToken(resetToken), email]
+      [hashResetToken(resetToken), userId]
     );
     const code = codes[0] || null;
     if (!code) {
@@ -365,10 +369,9 @@ router.post('/reset-password', async (req, res, next) => {
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
-    await pool.query('UPDATE users SET password_hash = $1, must_change_password = FALSE WHERE id = $2', [
-      passwordHash,
-      user.id
-    ]);
+    // Only password_hash (+must_change_password flag) is updated -
+    // NEVER modify email or recovery_email columns during a password reset.
+    await pool.query('UPDATE users SET password_hash = $1, must_change_password = FALSE WHERE id = $2', [passwordHash, user.id]);
     // Single-use: burn the token so it can never be replayed.
     await pool.query(
       'UPDATE password_reset_codes SET used_at = NOW(), reset_token_hash = NULL WHERE id = $1',

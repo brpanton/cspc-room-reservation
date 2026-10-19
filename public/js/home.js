@@ -148,8 +148,12 @@
   const resetConfirm = document.getElementById('visitor-reset-confirm');
 
   const RESEND_SECONDS = 60;
-  let recoveryIdentifier = '';
-  let primaryEmail = '';
+  /** The email the visitor typed (may be primary or recovery email). */
+  let recoveryEmail = '';
+  /** Ground-truth primary login email from the server (users.email). */
+  let primaryAccountEmail = '';
+  /** Database primary key of the account being reset (users.id). */
+  let resetUserId = '';
   let resetToken = '';
   let resendTimer = null;
 
@@ -216,8 +220,9 @@
     P.busy(forgotSubmit, true, 'Sending code...');
     try {
       const result = await P.api('/api/auth/forgot-password', { method: 'POST', body: { email } });
-      recoveryIdentifier = email;
-      primaryEmail = result.primary_email || email;
+      recoveryEmail = email;                     // what the visitor typed
+      primaryAccountEmail = result.login_email;  // ground-truth primary login email from server
+      resetUserId = result.user_id;              // database primary key (users.id)
       resetToken = '';
       otpInput.value = '';
       // Echo where the code was sent: recovery inbox or official CSPC email.
@@ -227,7 +232,7 @@
         otpEmailEcho.classList.toggle('text-primary-emphasis', true);
       }
       if (resetEmailEcho) {
-        resetEmailEcho.textContent = primaryEmail;
+        resetEmailEcho.textContent = primaryAccountEmail;
       }
       setAuthView('otp');
       startResendCountdown();
@@ -252,10 +257,13 @@
      control of the button label; always restart the cooldown afterwards,
      even when the server answers with its 60s rate-limit message. */
   otpResend?.addEventListener('click', async () => {
-    if (!recoveryIdentifier || otpResend.disabled) return;
+    if (!recoveryEmail || otpResend.disabled) return;
     otpResend.disabled = true;
     try {
-      const result = await P.api('/api/auth/forgot-password', { method: 'POST', body: { email: recoveryIdentifier } });
+      const result = await P.api('/api/auth/forgot-password', { method: 'POST', body: { email: recoveryEmail } });
+      if (result.login_email) primaryAccountEmail = result.login_email;
+      if (result.user_id) resetUserId = result.user_id;
+      if (resetEmailEcho && primaryAccountEmail) resetEmailEcho.textContent = primaryAccountEmail;
       otpInput.value = '';
       if (result.email_delivery === 'console') {
         showAlert(otpAlert, 'Email delivery is not configured on this server, so no email was sent. The new code was printed in the server console.', 'warning');
@@ -282,10 +290,10 @@
     otpAlert.classList.add('d-none');
     const otp = String(otpInput.value).trim();
     if (!/^\d{6}$/.test(otp)) return showAlert(otpAlert, 'Enter the 6-digit code from your email.');
-    if (!recoveryIdentifier) return setAuthView('forgot');
+    if (!recoveryEmail) return setAuthView('forgot');
     P.busy(otpSubmit, true, 'Verifying...');
     try {
-      const result = await P.api('/api/auth/verify-otp', { method: 'POST', body: { identifier: recoveryIdentifier, otp } });
+      const result = await P.api('/api/auth/verify-otp', { method: 'POST', body: { identifier: recoveryEmail, otp } });
       resetToken = result.reset_token || '';
       otpInput.value = '';
       setAuthView('reset');
@@ -306,25 +314,27 @@
     const confirm = resetConfirm.value;
     if (password.length < 8) return showAlert(resetAlert, 'Password must be at least 8 characters long.');
     if (password !== confirm) return showAlert(resetAlert, 'Passwords do not match.');
-    if (!resetToken || !recoveryIdentifier) return setAuthView('forgot');
+    if (!resetToken || !resetUserId) return setAuthView('forgot');
     P.busy(resetSubmit, true, 'Saving...');
     try {
       const result = await P.api('/api/auth/reset-password', {
         method: 'POST',
         body: {
-          email: primaryEmail || recoveryIdentifier,
+          user_id: resetUserId,
           reset_token: resetToken,
           new_password: password,
           confirm_password: confirm
         }
       });
       P.toastOk(result.message || 'Your password has been reset. You can now log in.');
-      // Land back on the login view with the email ready to type into.
+      // Land back on the login view with the primary account email ready to type into.
       forgotForm?.reset();
       otpInput.value = '';
       resetForm.reset();
-      if (loginIdInput) loginIdInput.value = recoveryIdentifier;
-      recoveryIdentifier = '';
+      if (loginIdInput) loginIdInput.value = primaryAccountEmail;
+      recoveryEmail = '';
+      primaryAccountEmail = '';
+      resetUserId = '';
       resetToken = '';
       setAuthView('login');
     } catch (err) {
@@ -339,7 +349,9 @@
   loginModalEl?.addEventListener('show.bs.modal', () => setAuthView('login'));
   loginModalEl?.addEventListener('hidden.bs.modal', () => {
     stopResendTimer();
-    recoveryIdentifier = '';
+    recoveryEmail = '';
+    primaryAccountEmail = '';
+    resetUserId = '';
     resetToken = '';
     forgotForm?.reset();
     if (otpInput) otpInput.value = '';
