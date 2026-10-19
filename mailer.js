@@ -37,17 +37,25 @@ function smtpConfigured() {
 let transporter = null;
 function getTransporter() {
   if (!transporter) {
-    const port = Number(process.env.SMTP_PORT || 465);
-    transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port,
-      // Gmail uses implicit TLS on 465; 587 would use STARTTLS (secure: false).
-      secure: port === 465,
-      auth: { user: smtpUser(), pass: smtpPass() },
-      // Generous but bounded: a stuck SMTP server must not hang the route.
-      connectionTimeout: 10000,
-      greetingTimeout: 10000
-    });
+    try {
+      const port = Number(process.env.SMTP_PORT || 465);
+      transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST || 'smtp.gmail.com',
+        port,
+        // Gmail uses implicit TLS on 465; 587 would use STARTTLS (secure: false).
+        secure: port === 465,
+        auth: { user: smtpUser(), pass: smtpPass() },
+        // Generous but bounded: a stuck SMTP server must not hang the route.
+        connectionTimeout: 10000,
+        greetingTimeout: 10000
+      });
+    } catch (err) {
+      // A malformed transport config (e.g. bad port, invalid auth shape) must
+      // not crash the server. Log it and let the caller handle the failure.
+      console.error(`[mailer] Failed to create SMTP transport: ${err.message}`);
+      transporter = null;
+      throw err;
+    }
   }
   return transporter;
 }
@@ -109,8 +117,12 @@ async function sendPasswordResetOtp({ email, name, otp, minutes = 10 }) {
   if (!smtpConfigured()) {
     // Dev fallback: the code still "arrives" - on the server console - so the
     // flow can be exercised end to end before SMTP credentials exist.
+    const missing = [];
+    if (!smtpUser()) missing.push('SMTP_USER (or EMAIL_USER)');
+    if (!smtpPass()) missing.push('SMTP_PASS (or EMAIL_PASS)');
     console.log('[mailer] SMTP not configured - NO EMAIL WILL BE SENT.');
-    console.log('[mailer] Set SMTP_USER + SMTP_PASS (or EMAIL_USER + EMAIL_PASS) in .env to enable email.');
+    console.log(`[mailer] Missing env vars: ${missing.join(', ')}`);
+    console.log('[mailer] Set them in .env to enable email delivery.');
     console.log(`[mailer] OTP for ${email}: ${otp} (expires in ${minutes} min)`);
     return { delivered: false, reason: 'unconfigured' };
   }
@@ -133,9 +145,11 @@ async function sendPasswordResetOtp({ email, name, otp, minutes = 10 }) {
     return { delivered: true };
   } catch (err) {
     // Nodemailer errors carry the SMTP server's reply (e.g. Gmail's
-    // "Invalid login: 535-5.7.8" or DNS "ENOTFOUND") - log the full message
-    // so delivery problems are diagnosable straight from the terminal.
-    console.error(`[mailer] sendMail FAILED -> to=${email}: ${err.message}`);
+    // "Invalid login: 535-5.7.8", DNS "ENOTFOUND", connection "ECONNREFUSED")
+    // plus an err.code and err.response - log all of them so delivery
+    // problems are diagnosable straight from the terminal.
+    console.error(`[mailer] sendMail FAILED -> to=${email}: code=${err.code} message=${err.message}`);
+    if (err.response) console.error(`[mailer] SMTP response: ${err.response}`);
     return { delivered: false, reason: 'error', error: err };
   }
 }
@@ -200,7 +214,8 @@ async function sendPasswordChangedAlert({ email, name }) {
     console.log(`[mailer] password-change alert OK -> to=${email} messageId=${info && info.messageId}`);
     return { delivered: true };
   } catch (err) {
-    console.error(`[mailer] password-change alert FAILED -> to=${email}: ${err.message}`);
+    console.error(`[mailer] password-change alert FAILED -> to=${email}: code=${err.code} message=${err.message}`);
+    if (err.response) console.error(`[mailer] SMTP response: ${err.response}`);
     return { delivered: false, reason: 'error', error: err };
   }
 }
