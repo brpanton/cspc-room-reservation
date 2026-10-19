@@ -151,13 +151,29 @@
   async function loadList() {
     bodyEl.innerHTML = emptyRow(9, 'Loading...');
     const params = new URLSearchParams();
-    if (state.status) params.set('status', state.status);
     if (state.mine) params.set('mine', '1');
     params.set('limit', '200');
 
     try {
       const data = await api(`/api/reservations?${params.toString()}`);
-      state.items = data.reservations || [];
+      let items = data.reservations || [];
+
+      // Remove duplicate entries by reservation id
+      const seen = new Set();
+      items = items.filter((item) => {
+        if (seen.has(item.id)) return false;
+        seen.add(item.id);
+        return true;
+      });
+
+      // Frontend status filter (case-insensitive)
+      if (state.status) {
+        items = items.filter((item) =>
+          String(item.status || '').toLowerCase() === String(state.status).toLowerCase()
+        );
+      }
+
+      state.items = items;
       renderList();
     } catch (err) {
       bodyEl.innerHTML = emptyRow(9, `Could not load reservations: ${err.message}`);
