@@ -172,6 +172,22 @@ app.use((err, req, res, next) => {
   });
 });
 
+// -------------------------------------------- process-level safety nets ---
+/** Prevent unhandled promise rejections from crashing the Node.js process
+ *  (which would surface as 502 Bad Gateway on Render). Log and continue. */
+process.on('unhandledRejection', (err) => {
+  console.error('[unhandledRejection]', err instanceof Error ? err.message : err);
+  console.error(err instanceof Error ? err.stack : '');
+});
+
+/** Catch truly unexpected synchronous crashes, log them, and exit cleanly
+ *  so Render can restart the container instead of leaving it in a bad state. */
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException]', err.message);
+  console.error(err.stack);
+  process.exit(1);
+});
+
 // -------------------------------------------------------------------- start
 async function start() {
   try {
