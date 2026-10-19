@@ -263,7 +263,7 @@ router.post('/verify-otp', async (req, res, next) => {
         WHERE email = $1 AND used_at IS NULL
         ORDER BY id DESC
         LIMIT 1`,
-      [email]
+      [rowEmail]
     );
     const code = codes.rows[0];
     if (!code) {
