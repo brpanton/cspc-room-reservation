@@ -24,6 +24,11 @@
  *   - Never stores secrets in the clear: the OTP itself only exists as a
  *     bcrypt hash (slow to brute-force), and the reset token as a sha256
  *     (the raw token is 256 bits of CSPRNG entropy, so nothing to guess).
+ *   - ROLE-ISOLATED LOOKUPS: every step accepts an explicit account scope
+ *     ('admin' from the Admin reset tab, 'user' from the User tab).
+ *     Admin scope strictly filters role = 'admin'; user scope excludes
+ *     admins. The reset UPDATE re-checks the same role guardrail, so a
+ *     reset started in one tab can never modify an account of the other.
  *   - LOGIN IDENTITY IS SACRED: the identifier the visitor types, and any
  *     saved recovery_email, are used ONLY to look the account up and to
  *     pick the mailbox that receives the OTP. No statement in this file
@@ -78,6 +83,31 @@ function hashResetToken(token) {
 }
 
 /**
+ * Parses the caller's reset context ('admin' tab vs 'user' tab).
+ * Accepts `account_kind`, `role` or `context` keys; defaults to 'user'.
+ */
+function parseAccountKind(body) {
+  const raw = body.account_kind !== undefined ? body.account_kind
+    : body.role !== undefined ? body.role
+    : body.context !== undefined ? body.context : 'user';
+  const kind = String(raw || 'user').trim().toLowerCase();
+  if (kind === 'admin') return 'admin';
+  return 'user';
+}
+
+/**
+ * Role-specific "not found" error so a user email on the Admin tab (and
+ * vice versa) gets a clear message instead of a generic one.
+ */
+function kindNotFoundError(kind) {
+  const err = kind === 'admin'
+    ? new Error('No admin account found with this email.')
+    : new Error('No user account found with this email.');
+  err.status = 404;
+  return err;
+}
+
+/**
  * Resolves the typed identifier (email or recovery_email) to the account's
  * registered record using a SINGLE ground-truth query.
  *
@@ -88,8 +118,10 @@ function hashResetToken(token) {
  *   - `recovery_email`: the recovery email saved on the account (may be NULL)
  *   - `deliveredTo`  : the inbox that will receive the OTP ('recovery' or 'primary')
  *   - `user`         : the full user row (NULL when not found)
+ *   - `account_kind` : the role scope the lookup was restricted to
  */
-async function resolveAccountEmail(rawIdentifier) {
+async function resolveAccountEmail(rawIdentifier, accountKind = 'user') {
+  const kind = accountKind === 'admin' ? 'admin' : 'user';
   const identifier = String(rawIdentifier || '').trim().toLowerCase();
 
   if (!identifier.includes('@')) {
@@ -102,14 +134,27 @@ async function resolveAccountEmail(rawIdentifier) {
     throw Object.assign(new Error('Please enter a valid recovery email address.'), { status: 400 });
   }
 
-  // SINGLE ground-truth lookup: match either the primary login email or the recovery email.
-  const { rows } = await pool.query(
-    `SELECT id, email AS login_email, recovery_email, full_name, is_active
-       FROM users
-      WHERE LOWER(email) = LOWER($1) OR LOWER(recovery_email) = LOWER($1)
-      LIMIT 1`,
-    [email]
-  );
+  // SINGLE ground-truth lookup, strictly scoped by role so a regular user
+  // email can never resolve inside the Admin flow (and vice versa).
+  // Admin tab:  users.role = 'admin'.
+  // User tab:   any non-admin role (student/faculty/custodian or legacy NULL).
+  const { rows } = kind === 'admin'
+    ? await pool.query(
+      `SELECT id, email AS login_email, recovery_email, full_name, is_active, role
+         FROM users
+        WHERE (LOWER(email) = LOWER($1) OR LOWER(recovery_email) = LOWER($1))
+          AND role = 'admin'
+        LIMIT 1`,
+      [email]
+    )
+    : await pool.query(
+      `SELECT id, email AS login_email, recovery_email, full_name, is_active, role
+         FROM users
+        WHERE (LOWER(email) = LOWER($1) OR LOWER(recovery_email) = LOWER($1))
+          AND (role IS NULL OR role != 'admin')
+        LIMIT 1`,
+      [email]
+    );
   const user = rows[0] || null;
 
   if (!user) {
@@ -127,6 +172,7 @@ async function resolveAccountEmail(rawIdentifier) {
     login_email: user.login_email,
     recovery_email: user.recovery_email || null,
     deliveredTo,
+    account_kind: kind,
     user
   };
 }
@@ -136,15 +182,14 @@ router.post('/forgot-password', async (req, res, next) => {
   try {
     const rawEmail = req.body.email !== undefined ? req.body.email : req.body.identifier;
     requireFields({ email: rawEmail }, ['email']);
+    const kind = parseAccountKind(req.body || {});
 
     // Resolve the input to the account's record. Only CSPC email addresses
     // are accepted; School IDs are no longer supported as login identifiers.
-    const resolved = await resolveAccountEmail(rawEmail);
+    const resolved = await resolveAccountEmail(rawEmail, kind);
 
     if (!resolved.found) {
-      const err = new Error('No account was found with that recovery email address. Make sure you entered the recovery email you registered.');
-      err.status = 404;
-      throw err;
+      throw kindNotFoundError(kind);
     }
 
     const user = resolved.user;
@@ -219,12 +264,13 @@ router.post('/forgot-password', async (req, res, next) => {
       message = 'We sent a 6-digit code to your official CSPC email. Check your inbox (and spam folder).';
     }
 
-    // Return ground truth: primary login email and database user id.
+    // Return ground truth: primary login email, database user id, and role scope.
     res.json({
       message,
       delivery_to: deliveryTo,
       login_email: loginEmail,
       user_id: userId,
+      account_kind: kind,
       expires_in_minutes: OTP_TTL_MINUTES,
       email_delivery: delivery.delivered ? 'smtp' : 'console'
     });
@@ -239,13 +285,12 @@ router.post('/verify-otp', async (req, res, next) => {
     const rawEmail = req.body.email !== undefined ? req.body.email : req.body.identifier;
     requireFields({ email: rawEmail }, ['email']);
     requireFields(req.body, ['otp']);
+    const kind = parseAccountKind(req.body || {});
 
     // Resolve the email to confirm the account exists (matches step 1).
-    const resolved = await resolveAccountEmail(rawEmail);
+    const resolved = await resolveAccountEmail(rawEmail, kind);
     if (!resolved.found) {
-      const err = new Error('No account was found for that email address.');
-      err.status = 404;
-      throw err;
+      throw kindNotFoundError(kind);
     }
     const rowEmail = resolved.login_email;
     const rowUserId = resolved.user_id;
@@ -311,7 +356,8 @@ router.post('/verify-otp', async (req, res, next) => {
       message: 'Email verified. Choose a new password.',
       reset_token: resetToken,
       login_email: resolved.login_email,
-      user_id: resolved.user_id
+      user_id: resolved.user_id,
+      account_kind: kind
     });
   } catch (err) {
     next(err);
@@ -324,6 +370,7 @@ router.post('/reset-password', async (req, res, next) => {
     const userId = req.body.user_id;
     requireFields({ user_id: userId }, ['user_id']);
     requireFields(req.body, ['reset_token', 'new_password', 'confirm_password']);
+    const kind = parseAccountKind(req.body || {});
     const resetToken = String(req.body.reset_token).trim();
     const newPassword = parsePassword(req.body.new_password);
     const confirmPassword = String(req.body.confirm_password);
@@ -352,7 +399,7 @@ router.post('/reset-password', async (req, res, next) => {
     }
 
     const { rows: users } = await pool.query(
-      'SELECT id, password_hash, is_active FROM users WHERE id = $1 LIMIT 1',
+      'SELECT id, password_hash, is_active, role FROM users WHERE id = $1 LIMIT 1',
       [code.user_id]
     );
     const user = users[0] || null;
@@ -360,6 +407,17 @@ router.post('/reset-password', async (req, res, next) => {
       const err = new Error('This account can no longer recover its password. Please contact the administrator.');
       err.status = 403;
       throw err;
+    }
+    // Role guardrail: the token's account must belong to the caller's tab,
+    // and the numeric user_id passed by the client must match the token row.
+    if (Number(userId) !== Number(code.user_id)) {
+      const err = new Error('This reset request does not match the verified account. Start over with "Forgot password?".');
+      err.status = 400;
+      throw err;
+    }
+    const isAdminAccount = user.role === 'admin';
+    if ((kind === 'admin') !== isAdminAccount) {
+      throw kindNotFoundError(kind);
     }
 
     if (await bcrypt.compare(newPassword, user.password_hash)) {
@@ -371,7 +429,16 @@ router.post('/reset-password', async (req, res, next) => {
     const passwordHash = await bcrypt.hash(newPassword, 10);
     // Only password_hash (+must_change_password flag) is updated -
     // NEVER modify email or recovery_email columns during a password reset.
-    await pool.query('UPDATE users SET password_hash = $1, must_change_password = FALSE WHERE id = $2', [passwordHash, user.id]);
+    // The UPDATE is additionally scoped by role so a token minted for one
+    // account kind can never modify an account of the other kind.
+    const roleClause = kind === 'admin' ? `AND role = 'admin'` : `AND (role IS NULL OR role != 'admin')`;
+    const updateResult = await pool.query(
+      `UPDATE users SET password_hash = $1, must_change_password = FALSE WHERE id = $2 ${roleClause}`,
+      [passwordHash, user.id]
+    );
+    if (!updateResult || updateResult.rowCount !== 1) {
+      throw kindNotFoundError(kind);
+    }
     // Single-use: burn the token so it can never be replayed.
     await pool.query(
       'UPDATE password_reset_codes SET used_at = NOW(), reset_token_hash = NULL WHERE id = $1',

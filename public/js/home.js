@@ -154,6 +154,8 @@
   let primaryAccountEmail = '';
   /** Database primary key of the account being reset (users.id). */
   let resetUserId = '';
+  /** Role scope of the active reset flow: 'user' tab or 'admin' tab. */
+  let resetAccountKind = 'user';
   let resetToken = '';
   let resendTimer = null;
 
@@ -200,8 +202,10 @@
 
   forgotLink?.addEventListener('click', () => {
     // Open the forgot view with a completely blank recovery email field —
-    // never pre-fill it from the login input.
+    // never pre-fill it from the login input. Capture the active login tab
+    // (User vs Admin) so the reset is scoped to that account kind.
     forgotEmail.value = '';
+    resetAccountKind = loginMode === 'admin' ? 'admin' : 'user';
     setAuthView('forgot');
   });
 
@@ -219,10 +223,11 @@
     }
     P.busy(forgotSubmit, true, 'Sending code...');
     try {
-      const result = await P.api('/api/auth/forgot-password', { method: 'POST', body: { email } });
+      const result = await P.api('/api/auth/forgot-password', { method: 'POST', body: { email, account_kind: resetAccountKind } });
       recoveryEmail = email;                     // what the visitor typed
       primaryAccountEmail = result.login_email;  // ground-truth primary login email from server
       resetUserId = result.user_id;              // database primary key (users.id)
+      if (result.account_kind) resetAccountKind = result.account_kind;
       resetToken = '';
       otpInput.value = '';
       // Echo where the code was sent: recovery inbox or official CSPC email.
@@ -260,7 +265,10 @@
     if (!recoveryEmail || otpResend.disabled) return;
     otpResend.disabled = true;
     try {
-      const result = await P.api('/api/auth/forgot-password', { method: 'POST', body: { email: recoveryEmail } });
+      const result = await P.api('/api/auth/forgot-password', { method: 'POST', body: { email: recoveryEmail, account_kind: resetAccountKind } });
+      if (result.login_email) primaryAccountEmail = result.login_email;
+      if (result.user_id) resetUserId = result.user_id;
+      if (result.account_kind) resetAccountKind = result.account_kind;
       if (result.login_email) primaryAccountEmail = result.login_email;
       if (result.user_id) resetUserId = result.user_id;
       if (resetEmailEcho && primaryAccountEmail) resetEmailEcho.textContent = primaryAccountEmail;

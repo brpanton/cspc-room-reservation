@@ -200,7 +200,9 @@
                   <button class="btn btn-sm btn-outline-danger ms-1" data-action="reject" data-id="${r.id}">Reject</button>`;
     }
     if (canCancel) {
-      actions += `<button class="btn btn-sm btn-outline-secondary ms-1" data-action="cancel" data-id="${r.id}">Cancel</button>`;
+      // Cancel binds the REAL database primary key (reservations.id -> r.id),
+      // never a loop index. bindRowActions() looks the row back up by r.id === id.
+      actions += `<button class="btn btn-sm btn-outline-danger ms-1" data-action="cancel" data-id="${r.id}" title="Cancel reservation #${r.id}">✕ Cancel</button>`;
     }
     if (!actions) actions = '<span class="text-muted-sm">-</span>';
 
