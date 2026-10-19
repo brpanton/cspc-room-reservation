@@ -1,0 +1,10 @@
+const fs = require('fs');
+const content = fs.readFileSync('routes/reservations.js', 'utf8');
+const lines = content.split('\n');
+console.log('Total lines:', lines.length);
+console.log('--- LINES 120-240 ---');
+console.log(lines.slice(119, 240).join('\n'));
+console.log('--- LINES 240-360 ---');
+console.log(lines.slice(239, 360).join('\n'));
+console.log('--- LINES 360-479 ---');
+console.log(lines.slice(359, 479).join('\n'));
