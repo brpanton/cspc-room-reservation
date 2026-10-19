@@ -294,7 +294,7 @@ router.get('/:id', async (req, res, next) => {
     const { rows } = await pool.query(`${RESERVATION_SELECT} WHERE res.id = $1`, [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Reservation not found.' });
 
-    const reservation = rows.rows[0];
+    const reservation = rows[0];
     if (!canManageReservation(req.session.user, reservation)) {
       return res.status(403).json({ error: 'You can only view your own reservations.' });
     }
@@ -324,7 +324,7 @@ router.patch('/:id/decision', requireStaff, async (req, res, next) => {
       err.status = 404;
       throw err;
     }
-    const reservation = rows.rows[0];
+    const reservation = rows[0];
 
     if (reservation.status === 'Approved' || reservation.status === 'Rejected') {
       const err = new Error(
@@ -412,7 +412,7 @@ router.patch('/:id/cancel', async (req, res, next) => {
       return res.status(404).json({ error: 'Reservation not found.' });
     }
 
-    const reservation = rows.rows?.[0];
+    const reservation = rows[0];
     if (!reservation) {
       await conn.query('ROLLBACK');
       conn.release();
