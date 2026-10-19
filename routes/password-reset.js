@@ -6,7 +6,7 @@
  *                                      email, generate a random 6-digit OTP,
  *                                      store only its bcrypt HASH with a
  *                                      10-minute expiry, and email it via
- *                                      mailer.js (nodemailer / SMTP).
+ *                                      mailer.js (Brevo HTTP API).
  *                                      Sends to the address ONLY if the
  *                                      account exists, but always answers
  *                                      with the same generic message so

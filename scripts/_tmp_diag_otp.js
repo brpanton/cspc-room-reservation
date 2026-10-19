@@ -1,11 +1,10 @@
 require('dotenv').config();
 const { pool } = require('../db');
-const { smtpConfigured } = require('../mailer');
+const { brevoConfigured } = require('../mailer');
 (async () => {
   try {
-    console.log('smtpConfigured=' + smtpConfigured());
-    console.log('SMTP_HOST=' + (process.env.SMTP_HOST || '(default smtp.gmail.com)'));
-    console.log('SMTP_PORT=' + (process.env.SMTP_PORT || '(default 465)'));
+    console.log('brevoConfigured=' + brevoConfigured());
+    console.log('BREVO_API_KEY=' + (process.env.BREVO_API_KEY ? '(set)' : '(not set)'));
     const u = process.env.SMTP_USER || process.env.EMAIL_USER || '';
     console.log('SMTP_USER=' + (u ? u.slice(0, 3) + '***' + u.slice(u.indexOf('@')) : '(missing)'));
     console.log('SMTP_PASS set=' + Boolean(process.env.SMTP_PASS || process.env.EMAIL_PASS));

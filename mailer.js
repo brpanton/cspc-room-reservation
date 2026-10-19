@@ -1,63 +1,55 @@
 /**
  * Outbound email for the password-recovery flow (6-digit OTP codes).
  *
- * Uses Nodemailer over SMTP. Gmail works out of the box with an "App
- * Password" (Google Account -> Security -> 2-step verification ->
- * App passwords) in .env:
+ * Uses Brevo's HTTP API (https://api.brevo.com/v3/smtp/email).
  *
- *   SMTP_HOST=smtp.gmail.com
- *   SMTP_PORT=465
- *   SMTP_USER=your.address@gmail.com
- *   SMTP_PASS=16-character-app-password
+ *   BREVO_API_KEY=your-brevo-api-key
  *
- * When SMTP is NOT configured the code is printed to the server console
- * instead, so the whole recovery flow stays testable during development.
+ * When BREVO_API_KEY is NOT configured the code is printed to the server
+ * console instead, so the whole recovery flow stays testable during development.
  */
-const nodemailer = require('nodemailer');
+const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
 
-/**
- * SMTP credentials, read from .env (loaded once by server.js via dotenv).
- * SMTP_USER/SMTP_PASS are the canonical names; EMAIL_USER/EMAIL_PASS are
- * accepted as aliases so either naming convention works.
- */
-function smtpUser() {
-  return String(process.env.SMTP_USER || process.env.EMAIL_USER || '').trim();
+/** Brevo API key, read from .env (loaded once by server.js via dotenv). */
+function brevoApiKey() {
+  return String(process.env.BREVO_API_KEY || '').trim();
 }
 
-function smtpPass() {
-  return String(process.env.SMTP_PASS || process.env.EMAIL_PASS || '').trim();
+/** True once the Brevo API key is present in .env. */
+function brevoConfigured() {
+  return Boolean(brevoApiKey());
 }
 
-/** True once both SMTP credentials are present in .env. */
-function smtpConfigured() {
-  return Boolean(smtpUser() && smtpPass());
-}
+/** Send an email via Brevo's transactional SMTP/email HTTP API. */
+async function sendViaBrevo({ to, subject, text, html }) {
+  const apiKey = brevoApiKey();
+  const payload = {
+    sender: { email: 'tuankim180@gmail.com', name: 'CSPC Reservation Portal' },
+    to: [{ email: to }],
+    subject,
+    textContent: text,
+    htmlContent: html
+  };
 
-/** Lazily built so a missing config never crashes the server at boot. */
-let transporter = null;
-function getTransporter() {
-  if (!transporter) {
-    try {
-      const port = Number(process.env.SMTP_PORT || 465);
-      transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST || 'smtp.gmail.com',
-        port,
-        // Gmail uses implicit TLS on 465; 587 would use STARTTLS (secure: false).
-        secure: port === 465,
-        auth: { user: smtpUser(), pass: smtpPass() },
-        // Generous but bounded: a stuck SMTP server must not hang the route.
-        connectionTimeout: 10000,
-        greetingTimeout: 10000
-      });
-    } catch (err) {
-      // A malformed transport config (e.g. bad port, invalid auth shape) must
-      // not crash the server. Log it and let the caller handle the failure.
-      console.error(`[mailer] Failed to create SMTP transport: ${err.message}`);
-      transporter = null;
-      throw err;
-    }
+  const response = await fetch(BREVO_API_URL, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      'api-key': apiKey
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    const err = new Error(`Brevo API error (${response.status}): ${body || response.statusText}`);
+    err.status = response.status;
+    err.response = body;
+    throw err;
   }
-  return transporter;
+
+  return await response.json();
 }
 
 /** Plain-text twin of the HTML body (clients that block images/HTML). */
@@ -114,42 +106,32 @@ function htmlBody({ name, otp, minutes }) {
  * { delivered: false, reason: 'unconfigured' | 'error', error? }.
  */
 async function sendPasswordResetOtp({ email, name, otp, minutes = 10 }) {
-  if (!smtpConfigured()) {
+  if (!brevoConfigured()) {
     // Dev fallback: the code still "arrives" - on the server console - so the
-    // flow can be exercised end to end before SMTP credentials exist.
-    const missing = [];
-    if (!smtpUser()) missing.push('SMTP_USER (or EMAIL_USER)');
-    if (!smtpPass()) missing.push('SMTP_PASS (or EMAIL_PASS)');
-    console.log('[mailer] SMTP not configured - NO EMAIL WILL BE SENT.');
-    console.log(`[mailer] Missing env vars: ${missing.join(', ')}`);
-    console.log('[mailer] Set them in .env to enable email delivery.');
+    // flow can be exercised end to end before the Brevo API key exists.
+    console.log('[mailer] Brevo API key not configured - NO EMAIL WILL BE SENT.');
+    console.log('[mailer] Set BREVO_API_KEY in .env to enable email delivery.');
     console.log(`[mailer] OTP for ${email}: ${otp} (expires in ${minutes} min)`);
     return { delivered: false, reason: 'unconfigured' };
   }
 
-  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-  const port = Number(process.env.SMTP_PORT || 465);
-  // BEFORE sendMail: log the target and connection details (never the password).
-  console.log(`[mailer] sendMail BEFORE -> to=${email} via ${host}:${port} as=${smtpUser()}`);
+  const subject = `${otp} is your password reset code`;
+  const text = plainText({ name, otp, minutes });
+  const html = htmlBody({ name, otp, minutes });
+
+  // BEFORE send: log the target and sender (never the API key).
+  console.log(`[mailer] sendViaBrevo BEFORE -> to=${email} from=tuankim180@gmail.com`);
 
   try {
-    const info = await getTransporter().sendMail({
-      from: process.env.MAIL_FROM || 'onboarding@resend.dev',
-      to: email,
-      subject: `${otp} is your password reset code`,
-      text: plainText({ name, otp, minutes }),
-      html: htmlBody({ name, otp, minutes })
-    });
-    // AFTER sendMail: confirm success and surface Nodemailer's message id.
-    console.log(`[mailer] sendMail OK -> to=${email} messageId=${info && info.messageId}`);
+    const result = await sendViaBrevo({ to: email, subject, text, html });
+    // AFTER send: confirm success and surface Brevo's message id.
+    console.log(`[mailer] sendViaBrevo OK -> to=${email} messageId=${result && result.messageId}`);
     return { delivered: true };
   } catch (err) {
-    // Nodemailer errors carry the SMTP server's reply (e.g. Gmail's
-    // "Invalid login: 535-5.7.8", DNS "ENOTFOUND", connection "ECONNREFUSED")
-    // plus an err.code and err.response - log all of them so delivery
-    // problems are diagnosable straight from the terminal.
-    console.error(`[mailer] sendMail FAILED -> to=${email}: code=${err.code} message=${err.message}`);
-    if (err.response) console.error(`[mailer] SMTP response: ${err.response}`);
+    // Brevo API errors carry the server's reply plus status code - log all of
+    // them so delivery problems are diagnosable straight from the terminal.
+    console.error(`[mailer] sendViaBrevo FAILED -> to=${email}: ${err.message}`);
+    if (err.response) console.error(`[mailer] Brevo response: ${err.response}`);
     return { delivered: false, reason: 'error', error: err };
   }
 }
@@ -162,12 +144,13 @@ async function sendPasswordResetOtp({ email, name, otp, minutes = 10 }) {
 async function sendPasswordChangedAlert({ email, name }) {
   const stamp = new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
 
-  if (!smtpConfigured()) {
-    console.log('[mailer] SMTP not configured - password-change alert NOT sent.');
+  if (!brevoConfigured()) {
+    console.log('[mailer] Brevo API key not configured - password-change alert NOT sent.');
     console.log(`[mailer] Password changed for ${email} at ${stamp}`);
     return { delivered: false, reason: 'unconfigured' };
   }
 
+  const subject = 'Your CSPC Reservation Portal password was changed';
   const text = [
     `Hello${name ? ` ${name}` : ''},`,
     '',
@@ -204,20 +187,15 @@ async function sendPasswordChangedAlert({ email, name }) {
   </div>`;
 
   try {
-    const info = await getTransporter().sendMail({
-      from: process.env.MAIL_FROM || 'onboarding@resend.dev',
-      to: email,
-      subject: 'Your CSPC Reservation Portal password was changed',
-      text,
-      html
-    });
-    console.log(`[mailer] password-change alert OK -> to=${email} messageId=${info && info.messageId}`);
+    console.log(`[mailer] sendViaBrevo BEFORE -> to=${email} from=tuankim180@gmail.com`);
+    const result = await sendViaBrevo({ to: email, subject, text, html });
+    console.log(`[mailer] password-change alert OK -> to=${email} messageId=${result && result.messageId}`);
     return { delivered: true };
   } catch (err) {
-    console.error(`[mailer] password-change alert FAILED -> to=${email}: code=${err.code} message=${err.message}`);
-    if (err.response) console.error(`[mailer] SMTP response: ${err.response}`);
+    console.error(`[mailer] sendViaBrevo FAILED -> to=${email}: ${err.message}`);
+    if (err.response) console.error(`[mailer] Brevo response: ${err.response}`);
     return { delivered: false, reason: 'error', error: err };
   }
 }
 
-module.exports = { sendPasswordResetOtp, sendPasswordChangedAlert, smtpConfigured };
+module.exports = { sendPasswordResetOtp, sendPasswordChangedAlert, brevoConfigured };
