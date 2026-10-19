@@ -265,7 +265,7 @@ router.post('/verify-otp', async (req, res, next) => {
         LIMIT 1`,
       [rowEmail]
     );
-    const code = codes.rows[0];
+    const code = codes[0] || null;
     if (!code) {
       const err = new Error('No active verification code for that email. Request a new one.');
       err.status = 400;
@@ -339,7 +339,7 @@ router.post('/reset-password', async (req, res, next) => {
         LIMIT 1`,
       [hashResetToken(resetToken), email]
     );
-    const code = codes.rows[0];
+    const code = codes[0] || null;
     if (!code) {
       const err = new Error('This reset request is invalid or has expired. Start over with "Forgot password?".');
       err.status = 400;
@@ -350,7 +350,7 @@ router.post('/reset-password', async (req, res, next) => {
       'SELECT id, password_hash, is_active FROM users WHERE id = $1 LIMIT 1',
       [code.user_id]
     );
-    const user = users.rows[0];
+    const user = users[0] || null;
     if (!user || !user.is_active) {
       const err = new Error('This account can no longer recover its password. Please contact the administrator.');
       err.status = 403;
