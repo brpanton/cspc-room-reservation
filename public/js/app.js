@@ -1104,8 +1104,8 @@ function renderNavbar(user, active) {
 
   const userArea = user
     ? `
-      <div class="dropdown profile-dropdown">
-        <button class="user-chip" id="profile-settings-trigger" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Open profile menu">
+      <div class="profile-dropdown d-flex align-items-center">
+        <a class="user-chip" href="/admin-dashboard.html" id="profile-settings-trigger" aria-label="Open profile menu">
           <span class="avatar-shell" aria-hidden="true">
             <span class="avatar-initials" id="navbar-avatar-initials"${avatarUrl ? ' hidden' : ''}>${escapeHtml(initials)}</span>
             <img class="user-avatar-img" id="navbar-avatar-img" src="${avatarUrl}" alt=""${avatarUrl ? '' : ' hidden'} />
@@ -1114,8 +1114,8 @@ function renderNavbar(user, active) {
             <span class="user-chip-name">${escapeHtml(user.full_name)}</span>
             ${roleBadge(user.role)}
           </span>
-          <span class="profile-chevron" aria-hidden="true">▾</span>
-        </button>
+          </a>
+        <button class="profile-chevron-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Open profile menu">▾</button>
         <div class="dropdown-menu dropdown-menu-end profile-menu" aria-labelledby="profile-settings-trigger">
           <div class="profile-menu-heading">Your account</div>
           <button class="dropdown-item" id="profile-settings-menu-item" type="button"><span class="profile-menu-icon">◎</span> Profile Settings</button>

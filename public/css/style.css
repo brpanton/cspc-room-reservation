@@ -185,7 +185,7 @@ main.container {
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(170%);
   position: sticky;
   top: 0;
-  z-index: 1030;
+  z-index: 9999 !important;
 }
 
 .portal-navbar .navbar-brand {
@@ -531,6 +531,36 @@ main.container {
   margin: 0;
 }
 
+.profile-chevron-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  margin-left: 0.25rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 0.75rem;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background 0.18s ease, color 0.18s ease;
+  line-height: 1;
+  padding: 0;
+}
+
+.profile-chevron-btn:hover,
+.profile-chevron-btn:focus-visible {
+  background: rgba(59, 130, 246, 0.1);
+  color: #fff;
+  outline: none;
+}
+
+.profile-chevron-btn[aria-expanded="true"] {
+  transform: rotate(180deg);
+}
+
 .navbar-account-area {
   align-items: center;
   gap: 0.7rem;
@@ -588,10 +618,6 @@ main.container {
   color: #94a3b8;
   font-size: 0.8rem;
   transition: transform 0.18s ease;
-}
-
-.profile-dropdown .user-chip[aria-expanded="true"] .profile-chevron {
-  transform: rotate(180deg);
 }
 
 .profile-menu {
