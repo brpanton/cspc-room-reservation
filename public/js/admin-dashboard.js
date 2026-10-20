@@ -109,25 +109,11 @@
     meta.innerHTML = `<span>${escapeHtml(label)}</span><span>${percent}% of total</span>`;
   }
 
-  document.querySelectorAll('.shortcut-btn, .admin-topbar-actions [data-shortcut]').forEach((button) => {
+  // Single quick action kept in the header card: + Add Room jumps to Rooms.
+  document.querySelectorAll('.admin-welcome-card [data-shortcut]').forEach((button) => {
     button.addEventListener('click', () => {
-      const action = button.dataset.shortcut;
-      if (action === 'new-room') {
-        document.querySelector('[data-target="#pane-rooms"]')?.click();
-        return;
-      }
-      if (action === 'manage-rooms') {
+      if (button.dataset.shortcut === 'new-room') {
         document.querySelector('.admin-nav-btn[data-target="#pane-rooms"]')?.click();
-        return;
-      }
-      if (action === 'pending') {
-        document.querySelector('[data-target="#pane-reservations"]')?.click();
-        const pendingBtn = document.querySelector('#status-filters [data-status="Pending"]');
-        if (pendingBtn) pendingBtn.click();
-        return;
-      }
-      if (action === 'all-users') {
-        document.querySelector('[data-target="#pane-users"]')?.click();
       }
     });
   });
@@ -1012,7 +998,7 @@
     });
   });
 
-  function activateAdminPane(targetSelector, options = {}) {
+  function activateAdminPane(targetSelector) {
       const targetPane = targetSelector ? document.querySelector(targetSelector) : null;
       const overview = document.getElementById('admin-overview');
 
@@ -1038,20 +1024,9 @@
       document.querySelectorAll('.admin-nav-btn').forEach((item) => {
         item.classList.toggle('active', item.getAttribute('data-target') === targetSelector);
       });
-      document.querySelectorAll('.admin-topbar-link[data-pane-link]').forEach((item) => {
-        item.classList.toggle('active', item.getAttribute('data-pane-link') === targetSelector);
-      });
-
-      if (options.reports) exportReservationsCsv();
   }
 
-  // Top navbar shortcuts mirror the sidebar panes (Dashboard / Rooms / Users / Reports).
-  document.querySelectorAll('.admin-topbar-link[data-pane-link]').forEach((item) => {
-    item.addEventListener('click', (event) => {
-      event.preventDefault();
-      activateAdminPane(item.getAttribute('data-pane-link'), { reports: item.hasAttribute('data-open-reports') });
-    });
-  });
+  // Sidebar is the single in-page nav; the global navbar links use URL hashes.
 
   function activatePaneFromHash() {
     const hash = window.location.hash;
