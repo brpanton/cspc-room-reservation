@@ -1091,11 +1091,11 @@ function renderNavbar(user, active) {
 
   let navLinks = '';
   if (user) {
-    // Top header keeps only Home + About Us + Admin Dashboard; the left
+    // Top header keeps only Home + Admin Dashboard + About Us; the left
     // Control Panel sidebar owns all per-role page navigation.
     navLinks += link('/', 'Home', 'home');
-    navLinks += '<li class="nav-item"><button class="nav-link nav-link-button" type="button" data-bs-toggle="modal" data-bs-target="#about-us-modal">About Us</button></li>';
     navLinks += link('/admin-dashboard.html', 'Admin Dashboard', 'admin');
+    navLinks += '<li class="nav-item"><button class="nav-link nav-link-button" type="button" data-bs-toggle="modal" data-bs-target="#about-us-modal">About Us</button></li>';
   } else {
     // Guest / pre-login navbar: keep it minimal — Home + About Us only.
     navLinks += link('/#overview', 'Home', 'home');
