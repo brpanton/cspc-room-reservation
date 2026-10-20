@@ -278,7 +278,15 @@ main.container {
   font-weight: 500;
   border-radius: 999px;
   padding: 0.5rem 1.05rem;
-  transition: background 0.18s ease, color 0.18s ease;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+
+/* Active state for the current top-nav section (Admin Dashboard pill). */
+.portal-navbar .nav-link.active {
+  background: rgba(255, 255, 255, 0.16);
+  color: #FFFFFF !important;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
 .portal-navbar .navbar-nav {
@@ -327,17 +335,17 @@ main.container {
     display: flex;
     flex: 1 1 auto;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     flex-wrap: nowrap;
-    gap: 1.75rem;
   }
 
   .portal-navbar #portalNav .portal-nav-links {
-    flex: 0 1 auto;
+    flex: 1 1 auto;            /* expand to fill space between brand & utilities */
     flex-wrap: nowrap;
     align-items: center;
-    gap: 0.3rem;
-    margin-right: 0 !important;
+    justify-content: center;   /* center Home | About Us | Admin Dashboard */
+    gap: 0.5rem;
+    margin: 0 !important;
   }
 
   .portal-navbar #portalNav .navbar-nav .nav-link {
