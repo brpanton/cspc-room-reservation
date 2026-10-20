@@ -87,6 +87,13 @@
   const isStaff = user.role === 'custodian' || user.role === 'admin';
   const state = { status: '', items: [], mine: queryParam('mine') === '1' };
 
+  // Admin Dashboard: admins review/process requests, so never show personal
+  // reservation creation in the welcome header banner.
+  const heroEl = document.querySelector('.dashboard-hero');
+  const newReservationBtn = document.getElementById('new-reservation-link');
+  if (isStaff && newReservationBtn) newReservationBtn.hidden = true;
+  if (heroEl) heroEl.classList.toggle('is-admin-view', isStaff);
+
   const titleEl = document.getElementById('welcome-title');
   const subtitleEl = document.getElementById('welcome-subtitle');
   const listTitleEl = document.getElementById('list-title');

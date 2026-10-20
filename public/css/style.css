@@ -2491,6 +2491,16 @@ main.container {
   flex-wrap: nowrap;
   gap: 0.5rem;
   align-items: center;
+  justify-content: center;
+}
+
+.dashboard-hero.is-admin-view .dashboard-hero-actions {
+  justify-content: center;
+  margin-inline: auto;
+}
+
+.shortcut-btn[hidden] {
+  display: none !important;
 }
 
 .shortcut-btn,
