@@ -1118,9 +1118,8 @@ function renderNavbar(user, active) {
         </button>
         <div class="dropdown-menu dropdown-menu-end profile-menu" aria-labelledby="profile-settings-trigger">
           <div class="profile-menu-heading">Your account</div>
-          <button class="dropdown-item" id="profile-settings-menu-item" type="button"><span class="profile-menu-icon">◎</span> Profile &amp; Avatar Settings</button>
-          ${isAdmin ? `<button class="dropdown-item" id="security-settings-menu-item" type="button"><span class="profile-menu-icon">🔒</span> Security &amp; Change Password</button>` : ''}
-          ${isAdmin ? `<a class="dropdown-item" href="/admin-dashboard.html#pane-reservations"><span class="profile-menu-icon">◷</span> All Reservations</a>` : `<a class="dropdown-item" href="/dashboard.html?mine=1#reservation-history"><span class="profile-menu-icon">◷</span> My Reservation History</a>`}
+          <button class="dropdown-item" id="profile-settings-menu-item" type="button"><span class="profile-menu-icon">◎</span> Profile Settings</button>
+          <button class="dropdown-item" id="switch-view-menu-item" type="button"><span class="profile-menu-icon">🔄</span> Admin Dashboard / Switch View</button>
           <div class="dropdown-divider"></div>
           <button class="dropdown-item profile-logout-item" id="logout-btn" type="button"><span class="profile-menu-icon">↪</span> Log out</button>
         </div>
@@ -1381,6 +1380,10 @@ function renderNavbar(user, active) {
     document.getElementById('profile-settings-menu-item')?.addEventListener('click', () => {
       bootstrap.Dropdown.getOrCreateInstance(profileTrigger).hide();
       profileModal.show();
+    });
+    document.getElementById('switch-view-menu-item')?.addEventListener('click', () => {
+      bootstrap.Dropdown.getOrCreateInstance(profileTrigger).hide();
+      redirectTo('/dashboard.html');
     });
     avatarInput.addEventListener('change', () => {
       const file = avatarInput.files && avatarInput.files[0];
