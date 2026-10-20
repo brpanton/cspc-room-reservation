@@ -1091,20 +1091,10 @@ function renderNavbar(user, active) {
 
   let navLinks = '';
   if (user) {
-    if (isAdmin && active === 'admin') {
-      // Slim admin top bar: the left Control Panel sidebar owns all admin
-      // navigation, so no middle menu links (Dashboard / Rooms / Users /
-      // Reports / About Us) are rendered here — brand left, profile right.
-      navLinks = '';
-    } else {
-      navLinks += link('/dashboard.html', 'Dashboard', 'dashboard');
-      navLinks += link('/rooms-status.html', 'Room Status', 'rooms');
-      if (user.role === 'student' || user.role === 'faculty') {
-        navLinks += link('/reservation-form.html', 'New Reservation', 'reserve');
-      }
-      if (isAdmin) navLinks += link('/admin-dashboard.html', 'Management', 'admin');
-      navLinks += '<li class="nav-item"><button class="nav-link nav-link-button" type="button" data-bs-toggle="modal" data-bs-target="#about-us-modal">About Us</button></li>';
-    }
+    // Top header keeps only Home + About Us; the left Control Panel sidebar
+    // owns all per-role page navigation (Dashboard / Rooms / Users / etc.).
+    navLinks += link('/', 'Home', 'home');
+    navLinks += '<li class="nav-item"><button class="nav-link nav-link-button" type="button" data-bs-toggle="modal" data-bs-target="#about-us-modal">About Us</button></li>';
   } else {
     // Guest / pre-login navbar: keep it minimal — Home + About Us only.
     navLinks += link('/#overview', 'Home', 'home');
