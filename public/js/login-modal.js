@@ -29,6 +29,7 @@
   const identifierLabel = document.getElementById('login-card-identifier-label');
   const roleButtons = Array.from(modalEl.querySelectorAll('[data-login-card-role]'));
   const ssoBtn = document.getElementById('login-card-sso-google');
+  const createAccountRow = modalEl.querySelector('.login-card-footer');
 
   let loginMode = 'user';
 
@@ -119,6 +120,8 @@
         ? 'Enter your Admin ID or Email'
         : 'e.g. 2021-00123 or name@cspc.edu.ph';
     }
+    // Admins are provisioned / enrolled — never show self-registration.
+    if (createAccountRow) createAccountRow.classList.toggle('d-none', isAdmin);
   }
 
   roleButtons.forEach((button) => {

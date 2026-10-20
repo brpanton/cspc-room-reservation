@@ -23,6 +23,7 @@
   const loginSubmit = document.getElementById('visitor-login-submit');
   const loginIdLabel = document.getElementById('visitor-login-id-label');
   const loginIdInput = document.getElementById('visitor-login-id');
+  const createAccountRow = document.querySelector('#visitor-login-view .visitor-auth-switch');
   let loginMode = 'user';
 
   function applyLoginMode(mode) {
@@ -48,6 +49,8 @@
     loginIdInput.setAttribute('inputmode', 'email');
     loginSubmit.textContent = loginMode === 'admin' ? 'Login' : 'Log in';
     loginAlert.classList.add('d-none');
+    // Admins are provisioned / enrolled — never show self-registration.
+    if (createAccountRow) createAccountRow.classList.toggle('d-none', loginMode === 'admin');
   }
 
   function showAlert(host, message, type = 'danger') {
