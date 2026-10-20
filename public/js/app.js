@@ -1122,7 +1122,7 @@ function renderNavbar(user, active) {
           <div class="profile-menu-heading">Your account</div>
           <button class="dropdown-item" id="profile-settings-menu-item" type="button"><span class="profile-menu-icon">◎</span> Profile &amp; Avatar Settings</button>
           ${isAdmin ? `<button class="dropdown-item" id="security-settings-menu-item" type="button"><span class="profile-menu-icon">🔒</span> Security &amp; Change Password</button>` : ''}
-          <a class="dropdown-item" href="/dashboard.html?mine=1#reservation-history"><span class="profile-menu-icon">◷</span> My Reservation History</a>
+          ${isAdmin ? `<a class="dropdown-item" href="/admin-dashboard.html#pane-reservations"><span class="profile-menu-icon">◷</span> All Reservations</a>` : `<a class="dropdown-item" href="/dashboard.html?mine=1#reservation-history"><span class="profile-menu-icon">◷</span> My Reservation History</a>`}
           <div class="dropdown-divider"></div>
           <button class="dropdown-item profile-logout-item" id="logout-btn" type="button"><span class="profile-menu-icon">↪</span> Log out</button>
         </div>
