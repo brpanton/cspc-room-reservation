@@ -93,30 +93,23 @@
     if (!card) return;
 
     const body = card.querySelector('.card-body');
-    const percent = Math.min(100, Math.round((value / total) * 100));
-    let progress = body.querySelector('.mini-progress');
-    let meta = body.querySelector('.mini-progress-label');
+    const safeTotal = Math.max(1, Number(total) || 0);
+    const percent = Math.min(100, Math.round((Number(value) / safeTotal) * 100));
 
-    if (!progress) {
-      progress = document.createElement('div');
-      progress.className = 'mini-progress';
-      progress.innerHTML = '<span></span>';
-      body.appendChild(progress);
-    }
-
-    const bar = progress.querySelector('span');
-    if (bar) bar.style.width = `${percent}%`;
+    // Prefer the dedicated subtext line (flat layout: Title / Number / Subtext).
+    // Fall back to the legacy .mini-progress-label hook for older markup.
+    let meta = body.querySelector('.stat-sub') || body.querySelector('.mini-progress-label');
 
     if (!meta) {
       meta = document.createElement('div');
-      meta.className = 'mini-progress-label';
+      meta.className = 'stat-sub';
       body.appendChild(meta);
     }
 
-    meta.innerHTML = `<span>${escapeHtml(label)}</span><span>${percent}%</span>`;
+    meta.innerHTML = `<span>${escapeHtml(label)}</span><span>${percent}% of total</span>`;
   }
 
-  document.querySelectorAll('.shortcut-btn').forEach((button) => {
+  document.querySelectorAll('.shortcut-btn, .admin-topbar-actions [data-shortcut]').forEach((button) => {
     button.addEventListener('click', () => {
       const action = button.dataset.shortcut;
       if (action === 'new-room') {

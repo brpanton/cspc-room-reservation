@@ -2468,16 +2468,22 @@ main.container {
   box-shadow: 0 0 16px rgba(74, 222, 128, 0.9);
 }
 
+/* Legacy shortcut bar removed — kept hidden for backward-compat. */
 .shortcut-bar {
+  display: none;
+}
+
+.admin-topbar-right {
   display: flex;
-  flex-wrap: nowrap;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.admin-topbar-actions {
+  display: flex;
+  align-items: center;
   gap: 0.5rem;
-  padding: 0.55rem 0.9rem;
-  margin-bottom: 1rem;
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  background: rgba(8, 14, 22, 0.4);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
 
 .dashboard-hero-actions {
@@ -2487,7 +2493,8 @@ main.container {
   align-items: center;
 }
 
-.shortcut-btn {
+.shortcut-btn,
+.admin-topbar-actions [data-shortcut] {
   border: 1px solid rgba(148, 163, 184, 0.15);
   background: rgba(255, 255, 255, 0.04);
   color: #c7d2fe;
@@ -3737,58 +3744,91 @@ body[data-login-page="admin"] .admin-page-support {
   color: #fff;
 }
 /* ------------------------------------------------------------ stat cards --- */
+/* Clean flat metric cards — no outer glow, uniform dark background. */
 .stat-card {
-  border-left: none;
-  border-top: 2px solid rgba(96, 165, 250, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   height: 100%;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 0 22px rgba(59, 130, 246, 0.2), 0 12px 28px rgba(2, 6, 23, 0.28);
+  background: #0d1526;
+  box-shadow: none;
 }
 
 .inventory-stat-grid {
   --bs-gutter-y: 0.5rem;
 }
 
-/* Brighter colored wash so each statistic card is easier to distinguish. */
+/* Flat wash — no colored glow. */
 .stat-card::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(240px 150px at 100% 0%, rgba(59, 130, 246, 0.36), transparent 74%),
-              linear-gradient(120deg, rgba(96, 165, 250, 0.08), transparent 65%);
+  background: none;
   pointer-events: none;
 }
 
-.stat-card .card-body { position: relative; z-index: 1; }
+.stat-card .card-body {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-height: 118px;
+}
 
 .stat-card .stat-value {
-  font-size: 1.9rem;
-  font-weight: 700;
+  order: 2;
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 800;
   line-height: 1.1;
-  /* Gradient numeral, mirroring the reference's glossy figures. */
-  background: linear-gradient(120deg, #ffffff 10%, #8fb6ff 90%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.02em;
+  color: #fff;
+  background: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  -webkit-text-fill-color: currentColor;
 }
 
 .stat-card .stat-label {
+  order: 1;
+  margin: 0;
   color: var(--cspc-muted);
   font-size: 0.78rem;
   font-weight: 600;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
+  white-space: normal;
 }
 
-.stat-pending   { border-top-color: #facc15; box-shadow: 0 0 24px rgba(234, 179, 8, 0.24), 0 12px 28px rgba(2, 6, 23, 0.28); }
-.stat-approved  { border-top-color: #4ade80; box-shadow: 0 0 24px rgba(34, 197, 94, 0.24), 0 12px 28px rgba(2, 6, 23, 0.28); }
-.stat-rejected  { border-top-color: #fb7185; box-shadow: 0 0 24px rgba(244, 63, 94, 0.24), 0 12px 28px rgba(2, 6, 23, 0.28); }
-.stat-cancelled { border-top-color: rgba(148, 163, 184, 0.7); }
+/* Standardized subtext / percentage line — fixes Total0% / Pending0% overlap. */
+.stat-card .stat-sub,
+.stat-card .mini-progress-label {
+  order: 3;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.35rem;
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--cspc-muted);
+  white-space: normal;
+}
 
-.stat-pending::after   { background: radial-gradient(240px 150px at 100% 0%, rgba(234, 179, 8, 0.34), transparent 74%), linear-gradient(120deg, rgba(250, 204, 21, 0.08), transparent 65%); }
-.stat-approved::after  { background: radial-gradient(240px 150px at 100% 0%, rgba(34, 197, 94, 0.34), transparent 74%), linear-gradient(120deg, rgba(74, 222, 128, 0.08), transparent 65%); }
-.stat-rejected::after  { background: radial-gradient(240px 150px at 100% 0%, rgba(244, 63, 94, 0.34), transparent 74%), linear-gradient(120deg, rgba(251, 113, 133, 0.08), transparent 65%); }
+/* Neutralize legacy color variants — hooks kept, rendered flat. */
+.stat-pending   { border-top-color: rgba(255, 255, 255, 0.08); box-shadow: none; }
+.stat-approved  { border-top-color: rgba(255, 255, 255, 0.08); box-shadow: none; }
+.stat-rejected  { border-top-color: rgba(255, 255, 255, 0.08); box-shadow: none; }
+.stat-cancelled { border-top-color: rgba(255, 255, 255, 0.08); }
+
+.stat-pending::after   { background: none; }
+.stat-approved::after  { background: none; }
+.stat-rejected::after  { background: none; }
+
+/* Hide legacy progress bar; percentage now lives in .stat-sub. */
+.stat-card .mini-progress { display: none; }
 
 /* ------------------------------------------------------- room timetable --- */
 .room-card {
