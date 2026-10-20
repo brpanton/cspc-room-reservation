@@ -1091,12 +1091,20 @@ function renderNavbar(user, active) {
 
   let navLinks = '';
   if (user) {
-    navLinks += link('/dashboard.html', 'Dashboard', 'dashboard');
-    navLinks += link('/rooms-status.html', 'Room Status', 'rooms');
-    if (user.role === 'student' || user.role === 'faculty') {
-      navLinks += link('/reservation-form.html', 'New Reservation', 'reserve');
+    if (isAdmin && active === 'admin') {
+      // Distinct admin navigation: Dashboard / Rooms / Users / Reports (hash drives pane switcher).
+      navLinks += link('/admin-dashboard.html#pane-reservations', 'Dashboard', 'admin');
+      navLinks += link('/admin-dashboard.html#pane-rooms', 'Rooms', 'rooms');
+      navLinks += link('/admin-dashboard.html#pane-users', 'Users', 'users');
+      navLinks += link('/admin-dashboard.html#pane-reservations', 'Reports', 'reports');
+    } else {
+      navLinks += link('/dashboard.html', 'Dashboard', 'dashboard');
+      navLinks += link('/rooms-status.html', 'Room Status', 'rooms');
+      if (user.role === 'student' || user.role === 'faculty') {
+        navLinks += link('/reservation-form.html', 'New Reservation', 'reserve');
+      }
+      if (isAdmin) navLinks += link('/admin-dashboard.html', 'Management', 'admin');
     }
-    if (isAdmin) navLinks += link('/admin-dashboard.html', 'Management', 'admin');
     navLinks += '<li class="nav-item"><button class="nav-link nav-link-button" type="button" data-bs-toggle="modal" data-bs-target="#about-us-modal">About Us</button></li>';
   } else {
     // Guest / pre-login navbar: keep it minimal — Home + About Us only.

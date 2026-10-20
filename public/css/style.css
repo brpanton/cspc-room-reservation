@@ -4017,6 +4017,127 @@ body.building-photo-background::after {
   main.container { border-radius: 20px; padding: 1.1rem; }
 }
 
+/* ------------------------------------------------- admin welcome / topbar --- */
+/* Welcome card: title left, System-online badge pinned top-right. */
+.admin-welcome-card { gap: 0.9rem; }
+
+.admin-welcome-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.admin-welcome-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  margin-left: auto;
+  text-align: right;
+}
+
+.admin-welcome-status #dashboard-timestamp {
+  color: var(--cspc-muted);
+  font-size: 0.78rem;
+}
+
+.admin-topbar-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--glass-border);
+}
+
+.admin-topbar-link {
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  color: var(--cspc-muted);
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.admin-topbar-link:hover { color: #fff; background: var(--glass-2); }
+
+.admin-topbar-link.active {
+  color: #fff;
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(96, 165, 250, 0.45);
+}
+
+/* ------------------------------------------------- admin stat shortcuts --- */
+.overview-stat {
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  padding: 0;
+  width: 100%;
+}
+
+.overview-stat:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-color: rgba(96, 165, 250, 0.55);
+}
+
+.overview-stat.is-active {
+  border-color: rgba(96, 165, 250, 0.55);
+  background: rgba(59, 130, 246, 0.14);
+  transform: translateY(-1px);
+}
+
+/* ------------------------------------------------- reservation toolbar --- */
+.request-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-left: auto;
+}
+
+.request-search { min-width: 200px; flex: 1 1 200px; max-width: 280px; }
+
+.btn-approve,
+.btn-reject {
+  border-radius: 999px;
+  font-weight: 700;
+  border: 1px solid transparent;
+  color: #fff;
+}
+
+.btn-approve { background: linear-gradient(135deg, #22c55e, #16a34a); }
+.btn-approve:hover, .btn-approve:focus { color: #fff; filter: brightness(1.08); }
+.btn-reject { background: linear-gradient(135deg, #ef4444, #dc2626); }
+.btn-reject:hover, .btn-reject:focus { color: #fff; filter: brightness(1.08); }
+
+/* ---------------------------------------------- today's schedule widget --- */
+.clean-schedule-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.clean-schedule-title {
+  display: block;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.clean-mini-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 0.75rem;
+}
+
 /* Phones: the 1920px photo is cropped hard and wastes bandwidth, so serve
    the lighter 960px crop instead and re-bias the crop a little lower so the
    building stays in frame behind the content. */

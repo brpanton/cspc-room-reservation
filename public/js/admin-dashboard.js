@@ -165,7 +165,23 @@
     }
   });
 
-  const state = { status: '', items: [] };
+  const state = { status: '', items: [], search: '' };
+
+  function setReservationStatusFilter(status) {
+    state.status = status || '';
+    const pills = document.querySelectorAll('#status-filters button');
+    pills.forEach((b) => {
+      const on = (b.getAttribute('data-status') || '') === state.status;
+      b.classList.toggle('active', on);
+    });
+    const cards = document.querySelectorAll('.overview-stat');
+    cards.forEach((card) => {
+      const on = (card.getAttribute('data-status-filter') || '') === state.status;
+      card.classList.toggle('is-active', on);
+      card.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    loadReservations();
+  }
 
   const reservationsBody = document.getElementById('reservations-body');
   const buildingsBody = document.getElementById('buildings-body');
@@ -242,27 +258,37 @@
     }
   }
 
+  function filteredReservations() {
+    const q = (state.search || '').trim().toLowerCase();
+    if (!q) return state.items;
+    return state.items.filter((r) => {
+      const hay = `${r.requested_by || ''} ${r.user_name || ''} ${r.requester_school_id || ''} ${r.room_name || ''} ${r.building_name || ''}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }
+
   function renderReservations() {
-    if (!state.items.length) {
-      reservationsBody.innerHTML = emptyRow(9, 'No reservations match this filter yet.');
+    const visible = filteredReservations();
+    if (!visible.length) {
+      reservationsBody.innerHTML = emptyRow(9, state.search ? 'No reservations match your search yet.' : 'No reservations match this filter yet.');
       return;
     }
 
-    reservationsBody.innerHTML = state.items.map((r) => {
+    reservationsBody.innerHTML = visible.map((r) => {
       const canDecide = r.status === 'Pending';
       const canCancel = r.status !== 'Cancelled';
       let actions = '';
 
       if (canDecide) {
         actions += `
-          <button class="btn btn-sm btn-success" data-action="approve" data-id="${r.id}">Approve</button>
-          <button class="btn btn-sm btn-outline-danger ms-1" data-action="reject" data-id="${r.id}">Reject</button>
+          <button class="btn btn-sm btn-approve" data-action="approve" data-id="${r.id}">Approve</button>
+          <button class="btn btn-sm btn-reject ms-1" data-action="reject" data-id="${r.id}">Reject</button>
         `;
       }
       if (canCancel) {
         // Cancel binds the REAL database primary key (reservations.id -> r.id),
         // never a loop index. The click handler looks the row back up by r.id === id.
-        actions += `<button class="btn btn-sm btn-outline-danger ms-1" data-action="cancel" data-id="${r.id}" title="Cancel reservation #${r.id}">✕ Cancel</button>`;
+        actions += `<button class="btn btn-sm btn-reject ms-1" data-action="cancel" data-id="${r.id}" title="Cancel reservation #${r.id}">✕ Cancel</button>`;
       }
       if (!actions) actions = '<span class="text-muted-sm">-</span>';
 
@@ -355,12 +381,64 @@
 
   document.querySelectorAll('#status-filters button').forEach((btn) => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('#status-filters button').forEach((b) => b.classList.remove('active'));
-      btn.classList.add('active');
-      state.status = btn.getAttribute('data-status');
-      loadReservations();
+      setReservationStatusFilter(btn.getAttribute('data-status'));
     });
   });
+
+  // Stat cards act as quick filters for the requests table.
+  document.querySelectorAll('.overview-stat[data-status-filter]').forEach((card) => {
+    card.addEventListener('click', () => {
+      setReservationStatusFilter(card.getAttribute('data-status-filter'));
+      document.getElementById('reservations-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
+  // Live search across requester name, school ID, room, and building.
+  const reservationSearch = document.getElementById('reservation-search');
+  if (reservationSearch) {
+    reservationSearch.addEventListener('input', () => {
+      state.search = reservationSearch.value || '';
+      renderReservations();
+    });
+  }
+
+  function csvCell(value) {
+    const text = String(value ?? '');
+    return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  }
+
+  function exportReservationsCsv() {
+    const visible = filteredReservations();
+    const header = ['ID', 'Requester', 'School ID', 'Room', 'Building', 'Date', 'Start', 'End', 'Attendees', 'Status', 'Purpose'];
+    const lines = [header.map(csvCell).join(',')];
+    visible.forEach((r) => {
+      lines.push([
+        r.id,
+        r.requested_by || r.user_name || 'Unknown user',
+        r.requester_school_id || r.user_id || '',
+        r.room_name || '',
+        r.building_name || '',
+        r.res_date || '',
+        r.start_time || '',
+        r.end_time || '',
+        r.attendees ?? '',
+        r.status || '',
+        r.purpose || ''
+      ].map(csvCell).join(','));
+    });
+    const blob = new Blob([`﻿${lines.join('\r\n')}`], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `reservations-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toastOk(`Exported ${visible.length} reservation(s) to CSV.`);
+  }
+
+  document.getElementById('export-reservations')?.addEventListener('click', exportReservationsCsv);
 
   /* ------------------------------------------------------ buildings management */
 
@@ -400,7 +478,7 @@
         <td>${escapeHtml(b.room_count)}</td>
         <td class="text-end text-nowrap">
           <button class="btn btn-sm btn-outline-cspc" data-edit-building="${b.id}">Edit</button>
-          <button class="btn btn-sm btn-outline-danger ms-1" data-del-building="${b.id}">Delete</button>
+          <button class="btn btn-sm btn-reject ms-1" data-del-building="${b.id}">Delete</button>
         </td>
       </tr>`).join('');
 
@@ -508,7 +586,7 @@
         <td>${escapeHtml(r.reservation_count)}</td>
         <td class="text-end text-nowrap">
           <button class="btn btn-sm btn-outline-cspc" data-edit-room="${r.id}">Edit</button>
-          ${r.is_active ? `<button class="btn btn-sm btn-outline-danger ms-1" data-del-room="${r.id}">Delete</button>` : `<button class="btn btn-sm btn-outline-success ms-1" data-react-room="${r.id}">Reactivate</button>`}
+          ${r.is_active ? `<button class="btn btn-sm btn-reject ms-1" data-del-room="${r.id}">Delete</button>` : `<button class="btn btn-sm btn-outline-success ms-1" data-react-room="${r.id}">Reactivate</button>`}
         </td>
       </tr>`).join('');
 
@@ -655,7 +733,7 @@
         <td>${escapeHtml(u.reservation_count)}</td>
         <td class="text-end text-nowrap">
           <button class="btn btn-sm btn-outline-cspc" data-edit-user="${u.id}">Edit</button>
-          ${Number(u.id) === Number(me.id) ? '<span class="text-muted-sm ms-2">You</span>' : `<button class="btn btn-sm btn-outline-danger ms-1" data-del-user="${u.id}">Delete</button>`}
+          ${Number(u.id) === Number(me.id) ? '<span class="text-muted-sm ms-2">You</span>' : `<button class="btn btn-sm btn-reject ms-1" data-del-user="${u.id}">Delete</button>`}
         </td>
       </tr>`).join('');
 
@@ -930,7 +1008,11 @@
 
   document.querySelectorAll('.admin-nav-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const targetSelector = btn.getAttribute('data-target');
+      activateAdminPane(btn.getAttribute('data-target'));
+    });
+  });
+
+  function activateAdminPane(targetSelector, options = {}) {
       const targetPane = targetSelector ? document.querySelector(targetSelector) : null;
       const overview = document.getElementById('admin-overview');
 
@@ -953,10 +1035,34 @@
         }
       }
 
-      document.querySelectorAll('.admin-nav-btn').forEach((item) => item.classList.remove('active'));
-      btn.classList.add('active');
+      document.querySelectorAll('.admin-nav-btn').forEach((item) => {
+        item.classList.toggle('active', item.getAttribute('data-target') === targetSelector);
+      });
+      document.querySelectorAll('.admin-topbar-link[data-pane-link]').forEach((item) => {
+        item.classList.toggle('active', item.getAttribute('data-pane-link') === targetSelector);
+      });
+
+      if (options.reports) exportReservationsCsv();
+  }
+
+  // Top navbar shortcuts mirror the sidebar panes (Dashboard / Rooms / Users / Reports).
+  document.querySelectorAll('.admin-topbar-link[data-pane-link]').forEach((item) => {
+    item.addEventListener('click', (event) => {
+      event.preventDefault();
+      activateAdminPane(item.getAttribute('data-pane-link'), { reports: item.hasAttribute('data-open-reports') });
     });
   });
+
+  function activatePaneFromHash() {
+    const hash = window.location.hash;
+    if (!hash || !document.querySelector(hash)) return;
+    if (document.querySelector(`.admin-nav-btn[data-target="${hash}"]`)) {
+      activateAdminPane(hash);
+    }
+  }
+
+  window.addEventListener('hashchange', activatePaneFromHash);
+  activatePaneFromHash();
 
   const adminLogoutBtn = document.getElementById('admin-logout');
   if (adminLogoutBtn) {

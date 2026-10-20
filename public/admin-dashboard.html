@@ -47,18 +47,24 @@
       </aside>
 
       <div class="admin-main">
-        <div class="card admin-topbar">
-          <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div class="card admin-topbar admin-welcome-card">
+          <div class="admin-welcome-top">
             <div>
               <span class="admin-portal-badge">Administrator Portal</span>
               <h1 class="page-title h4 mt-2 mb-0">Admin Dashboard</h1>
               <p class="text-muted-sm mb-0">Manage reservations, rooms, and user accounts.</p>
             </div>
-            <div class="admin-topbar-right">
-              <div class="dashboard-hero-meta">
-                <div class="dashboard-status-pill"><span class="status-dot"></span> System online</div>
-                <div id="dashboard-timestamp">--</div>
-              </div>
+            <div class="admin-welcome-status">
+              <div class="dashboard-status-pill"><span class="status-dot"></span> System online</div>
+              <div id="dashboard-timestamp">--</div>
+            </div>
+          </div>
+            <nav class="admin-topbar-links" aria-label="Admin shortcuts">
+              <a href="#pane-reservations" class="admin-topbar-link active" data-pane-link="#pane-reservations">Dashboard</a>
+              <a href="#pane-rooms" class="admin-topbar-link" data-pane-link="#pane-rooms">Rooms</a>
+              <a href="#pane-users" class="admin-topbar-link" data-pane-link="#pane-users">Users</a>
+              <a href="#pane-reservations" class="admin-topbar-link" data-pane-link="#pane-reservations" data-open-reports="1">Reports</a>
+            </nav>
             <div class="admin-topbar-actions">
                 <button type="button" class="btn btn-outline-light btn-sm" data-shortcut="manage-rooms">Manage Rooms</button>
                 <button type="button" class="btn btn-outline-light btn-sm" data-shortcut="pending">View Pending</button>
@@ -74,36 +80,36 @@
             <div>
               <h2 id="reservation-summary-title">Reservation Status Overview</h2>
             </div>
-            <span class="dashboard-section-note">Current request activity</span>
+            <span class="dashboard-section-note">Click a card to filter the table below</span>
           </div>
           <div class="row g-3 mb-4">
           <div class="col-6 col-lg-3">
-            <div class="card stat-card"><div class="card-body">
-              <div class="stat-label">Total Requests</div>
-              <div class="stat-value" id="stat-total">-</div>
-              <div class="stat-sub" data-stat-sub="total">-</div>
-            </div></div>
+            <button type="button" class="card stat-card overview-stat is-active" data-status-filter="" aria-pressed="true"><span class="card-body">
+              <span class="stat-label">Total Requests</span>
+              <span class="stat-value" id="stat-total">-</span>
+              <span class="stat-sub" data-stat-sub="total">-</span>
+            </span></button>
           </div>
           <div class="col-6 col-lg-3">
-            <div class="card stat-card stat-pending"><div class="card-body">
-              <div class="stat-label">Pending</div>
-              <div class="stat-value" id="stat-pending">-</div>
-              <div class="stat-sub" data-stat-sub="pending">-</div>
-            </div></div>
+            <button type="button" class="card stat-card overview-stat stat-pending" data-status-filter="Pending" aria-pressed="false"><span class="card-body">
+              <span class="stat-label">Pending</span>
+              <span class="stat-value" id="stat-pending">-</span>
+              <span class="stat-sub" data-stat-sub="pending">-</span>
+            </span></button>
           </div>
           <div class="col-6 col-lg-3">
-            <div class="card stat-card stat-approved"><div class="card-body">
-              <div class="stat-label">Approved</div>
-              <div class="stat-value" id="stat-approved">-</div>
-              <div class="stat-sub" data-stat-sub="approved">-</div>
-            </div></div>
+            <button type="button" class="card stat-card overview-stat stat-approved" data-status-filter="Approved" aria-pressed="false"><span class="card-body">
+              <span class="stat-label">Approved</span>
+              <span class="stat-value" id="stat-approved">-</span>
+              <span class="stat-sub" data-stat-sub="approved">-</span>
+            </span></button>
           </div>
           <div class="col-6 col-lg-3">
-            <div class="card stat-card stat-rejected"><div class="card-body">
-              <div class="stat-label">Rejected</div>
-              <div class="stat-value" id="stat-rejected">-</div>
-              <div class="stat-sub" data-stat-sub="rejected">-</div>
-            </div></div>
+            <button type="button" class="card stat-card overview-stat stat-rejected" data-status-filter="Rejected" aria-pressed="false"><span class="card-body">
+              <span class="stat-label">Rejected</span>
+              <span class="stat-value" id="stat-rejected">-</span>
+              <span class="stat-sub" data-stat-sub="rejected">-</span>
+            </span></button>
           </div>
           </div>
         </section>
@@ -162,24 +168,23 @@
         </details>
         </div>
 
-        <section class="row g-4 mb-4">
-          <div class="col-lg-8">
-            <div class="card dashboard-panel">
-              <div class="card-header">
-                <span>Room snapshot</span>
-                <span class="text-muted-sm">This week</span>
-              </div>
-              <div class="card-body">
+        <section class="card dashboard-panel clean-schedule mb-4" aria-labelledby="schedule-usage-title">
+          <div class="card-header clean-schedule-head">
+            <div>
+              <span class="dashboard-section-kicker">Today</span>
+              <span class="clean-schedule-title" id="schedule-usage-title">Today's Schedule &amp; Room Usage</span>
+              <span class="text-muted-sm d-block">Live availability plus the latest reservation activity.</span>
+            </div>
+            <a class="btn btn-sm btn-outline-cspc" href="/rooms-status.html">View all rooms</a>
+          </div>
+          <div class="card-body">
+            <div class="row g-4">
+              <div class="col-lg-7">
+                <h3 class="clean-mini-title">Room usage</h3>
                 <div class="calendar-grid" id="mini-calendar"></div>
               </div>
-            </div>
-          </div>
-          <div class="col-lg-4">
-            <div class="card dashboard-panel">
-              <div class="card-header">
-                <span>Recent activity</span>
-              </div>
-              <div class="card-body">
+              <div class="col-lg-5">
+                <h3 class="clean-mini-title">Latest activity</h3>
                 <ul class="activity-feed" id="activity-feed"></ul>
               </div>
             </div>
@@ -191,12 +196,18 @@
           <div class="card">
             <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
             <span>All reservation requests</span>
-            <div class="btn-group btn-group-sm" role="group" id="status-filters">
+            <div class="request-toolbar">
+              <div class="request-search">
+                <input type="search" class="form-control form-control-sm" id="reservation-search" placeholder="Search requester or room…" aria-label="Search by requester or room" />
+              </div>
+              <div class="btn-group btn-group-sm" role="group" id="status-filters">
               <button type="button" class="btn btn-outline-secondary active" data-status="">All</button>
               <button type="button" class="btn btn-outline-secondary" data-status="Pending">Pending</button>
               <button type="button" class="btn btn-outline-secondary" data-status="Approved">Approved</button>
               <button type="button" class="btn btn-outline-secondary" data-status="Rejected">Rejected</button>
               <button type="button" class="btn btn-outline-secondary" data-status="Cancelled">Cancelled</button>
+              </div>
+              <button type="button" class="btn btn-sm btn-outline-cspc" id="export-reservations">Export to CSV</button>
             </div>
           </div>
           <div class="table-responsive">
