@@ -3621,7 +3621,7 @@ body[data-login-page="admin"] .admin-page-support {
 }
 
 .resource-summary .stat-card {
-  box-shadow: 0 0 16px rgba(59, 130, 246, 0.14), 0 8px 20px rgba(2, 6, 23, 0.24);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }
 
 @media (max-width: 575.98px) {
@@ -3744,14 +3744,17 @@ body[data-login-page="admin"] .admin-page-support {
   color: #fff;
 }
 /* ------------------------------------------------------------ stat cards --- */
-/* Clean flat metric cards — no outer glow, uniform dark background. */
+/* Glassmorphism metric cards — semi-transparent, frosted, soft shadow (no neon glow). */
 .stat-card {
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   height: 100%;
   position: relative;
   overflow: hidden;
-  background: #0d1526;
-  box-shadow: none;
+  background: rgba(255, 255, 255, 0.05);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
 }
 
 .inventory-stat-grid {
@@ -3765,6 +3768,11 @@ body[data-login-page="admin"] .admin-page-support {
   inset: 0;
   background: none;
   pointer-events: none;
+}
+
+.stat-card:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .stat-card .card-body {
@@ -3817,11 +3825,11 @@ body[data-login-page="admin"] .admin-page-support {
   white-space: normal;
 }
 
-/* Neutralize legacy color variants — hooks kept, rendered flat. */
-.stat-pending   { border-top-color: rgba(255, 255, 255, 0.08); box-shadow: none; }
-.stat-approved  { border-top-color: rgba(255, 255, 255, 0.08); box-shadow: none; }
-.stat-rejected  { border-top-color: rgba(255, 255, 255, 0.08); box-shadow: none; }
-.stat-cancelled { border-top-color: rgba(255, 255, 255, 0.08); }
+/* Neutralize legacy color variants — hooks kept, rendered as glass. */
+.stat-pending   { border-top-color: rgba(255, 255, 255, 0.1); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); }
+.stat-approved  { border-top-color: rgba(255, 255, 255, 0.1); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); }
+.stat-rejected  { border-top-color: rgba(255, 255, 255, 0.1); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); }
+.stat-cancelled { border-top-color: rgba(255, 255, 255, 0.1); }
 
 .stat-pending::after   { background: none; }
 .stat-approved::after  { background: none; }

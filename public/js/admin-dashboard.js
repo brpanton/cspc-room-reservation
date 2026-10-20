@@ -116,6 +116,10 @@
         document.querySelector('[data-target="#pane-rooms"]')?.click();
         return;
       }
+      if (action === 'manage-rooms') {
+        document.querySelector('.admin-nav-btn[data-target="#pane-rooms"]')?.click();
+        return;
+      }
       if (action === 'pending') {
         document.querySelector('[data-target="#pane-reservations"]')?.click();
         const pendingBtn = document.querySelector('#status-filters [data-status="Pending"]');
