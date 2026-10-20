@@ -1092,11 +1092,10 @@ function renderNavbar(user, active) {
   let navLinks = '';
   if (user) {
     if (isAdmin && active === 'admin') {
-      // Distinct admin navigation: Dashboard / Rooms / Users / Reports (hash drives pane switcher).
-      navLinks += link('/admin-dashboard.html#pane-reservations', 'Dashboard', 'admin');
-      navLinks += link('/admin-dashboard.html#pane-rooms', 'Rooms', 'rooms');
-      navLinks += link('/admin-dashboard.html#pane-users', 'Users', 'users');
-      navLinks += link('/admin-dashboard.html#pane-reservations', 'Reports', 'reports');
+      // Slim admin top bar: the left Control Panel sidebar owns all admin
+      // navigation, so no middle menu links (Dashboard / Rooms / Users /
+      // Reports / About Us) are rendered here — brand left, profile right.
+      navLinks = '';
     } else {
       navLinks += link('/dashboard.html', 'Dashboard', 'dashboard');
       navLinks += link('/rooms-status.html', 'Room Status', 'rooms');
@@ -1104,8 +1103,8 @@ function renderNavbar(user, active) {
         navLinks += link('/reservation-form.html', 'New Reservation', 'reserve');
       }
       if (isAdmin) navLinks += link('/admin-dashboard.html', 'Management', 'admin');
+      navLinks += '<li class="nav-item"><button class="nav-link nav-link-button" type="button" data-bs-toggle="modal" data-bs-target="#about-us-modal">About Us</button></li>';
     }
-    navLinks += '<li class="nav-item"><button class="nav-link nav-link-button" type="button" data-bs-toggle="modal" data-bs-target="#about-us-modal">About Us</button></li>';
   } else {
     // Guest / pre-login navbar: keep it minimal — Home + About Us only.
     navLinks += link('/#overview', 'Home', 'home');
@@ -1154,13 +1153,14 @@ function renderNavbar(user, active) {
     </label>`;
 
   host.innerHTML = `
-    <nav class="navbar navbar-expand-lg navbar-dark portal-navbar">
+    <nav class="navbar navbar-expand-lg navbar-dark portal-navbar${navLinks ? '' : ' portal-navbar-slim'}">
       <div class="container portal-nav-inner">
         <a class="navbar-brand navbar-brand-hornet" href="${user ? '/dashboard.html' : '/#overview'}">
           <img class="cspc-logo hornet-logo" src="/img/hornet-logo.jpg"
                alt="HORNET logo" />
           <span class="brand-text"><span class="brand-title">Laboratory/Room Reservation</span></span>
         </a>
+        ${navLinks ? `
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
                 data-bs-target="#portalNav" aria-controls="portalNav"
                 aria-expanded="false" aria-label="Toggle navigation">
@@ -1169,7 +1169,8 @@ function renderNavbar(user, active) {
         <div class="collapse navbar-collapse portal-nav-collapse" id="portalNav">
           <ul class="navbar-nav portal-nav-links mb-2 mb-lg-0 ${user ? 'portal-nav-authenticated' : 'portal-nav-public'}">${navLinks}</ul>
           <div class="navbar-account-area portal-nav-utility d-flex align-items-center">${languageControl}${userArea}</div>
-        </div>
+        </div>` : `
+        <div class="navbar-account-area portal-nav-utility portal-nav-utility-slim d-flex align-items-center">${languageControl}${userArea}</div>`}
       </div>
     </nav>
     <div class="modal fade about-modal" id="about-us-modal" tabindex="-1" aria-labelledby="about-us-title" aria-hidden="true">

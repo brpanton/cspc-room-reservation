@@ -294,6 +294,20 @@ main.container {
   gap: 1rem;
 }
 
+/* Slim admin top bar: brand left, language + profile right, no middle links. */
+.portal-navbar-slim .portal-nav-inner { flex-wrap: nowrap; }
+
+.portal-nav-utility-slim {
+  margin-left: auto;
+  flex-wrap: nowrap;
+  gap: 0.7rem;
+}
+
+@media (max-width: 575.98px) {
+  .portal-navbar-slim .navbar-brand-hornet .brand-title { font-size: 0.78rem; }
+  .portal-nav-utility-slim { gap: 0.5rem; }
+}
+
 .portal-nav-links {
   align-items: center;
   flex-wrap: nowrap;
