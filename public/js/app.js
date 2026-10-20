@@ -1119,7 +1119,10 @@ function renderNavbar(user, active) {
         <div class="dropdown-menu dropdown-menu-end profile-menu" aria-labelledby="profile-settings-trigger">
           <div class="profile-menu-heading">Your account</div>
           <button class="dropdown-item" id="profile-settings-menu-item" type="button"><span class="profile-menu-icon">◎</span> Profile Settings</button>
-          <button class="dropdown-item" id="switch-view-menu-item" type="button"><span class="profile-menu-icon">🔄</span> Admin Dashboard / Switch View</button>
+          <button class="dropdown-item" id="change-password-menu-item" type="button"><span class="profile-menu-icon">🔒</span> Change Password</button>
+          <div class="profile-menu-heading">Administration</div>
+          <button class="dropdown-item" id="add-admin-menu-item" type="button"><span class="profile-menu-icon">➕</span> + Add New Admin Account</button>
+          <button class="dropdown-item" id="switch-view-menu-item" type="button"><span class="profile-menu-icon">🔄</span> Admin Dashboard</button>
           <div class="dropdown-divider"></div>
           <button class="dropdown-item profile-logout-item" id="logout-btn" type="button"><span class="profile-menu-icon">↪</span> Log out</button>
         </div>
@@ -1384,6 +1387,22 @@ function renderNavbar(user, active) {
     document.getElementById('switch-view-menu-item')?.addEventListener('click', () => {
       bootstrap.Dropdown.getOrCreateInstance(profileTrigger).hide();
       redirectTo('/dashboard.html');
+    });
+    document.getElementById('change-password-menu-item')?.addEventListener('click', () => {
+      bootstrap.Dropdown.getOrCreateInstance(profileTrigger).hide();
+      const modalEl = document.getElementById('password-change-modal');
+      if (modalEl) {
+        const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        modal.show();
+      }
+    });
+    document.getElementById('add-admin-menu-item')?.addEventListener('click', () => {
+      bootstrap.Dropdown.getOrCreateInstance(profileTrigger).hide();
+      const modalEl = document.getElementById('admin-modal');
+      if (modalEl) {
+        const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        modal.show();
+      }
     });
     avatarInput.addEventListener('change', () => {
       const file = avatarInput.files && avatarInput.files[0];
