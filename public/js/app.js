@@ -1122,7 +1122,6 @@ function renderNavbar(user, active) {
           <button class="dropdown-item" id="change-password-menu-item" type="button"><span class="profile-menu-icon">🔒</span> Change Password</button>
           <div class="profile-menu-heading">Administration</div>
           <button class="dropdown-item" id="add-admin-menu-item" type="button"><span class="profile-menu-icon">➕</span> + Add New Admin Account</button>
-          <button class="dropdown-item" id="switch-view-menu-item" type="button"><span class="profile-menu-icon">🔄</span> Admin Dashboard</button>
           <div class="dropdown-divider"></div>
           <button class="dropdown-item profile-logout-item" id="logout-btn" type="button"><span class="profile-menu-icon">↪</span> Log out</button>
         </div>
@@ -1383,10 +1382,6 @@ function renderNavbar(user, active) {
     document.getElementById('profile-settings-menu-item')?.addEventListener('click', () => {
       bootstrap.Dropdown.getOrCreateInstance(profileTrigger).hide();
       profileModal.show();
-    });
-    document.getElementById('switch-view-menu-item')?.addEventListener('click', () => {
-      bootstrap.Dropdown.getOrCreateInstance(profileTrigger).hide();
-      redirectTo('/dashboard.html');
     });
     document.getElementById('change-password-menu-item')?.addEventListener('click', () => {
       bootstrap.Dropdown.getOrCreateInstance(profileTrigger).hide();
