@@ -26,6 +26,23 @@
   if (!me) return;
   renderNavbar(me, 'admin');
 
+  /* About Us modal: toggle the top-nav active pill between Admin Dashboard and About Us */
+  const aboutUsModalEl = document.getElementById('about-us-modal');
+  if (aboutUsModalEl) {
+    const adminDashboardLink = document.querySelector('.portal-navbar .nav-link[href="/admin-dashboard.html"]');
+    const aboutUsButton = document.querySelector('.portal-navbar .nav-link-button[data-bs-target="#about-us-modal"]');
+
+    aboutUsModalEl.addEventListener('show.bs.modal', () => {
+      adminDashboardLink?.classList.remove('active');
+      aboutUsButton?.classList.add('active');
+    });
+
+    aboutUsModalEl.addEventListener('hidden.bs.modal', () => {
+      aboutUsButton?.classList.remove('active');
+      adminDashboardLink?.classList.add('active');
+    });
+  }
+
   function updateDashboardClock() {
     const stamp = document.getElementById('dashboard-timestamp');
     if (!stamp) return;
