@@ -1216,7 +1216,7 @@ function renderNavbar(user, active) {
     <div class="modal fade profile-modal" id="profile-settings-modal" tabindex="-1" aria-labelledby="profile-settings-title" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-          <form id="profile-avatar-form">
+          <form id="profile-settings-form" novalidate>
             <div class="modal-header">
               <div>
                 <span class="profile-modal-kicker">Account</span>
@@ -1225,25 +1225,35 @@ function renderNavbar(user, active) {
               <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-              <div class="profile-preview-wrap">
-                <div class="profile-avatar-preview avatar-shell" id="profile-avatar-preview">
-                  <span class="avatar-initials" id="profile-avatar-initials"${avatarUrl ? ' hidden' : ''}>${escapeHtml(initials)}</span>
-                  <img class="user-avatar-img" id="profile-avatar-img" src="${avatarUrl}" alt="Profile photo preview"${avatarUrl ? '' : ' hidden'} />
+              <div class="profile-settings-grid">
+                <div class="profile-field-group">
+                  <label class="form-label" for="profile-full-name">Full Name</label>
+                  <input class="form-control" type="text" id="profile-full-name" name="full_name" value="${escapeHtml(user.full_name || '')}" required />
                 </div>
-                <div>
-                  <div class="profile-preview-name">${escapeHtml(user.full_name)}</div>
-                  <div class="text-muted-sm">${escapeHtml(user.email || '')}</div>
-                  <div class="text-muted-sm">${roleBadge(user.role)}</div>
+                <div class="profile-field-group">
+                  <label class="form-label" for="profile-admin-id">Admin ID</label>
+                  <input class="form-control" type="text" id="profile-admin-id" name="school_id" placeholder="ADMIN-0001" value="${escapeHtml(user.school_id || '')}" />
+                </div>
+                <div class="profile-field-group">
+                  <label class="form-label" for="profile-email">Email</label>
+                  <input class="form-control" type="email" id="profile-email" name="email" placeholder="name@cspc.edu.ph or name@my.cspc.edu.ph" value="${escapeHtml(user.email || '')}" required />
+                </div>
+                <div class="profile-field-group">
+                  <label class="form-label" for="profile-recovery-email">Recovery Email (Optional)</label>
+                  <input class="form-control" type="email" id="profile-recovery-email" name="recovery_email" placeholder="name@cspc.edu.ph or another inbox" value="${escapeHtml(user.recovery_email || '')}" />
+                </div>
+                <div class="profile-field-group profile-field-full">
+                  <label class="form-label" for="profile-permission-level">Permission Level</label>
+                  <select class="form-select" id="profile-permission-level" name="admin_level">
+                    <option value="Assistant Admin"${user.admin_level === 'Assistant Admin' ? ' selected' : ''}>Assistant Admin</option>
+                    <option value="Super Admin"${user.admin_level === 'Super Admin' ? ' selected' : ''}>Super Admin</option>
+                  </select>
                 </div>
               </div>
-              <label class="form-label mt-4" for="profile-avatar-file">Choose a new photo</label>
-              <input class="form-control" type="file" id="profile-avatar-file" name="avatar" accept="image/jpeg,image/png,image/webp" />
-              <div class="form-text">JPEG, PNG, or WebP. Maximum file size: 3 MB.</div>
             </div>
             <div class="modal-footer">
-              <button type="button" class="btn btn-outline-danger me-auto" id="remove-avatar-btn"${avatarUrl ? '' : ' hidden'}>Remove photo</button>
               <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Cancel</button>
-              <button type="submit" class="btn btn-cspc" id="save-avatar-btn">Save photo</button>
+              <button type="submit" class="btn btn-cspc" id="save-profile-btn">Save changes</button>
             </div>
           </form>
         </div>
@@ -1348,47 +1358,6 @@ function renderNavbar(user, active) {
       if (chevron) return; // chevron already toggles via data-bs-toggle
       profileDropdown.toggle();
     });
-    const avatarInput = document.getElementById('profile-avatar-file');
-    const previewImg = document.getElementById('profile-avatar-img');
-    const previewInitials = document.getElementById('profile-avatar-initials');
-    const saveButton = document.getElementById('save-avatar-btn');
-
-    const setAvatar = (url) => {
-      const nextUrl = url ? `${url}${url.includes('?') ? '&' : '?'}v=${Date.now()}` : '';
-      const navbarImg = document.getElementById('navbar-avatar-img');
-      const dashboardImg = document.getElementById('dashboard-avatar-img');
-      const navbarInitials = document.getElementById('navbar-avatar-initials');
-      const dashboardInitials = document.getElementById('dashboard-avatar-initials');
-      [navbarImg, previewImg].forEach((img) => {
-        if (!img) return;
-        img.src = nextUrl;
-        img.hidden = !url;
-      });
-      if (dashboardImg) {
-        dashboardImg.src = nextUrl;
-        dashboardImg.hidden = !url;
-      }
-      [navbarInitials, dashboardInitials, previewInitials].forEach((fallback) => {
-        if (fallback) fallback.hidden = Boolean(url);
-      });
-      const removeButton = document.getElementById('remove-avatar-btn');
-      if (removeButton) removeButton.hidden = !url;
-      if (sessionCache && sessionCache.user) sessionCache.user.avatar_url = url || null;
-      if (user) user.avatar_url = url || null;
-    };
-
-    [
-      [document.getElementById('navbar-avatar-img'), document.getElementById('navbar-avatar-initials')],
-      [document.getElementById('dashboard-avatar-img'), document.getElementById('dashboard-avatar-initials')],
-      [previewImg, previewInitials]
-    ].forEach(([img, fallback]) => {
-      if (!img || !fallback) return;
-      img.addEventListener('error', () => {
-        img.hidden = true;
-        fallback.hidden = false;
-      });
-    });
-
     document.getElementById('profile-settings-menu-item')?.addEventListener('click', () => {
       bootstrap.Dropdown.getOrCreateInstance(profileTrigger).hide();
       profileModal.show();
@@ -1409,61 +1378,42 @@ function renderNavbar(user, active) {
         modal.show();
       }
     });
-    avatarInput.addEventListener('change', () => {
-      const file = avatarInput.files && avatarInput.files[0];
-      if (!file) return;
-      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 3 * 1024 * 1024) {
-        avatarInput.value = '';
-        toastError('Choose a JPEG, PNG, or WebP image no larger than 3 MB.');
-        return;
-      }
-      const reader = new FileReader();
-      reader.addEventListener('load', () => {
-        previewImg.src = String(reader.result);
-        previewImg.hidden = false;
-        previewInitials.hidden = true;
+
+    const profileSettingsForm = document.getElementById('profile-settings-form');
+    const saveProfileBtn = document.getElementById('save-profile-btn');
+    if (profileSettingsForm && saveProfileBtn) {
+      profileModalEl.addEventListener('show.bs.modal', () => {
+        document.getElementById('profile-full-name').value = user.full_name || '';
+        document.getElementById('profile-admin-id').value = user.school_id || '';
+        document.getElementById('profile-email').value = user.email || '';
+        document.getElementById('profile-recovery-email').value = user.recovery_email || '';
+        document.getElementById('profile-permission-level').value = user.admin_level || 'Assistant Admin';
       });
-      reader.readAsDataURL(file);
-    });
 
-    document.getElementById('profile-avatar-form').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      if (!avatarInput.files || !avatarInput.files[0]) {
-        toastError('Choose a photo before saving.');
-        return;
-      }
-      saveButton.disabled = true;
-      saveButton.textContent = 'Uploading…';
-      try {
-        const formData = new FormData();
-        formData.append('avatar', avatarInput.files[0]);
-        const result = await api('/api/profile/avatar', { method: 'POST', body: formData });
-        setAvatar(result.avatar_url);
-        avatarInput.value = '';
-        profileModal.hide();
-        toastOk(result.message);
-      } catch (err) {
-        toastError(err.message);
-      } finally {
-        saveButton.disabled = false;
-        saveButton.textContent = 'Save photo';
-      }
-    });
-
-    const removeButton = document.getElementById('remove-avatar-btn');
-    if (removeButton) {
-      removeButton.addEventListener('click', async () => {
-        removeButton.disabled = true;
+      profileSettingsForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        saveProfileBtn.disabled = true;
+        saveProfileBtn.textContent = 'Saving…';
         try {
-          const result = await api('/api/profile/avatar', { method: 'DELETE' });
-          setAvatar(null);
-          avatarInput.value = '';
+          const payload = {
+            full_name: document.getElementById('profile-full-name').value.trim(),
+            school_id: document.getElementById('profile-admin-id').value.trim() || null,
+            email: document.getElementById('profile-email').value.trim(),
+            recovery_email: document.getElementById('profile-recovery-email').value.trim() || null,
+            admin_level: document.getElementById('profile-permission-level').value || null,
+          };
+          const result = await api('/api/profile', { method: 'PATCH', body: payload });
           profileModal.hide();
-          toastOk(result.message);
+          toastOk(result.message || 'Profile updated.');
+          if (result.user) {
+            Object.assign(user, result.user);
+            if (sessionCache && sessionCache.user) Object.assign(sessionCache.user, result.user);
+          }
         } catch (err) {
           toastError(err.message);
         } finally {
-          removeButton.disabled = false;
+          saveProfileBtn.disabled = false;
+          saveProfileBtn.textContent = 'Save changes';
         }
       });
     }

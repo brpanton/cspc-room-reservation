@@ -105,4 +105,63 @@ router.delete('/avatar', async (req, res, next) => {
   }
 });
 
+router.patch('/', async (req, res, next) => {
+  try {
+    const { full_name, school_id, email, recovery_email, admin_level } = req.body;
+    const userId = req.session.user.id;
+
+    const updates = [];
+    const values = [];
+    let paramIndex = 1;
+
+    if (full_name !== undefined) {
+      updates.push(`full_name = $${paramIndex++}`);
+      values.push(full_name);
+    }
+    if (school_id !== undefined) {
+      updates.push(`school_id = $${paramIndex++}`);
+      values.push(school_id || null);
+    }
+    if (email !== undefined) {
+      updates.push(`email = $${paramIndex++}`);
+      values.push(email);
+    }
+    if (recovery_email !== undefined) {
+      updates.push(`recovery_email = $${paramIndex++}`);
+      values.push(recovery_email || null);
+    }
+    if (admin_level !== undefined) {
+      if (admin_level !== null && admin_level !== 'Super Admin' && admin_level !== 'Assistant Admin') {
+        const err = new Error('Invalid permission level.');
+        err.status = 400;
+        throw err;
+      }
+      updates.push(`admin_level = $${paramIndex++}`);
+      values.push(admin_level || null);
+    }
+
+    if (updates.length === 0) {
+      const err = new Error('No fields to update.');
+      err.status = 400;
+      throw err;
+    }
+
+    values.push(userId);
+    const query = `UPDATE users SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING id, school_id, full_name, email, recovery_email, role, admin_level, avatar_url`;
+    const result = await pool.query(query, values);
+    if (!result.rowCount) {
+      const err = new Error('Your account could not be found.');
+      err.status = 404;
+      throw err;
+    }
+
+    const updatedUser = result.rows[0];
+    req.session.user = { ...req.session.user, ...updatedUser };
+
+    res.json({ message: 'Profile updated.', user: updatedUser });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;
