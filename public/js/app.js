@@ -1478,6 +1478,17 @@ function renderNavbar(user, active) {
     });
   }
 
+  /* Auto-close the profile dropdown whenever any modal opens so it never
+     floats on top of a modal dialog. */
+  document.addEventListener('show.bs.modal', () => {
+    const trigger = document.getElementById('profile-settings-trigger');
+    if (trigger && window.bootstrap) {
+      try {
+        bootstrap.Dropdown.getOrCreateInstance(trigger).hide();
+      } catch { /* dropdown not initialized yet */ }
+    }
+  });
+
   /* ------------------------------------------- security / change password --- */
 
   const securityMenuItem = document.getElementById('security-settings-menu-item');

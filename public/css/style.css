@@ -4191,6 +4191,18 @@ body.building-photo-background::after {
 .alert-warning { background: rgba(234, 179, 8, 0.13);  border-color: rgba(234, 179, 8, 0.4);  color: #fde68a; }
 .alert-info    { background: rgba(56, 189, 248, 0.13); border-color: rgba(56, 189, 248, 0.4); color: #bae6fd; }
 
+.modal-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-height: 90vh;
+  overflow-y: auto;
+  margin: 0 !important;
+  display: flex;
+  flex-direction: column;
+}
+
 .modal-content {
   background: rgba(13, 19, 33, 0.9);
   border: 1px solid var(--glass-border-strong);
@@ -4199,12 +4211,18 @@ body.building-photo-background::after {
   box-shadow: 0 30px 70px -30px rgba(0, 0, 0, 1);
   backdrop-filter: blur(22px) saturate(160%);
   -webkit-backdrop-filter: blur(22px) saturate(160%);
+  max-height: 90vh;
+  overflow-y: visible;
 }
 
 .modal-header,
 .modal-footer { border-color: var(--glass-border); }
 
 .modal-title { color: #fff; }
+
+.modal-body {
+  padding: 1.5rem 2rem;
+}
 
 .btn-close {
   filter: invert(1) grayscale(1) brightness(1.8);
@@ -4213,7 +4231,32 @@ body.building-photo-background::after {
 
 .btn-close:hover { opacity: 1; }
 
-.modal-backdrop.show { opacity: 0.62; }
+.modal-backdrop.show {
+  background: rgba(10, 15, 30, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  opacity: 1;
+}
+
+/* ---------------------------------------------------------------- form inputs --- */
+.form-control,
+.form-select {
+  background: #131c2e;
+  color: #f1f5f9;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.form-control::placeholder {
+  color: rgba(241, 245, 249, 0.5);
+}
+
+.form-control:focus,
+.form-select:focus {
+  background: #131c2e;
+  color: #f1f5f9;
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+}
 
 /* ---------------------------------------------------------------- toasts --- */
 .toast-host {
