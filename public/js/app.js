@@ -1360,8 +1360,7 @@ function renderNavbar(user, active) {
   const profileTrigger = document.getElementById('profile-settings-trigger');
   const profileDropdownWrap = document.querySelector('.profile-dropdown');
   const profileModalEl = document.getElementById('profile-settings-modal');
-  if (profileTrigger && profileModalEl && window.bootstrap) {
-    const profileModal = new bootstrap.Modal(profileModalEl);
+  if (profileTrigger && window.bootstrap) {
     const profileDropdown = bootstrap.Dropdown.getOrCreateInstance(profileTrigger);
 
     // Toggle dropdown when clicking the entire profile chip (avatar + name),
@@ -1371,20 +1370,33 @@ function renderNavbar(user, active) {
       if (chevron) return; // chevron already toggles via data-bs-toggle
       profileDropdown.toggle();
     });
-    document.getElementById('profile-settings-menu-item')?.addEventListener('click', () => {
-      bootstrap.Dropdown.getOrCreateInstance(profileTrigger).hide();
-      profileModal.show();
-    });
-    document.getElementById('change-password-menu-item')?.addEventListener('click', () => {
-      bootstrap.Dropdown.getOrCreateInstance(profileTrigger).hide();
-      const modalEl = document.getElementById('password-change-modal');
+
+    // Profile Settings — only when the profile modal exists on this page.
+    const profileSettingsMenuItem = document.getElementById('profile-settings-menu-item');
+    if (profileSettingsMenuItem && profileModalEl) {
+      const profileModal = new bootstrap.Modal(profileModalEl);
+      profileSettingsMenuItem.addEventListener('click', (e) => {
+        e.stopPropagation();
+        profileDropdown.hide();
+        profileModal.show();
+      });
+    }
+
+    // Change Password
+    document.getElementById('change-password-menu-item')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      profileDropdown.hide();
+      const modalEl = document.getElementById('change-password-modal');
       if (modalEl) {
         const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
         modal.show();
       }
     });
-    document.getElementById('add-admin-menu-item')?.addEventListener('click', () => {
-      bootstrap.Dropdown.getOrCreateInstance(profileTrigger).hide();
+
+    // Add New Admin Account
+    document.getElementById('add-admin-menu-item')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      profileDropdown.hide();
       const modalEl = document.getElementById('admin-modal');
       if (modalEl) {
         const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
@@ -1392,11 +1404,13 @@ function renderNavbar(user, active) {
       }
     });
 
-    const profileSettingsForm = document.getElementById('profile-settings-form');
-    const saveProfileBtn = document.getElementById('save-profile-btn');
-    const avatarInput = document.getElementById('profile-avatar-input');
-    const previewImg = document.getElementById('profile-avatar-preview-img');
-    const previewInitials = document.getElementById('profile-avatar-preview-initials');
+    if (profileModalEl) {
+      const profileModal = new bootstrap.Modal(profileModalEl);
+      const profileSettingsForm = document.getElementById('profile-settings-form');
+      const saveProfileBtn = document.getElementById('save-profile-btn');
+      const avatarInput = document.getElementById('profile-avatar-input');
+      const previewImg = document.getElementById('profile-avatar-preview-img');
+      const previewInitials = document.getElementById('profile-avatar-preview-initials');
     if (profileSettingsForm && saveProfileBtn) {
       profileModalEl.addEventListener('show.bs.modal', () => {
         document.getElementById('profile-full-name').value = user.full_name || '';
@@ -1476,6 +1490,8 @@ function renderNavbar(user, active) {
       previewImg.hidden = !currentUrl;
       previewInitials.hidden = Boolean(currentUrl);
     });
+    }
+
   }
 
   /* Auto-close the profile dropdown whenever any modal opens so it never

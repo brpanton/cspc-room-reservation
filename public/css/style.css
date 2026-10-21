@@ -618,6 +618,8 @@ main.container {
 }
 
 .profile-menu {
+  position: absolute !important;
+  z-index: 99999 !important;
   min-width: 15.5rem;
   margin-top: 0.65rem !important;
   padding: 0.45rem;
@@ -648,7 +650,8 @@ main.container {
   color: #e7effc;
   font-size: 0.84rem;
   text-decoration: none;
-  cursor: pointer;
+  cursor: pointer !important;
+  pointer-events: auto !important;
 }
 
 .profile-menu .dropdown-item:hover,
