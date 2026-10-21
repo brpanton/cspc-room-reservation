@@ -1105,7 +1105,7 @@ function renderNavbar(user, active) {
   const userArea = user
     ? `
       <div class="profile-dropdown d-flex align-items-center">
-        <a class="user-chip" href="/admin-dashboard.html" id="profile-settings-trigger" aria-label="Open profile menu">
+        <div class="user-chip" role="button" id="profile-settings-trigger" aria-label="Open profile menu" tabindex="0">
           <span class="avatar-shell" aria-hidden="true">
             <span class="avatar-initials" id="navbar-avatar-initials"${avatarUrl ? ' hidden' : ''}>${escapeHtml(initials)}</span>
             <img class="user-avatar-img" id="navbar-avatar-img" src="${avatarUrl}" alt=""${avatarUrl ? '' : ' hidden'} />
@@ -1114,7 +1114,7 @@ function renderNavbar(user, active) {
             <span class="user-chip-name">${escapeHtml(user.full_name)}</span>
             ${roleBadge(user.role)}
           </span>
-          </a>
+          </div>
         <button class="profile-chevron-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Open profile menu">▾</button>
         <div class="dropdown-menu dropdown-menu-end profile-menu" aria-labelledby="profile-settings-trigger">
           <div class="profile-menu-heading">Your account</div>
@@ -1335,9 +1335,19 @@ function renderNavbar(user, active) {
   }
 
   const profileTrigger = document.getElementById('profile-settings-trigger');
+  const profileDropdownWrap = document.querySelector('.profile-dropdown');
   const profileModalEl = document.getElementById('profile-settings-modal');
   if (profileTrigger && profileModalEl && window.bootstrap) {
     const profileModal = new bootstrap.Modal(profileModalEl);
+    const profileDropdown = bootstrap.Dropdown.getOrCreateInstance(profileTrigger);
+
+    // Toggle dropdown when clicking the entire profile chip (avatar + name),
+    // but let the chevron button's own data-bs-toggle handle its own clicks.
+    profileDropdownWrap?.addEventListener('click', (event) => {
+      const chevron = event.target.closest('.profile-chevron-btn');
+      if (chevron) return; // chevron already toggles via data-bs-toggle
+      profileDropdown.toggle();
+    });
     const avatarInput = document.getElementById('profile-avatar-file');
     const previewImg = document.getElementById('profile-avatar-img');
     const previewInitials = document.getElementById('profile-avatar-initials');

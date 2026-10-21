@@ -520,6 +520,8 @@ main.container {
 
 .profile-dropdown {
   margin-left: 0.75rem;
+  cursor: pointer;
+  pointer-events: auto;
 }
 
 .profile-dropdown .user-chip {
