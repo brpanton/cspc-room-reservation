@@ -1225,6 +1225,19 @@ function renderNavbar(user, active) {
               <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+              <div class="avatar-upload-container avatar-field-full">
+                <div class="avatar-preview-wrapper">
+                  <img class="avatar-preview-img" id="profile-avatar-preview-img" src="" alt="" hidden />
+                  <span class="avatar-preview-initials" id="profile-avatar-preview-initials">MA</span>
+                  <button type="button" class="avatar-upload-btn" aria-label="Change profile photo" title="Change profile photo">📷</button>
+                  <input type="file" id="profile-avatar-input" class="avatar-upload-input" accept="image/*" />
+                </div>
+                <div class="avatar-upload-details">
+                  <label class="avatar-upload-label" for="profile-avatar-input">Profile Photo</label>
+                  <div class="avatar-upload-input-label">Choose image</div>
+                  <p class="avatar-upload-hint">JPG, PNG, or WebP. Maximum file size: 3 MB.</p>
+                </div>
+              </div>
               <div class="profile-settings-grid">
                 <div class="profile-field-group">
                   <label class="form-label" for="profile-full-name">Full Name</label>
@@ -1381,6 +1394,9 @@ function renderNavbar(user, active) {
 
     const profileSettingsForm = document.getElementById('profile-settings-form');
     const saveProfileBtn = document.getElementById('save-profile-btn');
+    const avatarInput = document.getElementById('profile-avatar-input');
+    const previewImg = document.getElementById('profile-avatar-preview-img');
+    const previewInitials = document.getElementById('profile-avatar-preview-initials');
     if (profileSettingsForm && saveProfileBtn) {
       profileModalEl.addEventListener('show.bs.modal', () => {
         document.getElementById('profile-full-name').value = user.full_name || '';
@@ -1388,6 +1404,24 @@ function renderNavbar(user, active) {
         document.getElementById('profile-email').value = user.email || '';
         document.getElementById('profile-recovery-email').value = user.recovery_email || '';
         document.getElementById('profile-permission-level').value = user.admin_level || 'Assistant Admin';
+        const currentUrl = user && user.avatar_url;
+        if (previewImg && previewInitials) {
+          previewImg.src = currentUrl || '';
+          previewImg.hidden = !currentUrl;
+          previewInitials.hidden = Boolean(currentUrl);
+          previewInitials.textContent = String(user.full_name || '?')
+            .trim().split(/\s+/).slice(0, 2).map((p) => p.charAt(0)).join('').toUpperCase() || 'MA';
+        }
+      });
+
+      // Live preview when a file is selected
+      avatarInput?.addEventListener('change', () => {
+        const file = avatarInput.files?.[0];
+        if (!file) return;
+        const url = URL.createObjectURL(file);
+        previewImg.src = url;
+        previewImg.hidden = false;
+        previewInitials.hidden = true;
       });
 
       profileSettingsForm.addEventListener('submit', async (event) => {
@@ -1395,6 +1429,15 @@ function renderNavbar(user, active) {
         saveProfileBtn.disabled = true;
         saveProfileBtn.textContent = 'Saving…';
         try {
+          // Upload avatar first if a new file was selected
+          let avatarUrl = user && user.avatar_url;
+          if (avatarInput?.files?.[0]) {
+            const formData = new FormData();
+            formData.append('avatar', avatarInput.files[0]);
+            const uploadResult = await api('/api/profile/avatar', { method: 'POST', body: formData });
+            avatarUrl = uploadResult.avatar_url;
+          }
+
           const payload = {
             full_name: document.getElementById('profile-full-name').value.trim(),
             school_id: document.getElementById('profile-admin-id').value.trim() || null,
@@ -1408,6 +1451,14 @@ function renderNavbar(user, active) {
           if (result.user) {
             Object.assign(user, result.user);
             if (sessionCache && sessionCache.user) Object.assign(sessionCache.user, result.user);
+          }
+          // Update navbar avatar badge
+          const navbarImg = document.getElementById('navbar-avatar-img');
+          const navbarInitials = document.getElementById('navbar-avatar-initials');
+          if (navbarImg && navbarInitials && avatarUrl) {
+            navbarImg.src = avatarUrl;
+            navbarImg.hidden = false;
+            navbarInitials.hidden = true;
           }
         } catch (err) {
           toastError(err.message);

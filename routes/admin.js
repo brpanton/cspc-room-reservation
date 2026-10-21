@@ -7,7 +7,11 @@
  *  Users     : GET /users, POST /users, PUT /users/:id, DELETE /users/:id
  */
 const express = require('express');
+const fs = require('fs/promises');
+const path = require('path');
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
+const multer = require('multer');
 const pool = require('../db');
 const { requireAdmin } = require('../middleware/auth');
 const { sendPasswordChangedAlert } = require('../mailer');
@@ -738,6 +742,148 @@ router.delete('/users/:id', async (req, res, next) => {
   } catch (err) {
     next(translateDbError(err));
   }
+});
+
+/* ------------------------------------------------- AVATAR UPLOADS ---------------------------------------- */
+
+const avatarDir = path.join(__dirname, '..', 'uploads', 'avatars');
+const MAX_AVATAR_BYTES = 3 * 1024 * 1024;
+
+const adminUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_AVATAR_BYTES, files: 1 },
+  fileFilter: (_req, file, callback) => {
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
+      const err = new Error('Choose a JPEG, PNG, or WebP image.');
+      err.status = 400;
+      return callback(err);
+    }
+    callback(null, true);
+  }
+});
+
+function adminOldAvatarPath(url) {
+  const match = /^\/uploads\/avatars\/([a-f0-9-]+\.(?:jpg|png|webp))$/i.exec(String(url || ''));
+  return match ? path.join(avatarDir, match[1]) : null;
+}
+
+function adminDetectImage(buffer) {
+  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return { extension: 'jpg', mime: 'image/jpeg' };
+  }
+  if (buffer.length >= 8 && buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
+    return { extension: 'png', mime: 'image/png' };
+  }
+  if (buffer.length >= 12 && buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP') {
+    return { extension: 'webp', mime: 'image/webp' };
+  }
+  return null;
+}
+
+/**
+ * POST /api/admin/users/:id/avatar
+ * Admin uploads an avatar photo for a user account they manage.
+ */
+router.post('/users/:id/avatar', async (req, res, next) => {
+  adminUpload.single('avatar')(req, res, async (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        err.status = err.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+        err.message = err.code === 'LIMIT_FILE_SIZE'
+          ? 'The avatar must be 3 MB or smaller.'
+          : 'Upload one image file at a time.';
+      }
+      return next(err);
+    }
+    let savedPath;
+    try {
+      const targetId = Number(req.params.id);
+      if (!req.file) {
+        const e = new Error('Select an avatar image to upload.');
+        e.status = 400;
+        throw e;
+      }
+      const detected = adminDetectImage(req.file.buffer);
+      if (!detected || detected.mime !== req.file.mimetype) {
+        const e = new Error('The selected file is not a valid JPEG, PNG, or WebP image.');
+        e.status = 400;
+        throw e;
+      }
+
+      await fs.mkdir(avatarDir, { recursive: true });
+      const filename = `${crypto.randomUUID()}.${detected.extension}`;
+      savedPath = path.join(avatarDir, filename);
+      await fs.writeFile(savedPath, req.file.buffer, { flag: 'wx' });
+
+      const avatarUrl = `/uploads/avatars/${filename}`;
+      const { rows } = await pool.query(
+        'UPDATE users SET avatar_url = $1 WHERE id = $2 RETURNING id, full_name, avatar_url',
+        [avatarUrl, targetId]
+      );
+      if (!rows.length) {
+        const e = new Error('User not found.');
+        e.status = 404;
+        throw e;
+      }
+      res.json({ message: 'Profile photo updated.', avatar_url: avatarUrl, user: rows[0] });
+    } catch (e) {
+      if (savedPath) await fs.unlink(savedPath).catch(() => {});
+      next(e);
+    }
+  });
+});
+
+/**
+ * POST /api/admin/administrators/:id/avatar
+ * Admin uploads an avatar photo for an administrator account they manage.
+ */
+router.post('/administrators/:id/avatar', async (req, res, next) => {
+  adminUpload.single('avatar')(req, res, async (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        err.status = err.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+        err.message = err.code === 'LIMIT_FILE_SIZE'
+          ? 'The avatar must be 3 MB or smaller.'
+          : 'Upload one image file at a time.';
+      }
+      return next(err);
+    }
+    let savedPath;
+    try {
+      const targetId = Number(req.params.id);
+      if (!req.file) {
+        const e = new Error('Select an avatar image to upload.');
+        e.status = 400;
+        throw e;
+      }
+      const detected = adminDetectImage(req.file.buffer);
+      if (!detected || detected.mime !== req.file.mimetype) {
+        const e = new Error('The selected file is not a valid JPEG, PNG, or WebP image.');
+        e.status = 400;
+        throw e;
+      }
+
+      await fs.mkdir(avatarDir, { recursive: true });
+      const filename = `${crypto.randomUUID()}.${detected.extension}`;
+      savedPath = path.join(avatarDir, filename);
+      await fs.writeFile(savedPath, req.file.buffer, { flag: 'wx' });
+
+      const avatarUrl = `/uploads/avatars/${filename}`;
+      const { rows } = await pool.query(
+        'UPDATE users SET avatar_url = $1 WHERE id = $2 RETURNING id, full_name, avatar_url',
+        [avatarUrl, targetId]
+      );
+      if (!rows.length) {
+        const e = new Error('Administrator not found.');
+        e.status = 404;
+        throw e;
+      }
+      res.json({ message: 'Profile photo updated.', avatar_url: avatarUrl, user: rows[0] });
+    } catch (e) {
+      if (savedPath) await fs.unlink(savedPath).catch(() => {});
+      next(e);
+    }
+  });
 });
 
 module.exports = router;

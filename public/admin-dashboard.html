@@ -492,6 +492,19 @@
         </div>
         <form id="user-form">
           <div class="modal-body">
+            <div class="avatar-upload-container avatar-field-full">
+              <div class="avatar-preview-wrapper">
+                <img class="avatar-preview-img" id="user-avatar-preview-img" src="" alt="" hidden />
+                <span class="avatar-preview-initials" id="user-avatar-preview-initials">?U</span>
+                <button type="button" class="avatar-upload-btn" aria-label="Change profile photo" title="Change profile photo">📷</button>
+                <input type="file" id="user-avatar-input" class="avatar-upload-input" accept="image/*" />
+              </div>
+              <div class="avatar-upload-details">
+                <label class="avatar-upload-label" for="user-avatar-input">Profile Photo</label>
+                <div class="avatar-upload-input-label">Choose image</div>
+                <p class="avatar-upload-hint">JPG, PNG, or WebP. Maximum file size: 3 MB.</p>
+              </div>
+            </div>
             <div class="mb-3" id="user-school-id-group">
               <label class="form-label" for="user-school-id">ID number</label>
               <input type="text" class="form-control" id="user-school-id" name="school_id" />
@@ -550,6 +563,19 @@
         </div>
         <form id="admin-form">
           <div class="modal-body">
+            <div class="avatar-upload-container avatar-field-full">
+              <div class="avatar-preview-wrapper">
+                <img class="avatar-preview-img" id="admin-avatar-preview-img" src="" alt="" hidden />
+                <span class="avatar-preview-initials" id="admin-avatar-preview-initials">?A</span>
+                <button type="button" class="avatar-upload-btn" aria-label="Change profile photo" title="Change profile photo">📷</button>
+                <input type="file" id="admin-avatar-input" class="avatar-upload-input" accept="image/*" />
+              </div>
+              <div class="avatar-upload-details">
+                <label class="avatar-upload-label" for="admin-avatar-input">Profile Photo</label>
+                <div class="avatar-upload-input-label">Choose image</div>
+                <p class="avatar-upload-hint">JPG, PNG, or WebP. Maximum file size: 3 MB.</p>
+              </div>
+            </div>
             <div class="row g-3">
               <div class="col-md-6">
                 <label class="form-label" for="admin-full-name">Full name</label>

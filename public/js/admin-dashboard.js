@@ -779,6 +779,7 @@
     userForm.password.value = '';
     userForm.password.required = !user;
     document.getElementById('user-password-hint').textContent = user ? '(leave blank to keep current)' : '(required)';
+    if (setUserAvatarPreview) setUserAvatarPreview(user ? (user.avatar_url || '') : '');
     userModal.show();
   }
 
@@ -805,6 +806,16 @@
         ? await api(`/api/admin/users/${editing.user}`, { method: 'PUT', body: payload })
         : await api('/api/admin/users', { method: 'POST', body: payload });
       toastOk(data.message);
+
+      // Upload avatar if a file was selected
+      const avatarFile = document.getElementById('user-avatar-input').files[0];
+      if (avatarFile) {
+        const targetId = editing.user || data.id;
+        const formData = new FormData();
+        formData.append('avatar', avatarFile);
+        await api(`/api/admin/users/${targetId}/avatar`, { method: 'POST', body: formData });
+      }
+
       userModal.hide();
       await loadUsers();
     } catch (err) {
@@ -813,6 +824,42 @@
       busy(saveBtn, false);
     }
   });
+
+  /* ------------------------------------------------------ avatar preview helpers */
+
+  function setupAvatarPreview(inputId, imgId, initialsId) {
+    const input = document.getElementById(inputId);
+    const img = document.getElementById(imgId);
+    const initials = document.getElementById(initialsId);
+    if (!input || !img || !initials) return null;
+
+    function setPreview(url) {
+      if (url) {
+        img.src = url;
+        img.hidden = false;
+        initials.hidden = true;
+      } else {
+        img.src = '';
+        img.hidden = true;
+        initials.hidden = false;
+      }
+    }
+
+    input.addEventListener('change', () => {
+      const file = input.files[0];
+      if (!file) return;
+      setPreview(URL.createObjectURL(file));
+    });
+
+    return setPreview;
+  }
+
+  const setUserAvatarPreview = setupAvatarPreview(
+    'user-avatar-input', 'user-avatar-preview-img', 'user-avatar-preview-initials'
+  );
+  const setAdminAvatarPreview = setupAvatarPreview(
+    'admin-avatar-input', 'admin-avatar-preview-img', 'admin-avatar-preview-initials'
+  );
 
   /* ------------------------------------------------------ admin management */
 
@@ -858,6 +905,7 @@
             adminForm.email.value = admin.email;
             adminForm.recovery_email.value = admin.recovery_email || '';
             adminForm.admin_level.value = admin.admin_level || 'Assistant Admin';
+            if (setAdminAvatarPreview) setAdminAvatarPreview(admin.avatar_url || '');
             document.getElementById('admin-password').value = '';
             document.getElementById('admin-password').closest('.col-md-6').classList.add('d-none');
             document.getElementById('admin-auto-generate-password').closest('.col-md-6').classList.add('d-none');
@@ -930,6 +978,16 @@
       });
 
       toastOk(data.message + (data.temporary_password ? ` Temporary password: ${data.temporary_password}` : ''));
+
+      // Upload avatar if a file was selected
+      const avatarFile = document.getElementById('admin-avatar-input').files[0];
+      if (avatarFile) {
+        const targetId = editingAdminId || data.admin_id;
+        const formData = new FormData();
+        formData.append('avatar', avatarFile);
+        await api(`/api/admin/administrators/${targetId}/avatar`, { method: 'POST', body: formData });
+      }
+
       adminModal.hide();
       if (editingAdminId === Number(me.id)) {
         me.full_name = payload.full_name;
