@@ -4191,14 +4191,29 @@ body.building-photo-background::after {
 .alert-warning { background: rgba(234, 179, 8, 0.13);  border-color: rgba(234, 179, 8, 0.4);  color: #fde68a; }
 .alert-info    { background: rgba(56, 189, 248, 0.13); border-color: rgba(56, 189, 248, 0.4); color: #bae6fd; }
 
+.modal {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: rgba(5, 10, 20, 0.75) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  z-index: 10000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
 .modal-dialog {
   position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  max-height: 90vh;
+  max-height: 85vh;
   overflow-y: auto;
-  margin: 0 !important;
+  margin: auto !important;
   display: flex;
   flex-direction: column;
 }
@@ -4211,8 +4226,9 @@ body.building-photo-background::after {
   box-shadow: 0 30px 70px -30px rgba(0, 0, 0, 1);
   backdrop-filter: blur(22px) saturate(160%);
   -webkit-backdrop-filter: blur(22px) saturate(160%);
-  max-height: 90vh;
-  overflow-y: visible;
+  max-height: 85vh;
+  overflow-y: auto;
+  margin: auto;
 }
 
 .modal-header,
