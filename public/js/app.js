@@ -1417,6 +1417,15 @@ function renderNavbar(user, active) {
       const avatarInput = document.getElementById('profile-avatar-input');
       const previewImg = document.getElementById('profile-avatar-preview-img');
       const previewInitials = document.getElementById('profile-avatar-preview-initials');
+
+      /* ── Helper: fully dismiss modal and clean up backdrop/body ── */
+      const dismissAccountSettingsModal = () => {
+        accountSettingsModal.hide();
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.querySelectorAll('.modal-backdrop').forEach((el) => el.remove());
+      };
+
     if (accountSettingsForm && saveAccountSettingsBtn) {
       accountSettingsModalEl.addEventListener('show.bs.modal', () => {
         document.getElementById('profile-full-name').value = user.full_name || '';
@@ -1467,7 +1476,7 @@ function renderNavbar(user, active) {
             admin_level: document.getElementById('profile-permission-level').value || null,
           };
           const result = await api('/api/profile', { method: 'PATCH', body: payload });
-          accountSettingsModal.hide();
+          dismissAccountSettingsModal();
           toastOk(result.message || 'Profile updated.');
           if (result.user) {
             Object.assign(user, result.user);
@@ -1525,16 +1534,24 @@ function renderNavbar(user, active) {
     if (cancelAccountSettingsBtn) {
       cancelAccountSettingsBtn.addEventListener('click', (event) => {
         console.log('[Account Settings Modal] Cancel clicked');
-        accountSettingsModal.hide();
+        dismissAccountSettingsModal();
       });
     }
 
     if (accountSettingsCloseBtn) {
       accountSettingsCloseBtn.addEventListener('click', (event) => {
         console.log('[Account Settings Modal] Close X clicked');
-        accountSettingsModal.hide();
+        dismissAccountSettingsModal();
       });
     }
+
+    /* data-bs-dismiss buttons inside Account Settings modal ── */
+    accountSettingsModalEl.querySelectorAll('[data-bs-dismiss="modal"]').forEach((btn) => {
+      btn.addEventListener('click', (event) => {
+        console.log('[Account Settings Modal] Dismiss clicked');
+        dismissAccountSettingsModal();
+      });
+    });
 
     accountSettingsModalEl.addEventListener('hidden.bs.modal', () => {
       avatarInput.value = '';
