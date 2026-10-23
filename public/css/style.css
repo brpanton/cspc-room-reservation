@@ -4215,10 +4215,10 @@ body.building-photo-background::after {
   left: 0 !important;
   width: 100vw !important;
   height: 100vh !important;
-  background: rgba(5, 10, 20, 0.75) !important;
+  /* No background here — .modal-backdrop provides the overlay. */
   backdrop-filter: blur(8px) !important;
   -webkit-backdrop-filter: blur(8px) !important;
-  z-index: 10000 !important;
+  z-index: 1055 !important;
   align-items: center !important;
   justify-content: center !important;
 }
@@ -4229,7 +4229,7 @@ body.building-photo-background::after {
 
 .modal-dialog {
   position: relative;
-  z-index: 1000;
+  z-index: 1060;
   max-height: 85vh;
   overflow-y: auto;
   margin: auto !important;
@@ -4241,7 +4241,7 @@ body.building-photo-background::after {
 
 .modal-content {
   position: relative;
-  z-index: 1000;
+  z-index: 1060;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--glass-border);
   border-top: 1px solid var(--glass-border-highlight);
@@ -4293,18 +4293,41 @@ body.building-photo-background::after {
 /* Ensure every button in the portal is clickable, especially inside modals. */
 button,
 .btn,
-.btn-close {
+.btn-close,
+.btn-close-white {
   pointer-events: auto !important;
   cursor: pointer !important;
 }
 
 .modal-backdrop.show {
   position: fixed;
-  z-index: 999;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1050;
   background: rgba(15, 23, 42, 0.65);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   opacity: 1;
+}
+
+/* Ensure every interactive element inside modals can receive clicks. */
+.modal-dialog,
+.modal-content,
+.modal-header,
+.modal-body,
+.modal-footer {
+  pointer-events: auto;
+}
+
+/* Ensure buttons and close buttons inside modals are always clickable. */
+.modal button,
+.modal .btn,
+.modal .btn-close,
+.modal .btn-close-white {
+  pointer-events: auto !important;
+  cursor: pointer !important;
 }
 
 /* ---------------------------------------------------------------- form inputs --- */
