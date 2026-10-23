@@ -4228,6 +4228,8 @@ body.building-photo-background::after {
 }
 
 .modal-dialog {
+  position: relative;
+  z-index: 1000;
   max-height: 85vh;
   overflow-y: auto;
   margin: auto !important;
@@ -4238,6 +4240,8 @@ body.building-photo-background::after {
 }
 
 .modal-content {
+  position: relative;
+  z-index: 1000;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--glass-border);
   border-top: 1px solid var(--glass-border-highlight);
@@ -4251,6 +4255,21 @@ body.building-photo-background::after {
   margin: auto;
 }
 
+/* Ensure any glass/blur pseudo-elements inside modals never block clicks. */
+.modal-content::before,
+.modal-content::after,
+.modal-dialog::before,
+.modal-dialog::after,
+.modal-header::before,
+.modal-header::after,
+.modal-footer::before,
+.modal-footer::after {
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  content: "";
+}
+
 .modal-header,
 .modal-footer { border-color: var(--glass-border); }
 
@@ -4261,13 +4280,27 @@ body.building-photo-background::after {
 }
 
 .btn-close {
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+  cursor: pointer;
   filter: invert(1) grayscale(1) brightness(1.8);
   opacity: 0.7;
 }
 
 .btn-close:hover { opacity: 1; }
 
+/* Ensure every button in the portal is clickable, especially inside modals. */
+button,
+.btn,
+.btn-close {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
 .modal-backdrop.show {
+  position: fixed;
+  z-index: 999;
   background: rgba(15, 23, 42, 0.65);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
