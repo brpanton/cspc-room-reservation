@@ -1524,8 +1524,6 @@ function renderNavbar(user, active) {
 
     if (cancelAccountSettingsBtn) {
       cancelAccountSettingsBtn.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopImmediatePropagation();
         console.log('[Account Settings Modal] Cancel clicked');
         accountSettingsModal.hide();
       });
@@ -1533,8 +1531,6 @@ function renderNavbar(user, active) {
 
     if (accountSettingsCloseBtn) {
       accountSettingsCloseBtn.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopImmediatePropagation();
         console.log('[Account Settings Modal] Close X clicked');
         accountSettingsModal.hide();
       });
