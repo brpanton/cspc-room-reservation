@@ -1118,7 +1118,7 @@ function renderNavbar(user, active) {
         <button class="profile-chevron-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Open profile menu">▾</button>
         <div class="dropdown-menu dropdown-menu-end profile-menu" aria-labelledby="profile-settings-trigger">
           <div class="profile-menu-heading">Your account</div>
-          <button class="dropdown-item" id="profile-settings-menu-item" type="button"><span class="profile-menu-icon">◎</span> Profile Settings</button>
+          <button class="dropdown-item" id="accountSettingsMenuItem" type="button" data-bs-toggle="modal" data-bs-target="#accountSettingsModal"><span class="profile-menu-icon">◎</span> Account Settings</button>
           <button class="dropdown-item" id="change-password-menu-item" type="button"><span class="profile-menu-icon">🔒</span> Change Password</button>
           <div class="profile-menu-heading">Administration</div>
           <button class="dropdown-item" id="add-admin-menu-item" type="button"><span class="profile-menu-icon">➕</span> + Add New Admin Account</button>
@@ -1213,14 +1213,14 @@ function renderNavbar(user, active) {
       </div>
     </div>` : ''}
     ${user ? `
-    <div class="modal fade profile-modal" id="profile-settings-modal" tabindex="-1" aria-labelledby="profile-settings-title" aria-hidden="true">
+    <div class="modal fade profile-modal" id="accountSettingsModal" tabindex="-1" aria-labelledby="accountSettings-title" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-          <form id="profile-settings-form" novalidate>
+          <form id="accountSettingsForm" novalidate>
             <div class="modal-header">
               <div>
                 <span class="profile-modal-kicker">Account</span>
-                <h2 class="modal-title fs-5" id="profile-settings-title">Profile settings</h2>
+                <h2 class="modal-title fs-5" id="accountSettings-title">Account Settings</h2>
               </div>
               <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -1244,29 +1244,33 @@ function renderNavbar(user, active) {
                   <input class="form-control" type="text" id="profile-full-name" name="full_name" value="${escapeHtml(user.full_name || '')}" required />
                 </div>
                 <div class="profile-field-group">
-                  <label class="form-label" for="profile-admin-id">Admin ID</label>
-                  <input class="form-control" type="text" id="profile-admin-id" name="school_id" placeholder="ADMIN-0001" value="${escapeHtml(user.school_id || '')}" />
+                  <label class="form-label" for="profile-admin-id">ID Number</label>
+                  <input class="form-control" type="text" id="profile-admin-id" name="school_id" placeholder="ADMIN-0001" value="${escapeHtml(user.school_id || '')}" readonly disabled />
                 </div>
                 <div class="profile-field-group">
                   <label class="form-label" for="profile-email">Email</label>
-                  <input class="form-control" type="email" id="profile-email" name="email" placeholder="name@cspc.edu.ph or name@my.cspc.edu.ph" value="${escapeHtml(user.email || '')}" required />
+                  <input class="form-control" type="email" id="profile-email" name="email" placeholder="name@my.cspc.edu.ph" value="${escapeHtml(user.email || '')}" required />
                 </div>
                 <div class="profile-field-group">
                   <label class="form-label" for="profile-recovery-email">Recovery Email (Optional)</label>
-                  <input class="form-control" type="email" id="profile-recovery-email" name="recovery_email" placeholder="name@cspc.edu.ph or another inbox" value="${escapeHtml(user.recovery_email || '')}" />
+                  <input class="form-control" type="email" id="profile-recovery-email" name="recovery_email" placeholder="name@my.cspc.edu.ph" value="${escapeHtml(user.recovery_email || '')}" />
                 </div>
                 <div class="profile-field-group profile-field-full">
                   <label class="form-label" for="profile-permission-level">Permission Level</label>
-                  <select class="form-select" id="profile-permission-level" name="admin_level">
+                  <select class="form-select" id="profile-permission-level" name="admin_level" readonly disabled>
                     <option value="Assistant Admin"${user.admin_level === 'Assistant Admin' ? ' selected' : ''}>Assistant Admin</option>
                     <option value="Super Admin"${user.admin_level === 'Super Admin' ? ' selected' : ''}>Super Admin</option>
                   </select>
                 </div>
+                <div class="profile-field-group">
+                  <label class="form-label" for="profile-date-created">Date Created</label>
+                  <input class="form-control" type="text" id="profile-date-created" name="date_created" placeholder="Account creation date" value="${escapeHtml(user.created_at || '—')}" readonly disabled />
+                </div>
               </div>
             </div>
             <div class="modal-footer">
-              <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Cancel</button>
-              <button type="submit" class="btn btn-cspc" id="save-profile-btn">Save changes</button>
+              <button type="button" class="btn btn-outline-light" id="cancelAccountSettingsBtn">Cancel</button>
+              <button type="submit" class="btn btn-cspc" id="saveAccountSettingsBtn">Save changes</button>
             </div>
           </form>
         </div>
@@ -1359,7 +1363,7 @@ function renderNavbar(user, active) {
 
   const profileTrigger = document.getElementById('profile-settings-trigger');
   const profileDropdownWrap = document.querySelector('.profile-dropdown');
-  const profileModalEl = document.getElementById('profile-settings-modal');
+  const accountSettingsModalEl = document.getElementById('accountSettingsModal');
   if (profileTrigger && window.bootstrap) {
     const profileDropdown = bootstrap.Dropdown.getOrCreateInstance(profileTrigger);
 
@@ -1371,14 +1375,14 @@ function renderNavbar(user, active) {
       profileDropdown.toggle();
     });
 
-    // Profile Settings — only when the profile modal exists on this page.
-    const profileSettingsMenuItem = document.getElementById('profile-settings-menu-item');
-    if (profileSettingsMenuItem && profileModalEl) {
-      const profileModal = new bootstrap.Modal(profileModalEl);
-      profileSettingsMenuItem.addEventListener('click', (e) => {
+    // Account Settings — only when the modal exists on this page.
+    const accountSettingsMenuItem = document.getElementById('accountSettingsMenuItem');
+    if (accountSettingsMenuItem && accountSettingsModalEl) {
+      const accountSettingsModal = new bootstrap.Modal(accountSettingsModalEl);
+      accountSettingsMenuItem.addEventListener('click', (e) => {
         e.stopPropagation();
         profileDropdown.hide();
-        profileModal.show();
+        accountSettingsModal.show();
       });
     }
 
@@ -1404,20 +1408,23 @@ function renderNavbar(user, active) {
       }
     });
 
-    if (profileModalEl) {
-      const profileModal = new bootstrap.Modal(profileModalEl);
-      const profileSettingsForm = document.getElementById('profile-settings-form');
-      const saveProfileBtn = document.getElementById('save-profile-btn');
+    if (accountSettingsModalEl) {
+      const accountSettingsModal = new bootstrap.Modal(accountSettingsModalEl);
+      const accountSettingsForm = document.getElementById('accountSettingsForm');
+      const saveAccountSettingsBtn = document.getElementById('saveAccountSettingsBtn');
+      const cancelAccountSettingsBtn = document.getElementById('cancelAccountSettingsBtn');
+      const accountSettingsCloseBtn = accountSettingsModalEl.querySelector('.btn-close');
       const avatarInput = document.getElementById('profile-avatar-input');
       const previewImg = document.getElementById('profile-avatar-preview-img');
       const previewInitials = document.getElementById('profile-avatar-preview-initials');
-    if (profileSettingsForm && saveProfileBtn) {
-      profileModalEl.addEventListener('show.bs.modal', () => {
+    if (accountSettingsForm && saveAccountSettingsBtn) {
+      accountSettingsModalEl.addEventListener('show.bs.modal', () => {
         document.getElementById('profile-full-name').value = user.full_name || '';
         document.getElementById('profile-admin-id').value = user.school_id || '';
         document.getElementById('profile-email').value = user.email || '';
         document.getElementById('profile-recovery-email').value = user.recovery_email || '';
         document.getElementById('profile-permission-level').value = user.admin_level || 'Assistant Admin';
+        document.getElementById('profile-date-created').value = user.created_at || '—';
         const currentUrl = user && user.avatar_url;
         if (previewImg && previewInitials) {
           previewImg.src = currentUrl || '';
@@ -1438,10 +1445,10 @@ function renderNavbar(user, active) {
         previewInitials.hidden = true;
       });
 
-      profileSettingsForm.addEventListener('submit', async (event) => {
+      accountSettingsForm.addEventListener('submit', async (event) => {
         event.preventDefault();
-        saveProfileBtn.disabled = true;
-        saveProfileBtn.textContent = 'Saving…';
+        saveAccountSettingsBtn.disabled = true;
+        saveAccountSettingsBtn.textContent = 'Saving…';
         try {
           // Upload avatar first if a new file was selected
           let avatarUrl = user && user.avatar_url;
@@ -1460,7 +1467,7 @@ function renderNavbar(user, active) {
             admin_level: document.getElementById('profile-permission-level').value || null,
           };
           const result = await api('/api/profile', { method: 'PATCH', body: payload });
-          profileModal.hide();
+          accountSettingsModal.hide();
           toastOk(result.message || 'Profile updated.');
           if (result.user) {
             Object.assign(user, result.user);
@@ -1477,36 +1484,32 @@ function renderNavbar(user, active) {
         } catch (err) {
           toastError(err.message);
         } finally {
-          saveProfileBtn.disabled = false;
-          saveProfileBtn.textContent = 'Save changes';
+          saveAccountSettingsBtn.disabled = false;
+          saveAccountSettingsBtn.textContent = 'Save changes';
         }
       });
     }
 
-    /* ── Isolated Profile Settings modal button handlers ── */
-    const profileSaveBtn = document.getElementById('save-profile-btn');
-    const profileCancelBtn = profileModalEl.querySelector('.modal-footer .btn-outline-light');
-    const profileCloseBtn = profileModalEl.querySelector('.btn-close');
-
-    if (profileSaveBtn && profileSettingsForm) {
-      profileSaveBtn.addEventListener('click', (event) => {
+    /* ── Isolated Account Settings modal button handlers ── */
+    if (saveAccountSettingsBtn && accountSettingsForm) {
+      saveAccountSettingsBtn.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopImmediatePropagation();
-        console.log('[Profile Modal] Save changes clicked');
+        console.log('[Account Settings Modal] Save changes clicked');
 
         const emailInput = document.getElementById('profile-email');
         const recoveryEmailInput = document.getElementById('profile-recovery-email');
         let emailValid = true;
 
         if (emailInput && emailInput.value.trim() && !emailInput.value.trim().endsWith('@my.cspc.edu.ph')) {
-          console.warn('[Profile Modal] Invalid email domain:', emailInput.value.trim());
+          console.warn('[Account Settings Modal] Invalid email domain:', emailInput.value.trim());
           toastError('Please use your institutional email (@my.cspc.edu.ph).');
           emailInput.focus();
           emailValid = false;
         }
 
         if (recoveryEmailInput && recoveryEmailInput.value.trim() && !recoveryEmailInput.value.trim().endsWith('@my.cspc.edu.ph')) {
-          console.warn('[Profile Modal] Invalid recovery email domain:', recoveryEmailInput.value.trim());
+          console.warn('[Account Settings Modal] Invalid recovery email domain:', recoveryEmailInput.value.trim());
           toastError('Please use your institutional email (@my.cspc.edu.ph) for recovery email.');
           recoveryEmailInput.focus();
           emailValid = false;
@@ -1514,30 +1517,30 @@ function renderNavbar(user, active) {
 
         if (!emailValid) return;
 
-        console.log('[Profile Modal] Submitting profile form');
-        profileSettingsForm.requestSubmit();
+        console.log('[Account Settings Modal] Submitting account settings form');
+        accountSettingsForm.requestSubmit();
       });
     }
 
-    if (profileCancelBtn) {
-      profileCancelBtn.addEventListener('click', (event) => {
+    if (cancelAccountSettingsBtn) {
+      cancelAccountSettingsBtn.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopImmediatePropagation();
-        console.log('[Profile Modal] Cancel clicked');
-        profileModal.hide();
+        console.log('[Account Settings Modal] Cancel clicked');
+        accountSettingsModal.hide();
       });
     }
 
-    if (profileCloseBtn) {
-      profileCloseBtn.addEventListener('click', (event) => {
+    if (accountSettingsCloseBtn) {
+      accountSettingsCloseBtn.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopImmediatePropagation();
-        console.log('[Profile Modal] Close X clicked');
-        profileModal.hide();
+        console.log('[Account Settings Modal] Close X clicked');
+        accountSettingsModal.hide();
       });
     }
 
-    profileModalEl.addEventListener('hidden.bs.modal', () => {
+    accountSettingsModalEl.addEventListener('hidden.bs.modal', () => {
       avatarInput.value = '';
       const currentUrl = user && user.avatar_url;
       previewImg.src = currentUrl || '';
