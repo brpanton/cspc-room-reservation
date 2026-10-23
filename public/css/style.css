@@ -521,8 +521,6 @@ main.container {
 
 .profile-dropdown {
   margin-left: 0.75rem;
-  cursor: pointer;
-  pointer-events: auto;
 }
 
 .profile-dropdown .user-chip {
@@ -691,6 +689,7 @@ main.container {
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
+  pointer-events: none;
 }
 
 .profile-modal .modal-header {
@@ -1421,6 +1420,7 @@ main.container {
   border-radius: 999px;
   border: 1px solid transparent;
   white-space: nowrap;
+  pointer-events: none;
 }
 
 .role-student   { background: rgba(59, 130, 246, 0.16); color: #93c5fd; border-color: rgba(96, 165, 250, 0.34); }

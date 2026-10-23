@@ -1105,7 +1105,7 @@ function renderNavbar(user, active) {
   const userArea = user
     ? `
       <div class="profile-dropdown d-flex align-items-center">
-        <div class="user-chip" role="button" id="profile-settings-trigger" aria-label="Open profile menu" tabindex="0">
+        <div class="user-chip">
           <span class="avatar-shell" aria-hidden="true">
             <span class="avatar-initials" id="navbar-avatar-initials"${avatarUrl ? ' hidden' : ''}>${escapeHtml(initials)}</span>
             <img class="user-avatar-img" id="navbar-avatar-img" src="${avatarUrl}" alt=""${avatarUrl ? '' : ' hidden'} />
@@ -1114,9 +1114,9 @@ function renderNavbar(user, active) {
             <span class="user-chip-name">${escapeHtml(user.full_name)}</span>
             ${roleBadge(user.role)}
           </span>
-          </div>
+        </div>
         <button class="profile-chevron-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Open profile menu">▾</button>
-        <div class="dropdown-menu dropdown-menu-end profile-menu" aria-labelledby="profile-settings-trigger">
+        <div class="dropdown-menu dropdown-menu-end profile-menu">
           <div class="profile-menu-heading">Your account</div>
           <button class="dropdown-item" id="accountSettingsMenuItem" type="button" data-bs-toggle="modal" data-bs-target="#accountSettingsModal"><span class="profile-menu-icon">◎</span> Account Settings</button>
           <button class="dropdown-item" id="change-password-menu-item" type="button"><span class="profile-menu-icon">🔒</span> Change Password</button>
@@ -1361,19 +1361,10 @@ function renderNavbar(user, active) {
     });
   }
 
-  const profileTrigger = document.getElementById('profile-settings-trigger');
   const profileDropdownWrap = document.querySelector('.profile-dropdown');
   const accountSettingsModalEl = document.getElementById('accountSettingsModal');
-  if (profileTrigger && window.bootstrap) {
-    const profileDropdown = bootstrap.Dropdown.getOrCreateInstance(profileTrigger);
-
-    // Toggle dropdown when clicking the entire profile chip (avatar + name),
-    // but let the chevron button's own data-bs-toggle handle its own clicks.
-    profileDropdownWrap?.addEventListener('click', (event) => {
-      const chevron = event.target.closest('.profile-chevron-btn');
-      if (chevron) return; // chevron already toggles via data-bs-toggle
-      profileDropdown.toggle();
-    });
+  if (profileDropdownWrap && window.bootstrap) {
+    const profileDropdown = bootstrap.Dropdown.getOrCreateInstance(document.querySelector('.profile-chevron-btn'));
 
     // Account Settings — only when the modal exists on this page.
     const accountSettingsMenuItem = document.getElementById('accountSettingsMenuItem');
