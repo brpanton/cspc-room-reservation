@@ -1483,6 +1483,60 @@ function renderNavbar(user, active) {
       });
     }
 
+    /* ── Isolated Profile Settings modal button handlers ── */
+    const profileSaveBtn = document.getElementById('save-profile-btn');
+    const profileCancelBtn = profileModalEl.querySelector('.modal-footer .btn-outline-light');
+    const profileCloseBtn = profileModalEl.querySelector('.btn-close');
+
+    if (profileSaveBtn && profileSettingsForm) {
+      profileSaveBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        console.log('[Profile Modal] Save changes clicked');
+
+        const emailInput = document.getElementById('profile-email');
+        const recoveryEmailInput = document.getElementById('profile-recovery-email');
+        let emailValid = true;
+
+        if (emailInput && emailInput.value.trim() && !emailInput.value.trim().endsWith('@my.cspc.edu.ph')) {
+          console.warn('[Profile Modal] Invalid email domain:', emailInput.value.trim());
+          toastError('Please use your institutional email (@my.cspc.edu.ph).');
+          emailInput.focus();
+          emailValid = false;
+        }
+
+        if (recoveryEmailInput && recoveryEmailInput.value.trim() && !recoveryEmailInput.value.trim().endsWith('@my.cspc.edu.ph')) {
+          console.warn('[Profile Modal] Invalid recovery email domain:', recoveryEmailInput.value.trim());
+          toastError('Please use your institutional email (@my.cspc.edu.ph) for recovery email.');
+          recoveryEmailInput.focus();
+          emailValid = false;
+        }
+
+        if (!emailValid) return;
+
+        console.log('[Profile Modal] Submitting profile form');
+        profileSettingsForm.requestSubmit();
+      });
+    }
+
+    if (profileCancelBtn) {
+      profileCancelBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        console.log('[Profile Modal] Cancel clicked');
+        profileModal.hide();
+      });
+    }
+
+    if (profileCloseBtn) {
+      profileCloseBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        console.log('[Profile Modal] Close X clicked');
+        profileModal.hide();
+      });
+    }
+
     profileModalEl.addEventListener('hidden.bs.modal', () => {
       avatarInput.value = '';
       const currentUrl = user && user.avatar_url;
