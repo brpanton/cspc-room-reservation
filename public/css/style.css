@@ -465,8 +465,8 @@ main.container {
   background: transparent;
   text-align: left;
   font: inherit;
-  cursor: pointer;
-  pointer-events: auto;
+  cursor: default;
+  pointer-events: none;
   transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
