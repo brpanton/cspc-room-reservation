@@ -1366,6 +1366,16 @@ function renderNavbar(user, active) {
   if (profileDropdownWrap && window.bootstrap) {
     const profileDropdown = bootstrap.Dropdown.getOrCreateInstance(document.querySelector('.profile-chevron-btn'));
 
+    // User chip (avatar + name + badge) click opens Account Settings modal directly
+    const userChip = document.querySelector('.user-chip');
+    if (userChip && accountSettingsModalEl) {
+      const accountSettingsModal = new bootstrap.Modal(accountSettingsModalEl);
+      userChip.addEventListener('click', (e) => {
+        e.stopPropagation();
+        accountSettingsModal.show();
+      });
+    }
+
     // Account Settings — only when the modal exists on this page.
     const accountSettingsMenuItem = document.getElementById('accountSettingsMenuItem');
     if (accountSettingsMenuItem && accountSettingsModalEl) {
