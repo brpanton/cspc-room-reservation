@@ -2793,6 +2793,28 @@ main.container {
 .home-status-dot.is-limited   { background: #facc15; box-shadow: 0 0 10px rgba(250, 204, 21, 0.8); }
 .home-status-dot.is-occupied  { background: #f87171; box-shadow: 0 0 10px rgba(248, 113, 113, 0.8); }
 
+/* ------------------------------------- lab equipment & occupancy --- */
+.home-equipment { display: flex; gap: 0.5rem; margin: 0.5rem 0 0.75rem; }
+.home-equip-icon { width: 1.5rem; height: 1.5rem; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem; border-radius: 8px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12); }
+
+.home-status-occ { display: flex; align-items: center; gap: 0.5rem; margin: 0.75rem 0 0; font-size: 0.72rem; color: var(--cspc-muted); }
+.home-status-occ-label { flex: 0 0 auto; font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.home-status-occ-bar { flex: 1; height: 0.5rem; background: rgba(255, 255, 255, 0.08); border-radius: 999px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.06); }
+.home-status-occ-fill { height: 100%; border-radius: 999px; transition: width 0.5s ease; }
+.home-status-occ-fill.is-available { background: #4ade80; }
+.home-status-occ-fill.is-limited   { background: #facc15; }
+.home-status-occ-fill.is-occupied  { background: #f87171; }
+.home-status-occ-pct { flex: 0 0 auto; font-size: 0.68rem; font-weight: 700; }
+
+.home-status-action { margin-top: auto; width: 100%; text-align: center; }
+
+@media (max-width: 767.98px) {
+  .home-status-card { padding: 0.9rem 1rem; }
+  .home-status-occ { font-size: 0.68rem; }
+  .home-status-occ-bar { height: 0.4rem; }
+}
+
+
 /* ---------------------------------------------------- how it works --- */
 .home-how {
   margin: 0 0 4rem;

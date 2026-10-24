@@ -941,22 +941,65 @@
 
   const statusGrid = document.getElementById('home-status-grid');
 
-  function statusCard(room, dateValue, slot) {
-    const status = roomStatus(room, dateValue, slot);
-    const type = P.ROOM_TYPE_LABELS[room.room_type] || room.room_type || 'Space';
-    const meta = [room.building_name, room.capacity ? `Seats ${room.capacity}` : '']
-      .filter(Boolean).map(P.escapeHtml).join(' · ');
-    return `
-      <article class="home-status-card is-${status.tone}">
-        <div class="home-status-card-top">
-          <span class="home-status-badge is-${status.tone}">${P.escapeHtml(status.label)}</span>
-          <span class="home-status-type">${P.escapeHtml(type)}</span>
+/* Equipment icon labels mapped to room boolean fields. */
+const EQUIPMENT_ICONS = [
+  { key: 'has_projector', label: 'Projector', icon: '📽️' },
+  { key: 'has_aircon',      label: 'AirCon',      icon: '❄️' },
+  { key: 'has_sound',       label: 'Sound System',icon: '🔊' }
+];
+
+/** Occupancy % for today: minutes booked / minutes in operating day (7am-7pm = 720 min). */
+function occupancyPct(room) {
+  const bookings = room.bookings || [];
+  const today = P.todayIso();
+  const bookedMinutes = bookings.reduce((sum, b) => {
+    if (b.res_date !== today) return sum;
+    const bs = minutesFromValue(b.start_time);
+    const be = minutesFromValue(b.end_time);
+    return bs !== null && be !== null ? sum + (be - bs) : sum;
+  }, 0);
+  return Math.round((bookedMinutes / 720) * 100);
+}
+
+function equipmentHtml(room) {
+  const icons = EQUIPMENT_ICONS
+    .filter((eq) => room[eq.key])
+    .map((eq) => `<span class="home-equip-icon" title="${P.escapeHtml(eq.label)}">${eq.icon}</span>`)
+    .join('');
+  return icons ? `<div class="home-equipment">${icons}</div>` : '';
+}
+
+function statusCard(room, dateValue, slot) {
+  const status = roomStatus(room, dateValue, slot);
+  const type = P.ROOM_TYPE_LABELS[room.room_type] || room.room_type || 'Space';
+  const meta = [room.building_name, room.capacity ? `Seats ${room.capacity}` : '']
+    .filter(Boolean).map(P.escapeHtml).join(' · ');
+  const occ = occupancyPct(room);
+  const equip = equipmentHtml(room);
+  const actionText = status.tone === 'available' ? 'Reserve Space' : 'View Timetable';
+  const actionHref = status.tone === 'available'
+    ? `/reservation-form.html?room_id=${room.id}&date=${encodeURIComponent(dateValue || P.todayIso())}`
+    : `/rooms-status.html`;
+  return `
+    <article class="home-status-card is-${status.tone}">
+      <div class="home-status-card-top">
+        <span class="home-status-badge is-${status.tone}">${P.escapeHtml(status.label)}</span>
+        <span class="home-status-type">${P.escapeHtml(type)}</span>
+      </div>
+      <h3>${P.escapeHtml(room.name)}</h3>
+      <p class="home-status-meta">${meta}</p>
+      ${equip}
+      <div class="home-status-occ">
+        <span class="home-status-occ-label">Occupancy</span>
+        <div class="home-status-occ-bar">
+          <div class="home-status-occ-fill is-${status.tone}" style="width: ${occ}%"></div>
         </div>
-        <h3>${P.escapeHtml(room.name)}</h3>
-        <p class="home-status-meta">${meta}</p>
-        <div class="home-status-foot">${P.escapeHtml(status.detail)}</div>
-      </article>`;
-  }
+        <span class="home-status-occ-pct">${occ}%</span>
+      </div>
+      <div class="home-status-foot">${P.escapeHtml(status.detail)}</div>
+      <a href="${actionHref}" class="home-status-action btn btn-sm btn-${status.tone === 'available' ? 'cspc' : 'outline-cspc'}">${P.escapeHtml(actionText)}</a>
+    </article>`;
+}
 
   /** Labs and halls first, then the busiest rooms - our "high-demand" pick. */
   function highlightRooms(rooms) {
@@ -968,15 +1011,17 @@
       .slice(0, 6);
   }
 
-  async function loadLiveStatus() {
+  async function loadLiveStatus(dateOverride, slotOverride, buildingIdOverride) {
     if (!statusGrid) return;
     try {
-      const date = P.todayIso();
-      const data = await P.api(`/api/availability?date=${date}`);
+      const date = dateOverride || P.todayIso();
+      const params = new URLSearchParams({ date });
+      if (buildingIdOverride) params.set('building_id', buildingIdOverride);
+      const data = await P.api(`/api/availability?${params.toString()}`);
       const rooms = data.rooms || [];
       const highlights = highlightRooms(rooms);
       statusGrid.innerHTML = highlights.length
-        ? highlights.map((room) => statusCard(room, date, null)).join('')
+        ? highlights.map((room) => statusCard(room, date, slotOverride)).join('')
         : '<div class="home-status-loading">No active rooms to show right now.</div>';
       // Dynamic counter for the floating hero badge: count rooms with no bookings today.
       const openRooms = rooms.filter((room) => (room.bookings || []).length === 0);
@@ -1031,6 +1076,8 @@
           `<div class="home-search-chips">${chips}${extra}</div>`;
       }
       searchResult.hidden = false;
+      // Also refresh the live status grid with the same filters
+      loadLiveStatus(date, slot, searchBuilding?.value || undefined);
     } catch (err) {
       P.toastError(`Could not check availability: ${err.message}`);
     } finally {

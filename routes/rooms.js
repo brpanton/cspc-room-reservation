@@ -167,6 +167,7 @@ router.get('/availability', async (req, res, next) => {
 
     const { rows: roomRows } = await pool.query(
       `SELECT r.id, r.name, r.room_type, r.capacity, r.floor, r.image_url,
+              r.has_projector, r.has_aircon, r.has_sound,
               b.id AS building_id, b.name AS building_name
        FROM rooms r
        JOIN buildings b ON b.id = r.building_id
