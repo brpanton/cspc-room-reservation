@@ -287,6 +287,7 @@
       modal.hide();
       await loadList();
     } catch (err) {
+      if (err.message === 'Reservation not found.') return;
       toastError(err.message);
     } finally {
       busy(decisionConfirm, false);
@@ -301,6 +302,7 @@
       P.broadcastAvailabilityChange();
       await loadList();
     } catch (err) {
+      if (err.message === 'Reservation not found.') return;
       toastError(err.message);
     }
   }
