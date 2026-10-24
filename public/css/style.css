@@ -2808,6 +2808,60 @@ main.container {
 
 .home-status-action { margin-top: auto; width: 100%; text-align: center; }
 
+/* ------------------------------------- two-category layout --- */
+.home-status-category { margin-bottom: 1.5rem; }
+
+.home-status-category-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.home-status-grid-inner {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.home-status-empty {
+  grid-column: 1 / -1;
+  padding: 1.25rem;
+  border: 1px dashed rgba(147, 197, 253, 0.24);
+  border-radius: 15px;
+  color: #9aadc7;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.home-status-roomcode {
+  float: right;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--cspc-muted);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.home-status-remark {
+  margin: 0.5rem 0 0.75rem;
+  font-size: 0.75rem;
+  color: var(--cspc-muted);
+  font-style: italic;
+}
+
+@media (max-width: 767.98px) {
+  .home-status-grid-inner { grid-template-columns: 1fr; }
+}
+
+
 @media (max-width: 767.98px) {
   .home-status-card { padding: 0.9rem 1rem; }
   .home-status-occ { font-size: 0.68rem; }
