@@ -1162,8 +1162,8 @@ function renderNavbar(user, active) {
           <ul class="navbar-nav portal-nav-links mb-2 mb-lg-0 ${user ? 'portal-nav-authenticated' : 'portal-nav-public'}">${navLinks}</ul>
           <div class="navbar-search ms-lg-auto d-flex align-items-center">
             <div class="search-wrapper position-relative" style="max-width: 340px; width: 100%;">
-              <span class="search-icon" aria-hidden="true">🔍</span>
               <input type="search" id="building-search" class="building-search-input" placeholder="Search buildings…" aria-label="Search buildings" autocomplete="off" />
+              <span class="search-icon" aria-hidden="true">🔍</span>
               <div id="building-search-results" class="building-search-dropdown"></div>
             </div>
           </div>
