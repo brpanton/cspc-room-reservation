@@ -1115,7 +1115,7 @@ function renderNavbar(user, active) {
             ${roleBadge(user.role)}
           </span>
         </div>
-        <button class="profile-chevron-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Open profile menu">▾</button>
+        <button class="profile-chevron-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Open profile menu"></button>
         <div class="dropdown-menu dropdown-menu-end profile-menu">
           <div class="profile-menu-heading">Your account</div>
           <button class="dropdown-item" id="accountSettingsMenuItem" type="button" data-bs-toggle="modal" data-bs-target="#accountSettingsModal"><span class="profile-menu-icon">◎</span> Account Settings</button>
