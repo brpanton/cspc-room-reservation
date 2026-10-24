@@ -577,7 +577,7 @@
           const resCount = Number(building.total_reservations ?? 0);
           const sub = building.location || (resCount > 0 ? `${resCount} reservation${resCount === 1 ? '' : 's'} booked` : 'CSPC campus');
           const bgImage = BUILDING_BACKGROUNDS[name] || '';
-          const cardStyle = bgImage ? `style="background-image: linear-gradient(145deg, rgba(7, 14, 27, 0.78), rgba(5, 8, 15, 0.85)), url('${bgImage}'); background-size: cover; background-position: center;"` : '';
+          const cardStyle = bgImage ? `style="background-image: linear-gradient(145deg, rgba(7, 14, 27, 0.45), rgba(5, 8, 15, 0.55)), url('${bgImage}'); background-size: cover; background-position: center;"` : '';
           return `
         <div class="col-md-4 home-building-col">
           <article class="home-building-card" ${cardStyle}>
