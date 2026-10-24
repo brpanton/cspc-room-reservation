@@ -1017,15 +1017,19 @@ function statusCard(room, dateValue, slot, remark) {
   const type = P.ROOM_TYPE_LABELS[room.room_type] || room.room_type || "Laboratory";
   const roomCode = `L-${String(room.id).padStart(3, "0")}`;
   const meta = [room.building_name, room.capacity ? `Seats ${room.capacity}` : ""]
-    .filter(Boolean).map(P.escapeHtml).join(" Â· ");
+    .filter(Boolean).map(P.escapeHtml).join(" · ");
   const occ = occupancyPct(room);
   const equip = equipmentHtml(room);
+  const buildingImg = room.image_url
+    ? `<img class="home-status-building-img" src="${P.escapeHtml(room.image_url)}" alt="${P.escapeHtml(room.building_name)} building" loading="lazy">`
+    : `<div class="home-status-building-img home-status-building-placeholder"><span class="home-status-building-icon">🏛️</span></div>`;
   const actionText = status.tone === "available" ? "Reserve Now" : "View Schedule";
   const actionHref = status.tone === "available"
     ? `/reservation-form.html?room_id=${room.id}&date=${encodeURIComponent(dateValue || P.todayIso())}`
     : `/rooms-status.html`;
   return `
     <article class="home-status-card is-${status.tone}">
+      ${buildingImg}
       <div class="home-status-card-top">
         <span class="home-status-badge is-${status.tone}">${P.escapeHtml(status.label)}</span>
         <span class="home-status-type">${P.escapeHtml(type)}</span>
