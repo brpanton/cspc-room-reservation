@@ -120,9 +120,8 @@
   // Conditional greeting: brand-new account -> "Welcome, [Name]!",
   // returning user -> "Welcome back, [Name]!". Avatar, eyebrow label,
   // subtitle and "System online" badge stay untouched.
-  titleEl.textContent = user.isFirstLogin
-    ? `Welcome, ${user.full_name}!`
-    : `Welcome back, ${user.full_name}!`;
+  const usernameEl = document.getElementById('welcome-username');
+  if (usernameEl) usernameEl.textContent = user.full_name;
   subtitleEl.textContent = isStaff
     ? 'Review and act on reservation requests across all rooms.'
     : 'Track the status of your own room reservation requests.';

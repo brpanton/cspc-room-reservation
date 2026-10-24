@@ -4731,14 +4731,16 @@ body[data-login-page="admin"] .admin-page-support {
 }
 
 /* Neutralize legacy color variants — hooks kept, rendered as glass. */
-.stat-pending   { border-top-color: rgba(255, 255, 255, 0.1); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); }
-.stat-approved  { border-top-color: rgba(255, 255, 255, 0.1); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); }
-.stat-rejected  { border-top-color: rgba(255, 255, 255, 0.1); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); }
-.stat-cancelled { border-top-color: rgba(255, 255, 255, 0.1); }
+.stat-total   { border-color: #3b82f6; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), 0 0 24px rgba(59, 130, 246, 0.3); }
+.stat-pending   { border-color: #facc15; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), 0 0 24px rgba(250, 204, 21, 0.3); }
+.stat-approved  { border-color: #4ade80; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), 0 0 24px rgba(74, 222, 128, 0.3); }
+.stat-rejected  { border-color: #f87171; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), 0 0 24px rgba(248, 113, 113, 0.3); }
+.stat-cancelled { border-color: rgba(255, 255, 255, 0.1); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); }
 
-.stat-pending::after   { background: none; }
-.stat-approved::after  { background: none; }
-.stat-rejected::after  { background: none; }
+.stat-total::after   { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at top, rgba(59, 130, 246, 0.12), transparent 60%); pointer-events: none; }
+.stat-pending::after   { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at top, rgba(250, 204, 21, 0.12), transparent 60%); pointer-events: none; }
+.stat-approved::after  { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at top, rgba(74, 222, 128, 0.12), transparent 60%); pointer-events: none; }
+.stat-rejected::after  { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at top, rgba(248, 113, 113, 0.12), transparent 60%); pointer-events: none; }
 
 /* Hide legacy progress bar; percentage now lives in .stat-sub. */
 .stat-card .mini-progress { display: none; }
