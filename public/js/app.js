@@ -1115,7 +1115,7 @@ function renderNavbar(user, active) {
             ${roleBadge(user.role)}
           </span>
         </div>
-        <button class="profile-chevron-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Open profile menu"></button>
+        <button class="profile-chevron-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Open profile menu">▾</button>
         <div class="dropdown-menu dropdown-menu-end profile-menu">
           <div class="profile-menu-heading">Your account</div>
           <button class="dropdown-item" id="accountSettingsMenuItem" type="button" data-bs-toggle="modal" data-bs-target="#accountSettingsModal"><span class="profile-menu-icon">◎</span> Account Settings</button>
@@ -1372,6 +1372,17 @@ function renderNavbar(user, active) {
   const accountSettingsModalEl = document.getElementById('accountSettingsModal');
   if (profileDropdownWrap && window.bootstrap) {
     const profileDropdown = bootstrap.Dropdown.getOrCreateInstance(document.querySelector('.profile-chevron-btn'));
+
+    // Make the entire user chip (avatar + name + role badge) clickable to open
+    // the profile dropdown — works for both admins and regular users.
+    const userChip = document.querySelector('.user-chip');
+    if (userChip) {
+      userChip.addEventListener('click', (e) => {
+        // Don't trigger if clicking inside a dropdown item or modal trigger
+        if (e.target.closest('[data-bs-toggle="modal"]')) return;
+        profileDropdown.toggle();
+      });
+    }
 
     // Account Settings — only when the modal exists on this page.
     const accountSettingsMenuItem = document.getElementById('accountSettingsMenuItem');
