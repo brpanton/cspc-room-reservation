@@ -591,6 +591,101 @@
       : '<div class="col-12"><div class="home-building-loading">Campus building information will appear here soon.</div></div>';
   }
 
+  /* --------------------------------------------- building search --- */
+
+  const searchInput = document.getElementById('building-search');
+  const searchResults = document.getElementById('building-search-results');
+
+  if (searchInput && buildingHost) {
+    let debounceTimer = null;
+    let buildingCols = [];
+
+    function refreshBuildingCols() {
+      buildingCols = buildingHost ? Array.from(buildingHost.querySelectorAll('.home-building-col')) : [];
+    }
+
+    function filterBuildings(query) {
+      const q = query.toLowerCase().trim();
+      let visibleCount = 0;
+
+      refreshBuildingCols();
+      buildingCols.forEach((col) => {
+        const card = col.querySelector('.home-building-card');
+        const title = card ? card.querySelector('h3') : null;
+        const name = title ? title.textContent.toLowerCase() : '';
+        const match = q === '' || name.includes(q);
+        col.style.display = match ? '' : 'none';
+        if (match) visibleCount++;
+      });
+
+      const existingEmpty = buildingHost.querySelector('.home-building-empty');
+      if (existingEmpty) existingEmpty.remove();
+
+      if (q !== '' && visibleCount === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'col-12 home-building-empty';
+        empty.innerHTML = `<div class="home-building-loading">No buildings match "${P.escapeHtml(query)}"</div>`;
+        buildingHost.appendChild(empty);
+      }
+    }
+
+    function showAutocomplete(query) {
+      const q = query.toLowerCase().trim();
+      if (!q) {
+        searchResults.innerHTML = '';
+        searchResults.classList.remove('show');
+        return;
+      }
+
+      const matches = buildings
+        .filter((b) => (b.building_name || b.name || '').toLowerCase().includes(q))
+        .slice(0, 5);
+
+      if (matches.length === 0) {
+        searchResults.innerHTML = '<div class="search-dropdown-item text-muted">No matching buildings</div>';
+        searchResults.classList.add('show');
+        return;
+      }
+
+      searchResults.innerHTML = matches
+        .map((b) => {
+          const name = b.building_name || b.name;
+          return `<button class="search-dropdown-item" type="button" data-name="${P.escapeHtml(name)}">${P.escapeHtml(name)}</button>`;
+        })
+        .join('');
+      searchResults.classList.add('show');
+    }
+
+    searchInput.addEventListener('input', (e) => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        const q = e.target.value;
+        filterBuildings(q);
+        showAutocomplete(q);
+      }, 150);
+    });
+
+    searchInput.addEventListener('focus', () => {
+      if (searchInput.value.trim()) showAutocomplete(searchInput.value);
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+        searchResults.classList.remove('show');
+      }
+    });
+
+    searchResults.addEventListener('click', (e) => {
+      const item = e.target.closest('.search-dropdown-item');
+      if (item) {
+        const name = item.getAttribute('data-name');
+        searchInput.value = name;
+        searchResults.classList.remove('show');
+        filterBuildings(name);
+      }
+    });
+  }
+
   /* -------------------------------------- buildings expand / collapse --- */
 
   const buildingsToggle = document.getElementById('home-buildings-toggle');

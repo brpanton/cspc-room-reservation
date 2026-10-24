@@ -323,6 +323,111 @@ main.container {
   margin-left: auto;
 }
 
+/* ------------------------------------------------ building search --- */
+.navbar-search {
+  padding: 0.15rem 0.75rem;
+}
+
+.search-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  color: rgba(147, 197, 253, 0.65);
+  font-size: 1.15rem;
+  margin-right: 0.5rem;
+  pointer-events: none;
+  user-select: none;
+}
+
+.building-search-input {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  color: #fff;
+  padding: 0.5rem 1rem 0.5rem 2.5rem;
+  font-size: 0.875rem;
+  width: 100%;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.building-search-input::placeholder {
+  color: rgba(147, 197, 253, 0.5);
+}
+
+.building-search-input:focus {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: #3b82f6;
+  outline: none;
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.25), 0 0 0 4px rgba(59, 130, 246, 0.15);
+}
+
+.building-search-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 0.4rem;
+  background: rgba(7, 14, 27, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(16px);
+  z-index: 1050;
+  display: none;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.building-search-dropdown.show {
+  display: block;
+}
+
+.search-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 0.65rem 1rem;
+  color: #e8f0fb;
+  text-decoration: none;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background 0.15s ease;
+}
+
+.search-dropdown-item:hover,
+.search-dropdown-item:focus {
+  background: rgba(59, 130, 246, 0.15);
+  color: #fff;
+  outline: none;
+}
+
+.search-dropdown-item + .search-dropdown-item {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.search-dropdown-item.text-muted {
+  padding: 0.65rem 1rem;
+  color: rgba(147, 197, 253, 0.5);
+}
+
+.home-building-empty {
+  text-align: center;
+  padding: 2rem;
+  color: rgba(147, 197, 253, 0.5);
+}
+
+/* Hide search on small screens; it lives in the collapsed menu instead */
+@media (max-width: 991.98px) {
+  .navbar-search {
+    display: none;
+  }
+}
+
 @media (min-width: 992px) {
   .portal-navbar #portalNav.portal-nav-collapse {
     display: flex;
