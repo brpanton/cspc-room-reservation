@@ -106,10 +106,16 @@
   const listTitleEl = document.getElementById('list-title');
   const heroAvatarImg = document.getElementById('dashboard-avatar-img');
   const heroAvatarInitials = document.getElementById('dashboard-avatar-initials');
-  const avatarInitials = String(user.full_name || '?').trim().split(/\s+/)
-    .slice(0, 2).map((part) => part.charAt(0)).join('').toUpperCase();
+  // Resolve display name with fallback chain: API full_name -> API name -> "User"
+  const displayName = String(user.full_name || user.name || 'User').trim();
+  const avatarInitials = displayName
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.charAt(0))
+    .join('')
+    .toUpperCase() || 'U';
 
-  if (heroAvatarInitials) heroAvatarInitials.textContent = avatarInitials || '?';
+  if (heroAvatarInitials) heroAvatarInitials.textContent = avatarInitials;
   if (heroAvatarImg && user.avatar_url) {
     heroAvatarImg.src = user.avatar_url;
     heroAvatarImg.hidden = false;
@@ -128,7 +134,7 @@
   // returning user -> "Welcome back, [Name]!". Avatar, eyebrow label,
   // subtitle and "System online" badge stay untouched.
   const usernameEl = document.getElementById('welcome-username');
-  if (usernameEl) usernameEl.textContent = user.full_name;
+  if (usernameEl) usernameEl.textContent = displayName;
   subtitleEl.textContent = isStaff
     ? 'Review and act on reservation requests across all rooms.'
     : 'Track the status of your own room reservation requests.';
@@ -484,5 +490,7 @@
     }
   }
 
+  renderActivityFeed();
+  renderMiniCalendar();
   await Promise.all([loadStats(), loadList(), loadLabStatus()]);
 });
