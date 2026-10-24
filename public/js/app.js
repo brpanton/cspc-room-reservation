@@ -1163,7 +1163,9 @@ function renderNavbar(user, active) {
           <div class="navbar-search ms-lg-auto d-flex align-items-center">
             <div class="search-wrapper position-relative" style="max-width: 340px; width: 100%;">
               <input type="search" id="building-search" class="building-search-input" placeholder="Search buildings…" aria-label="Search buildings" autocomplete="off" />
-              <span class="search-icon" aria-hidden="true">🔍</span>
+              <span class="search-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              </span>
               <div id="building-search-results" class="building-search-dropdown"></div>
             </div>
           </div>
