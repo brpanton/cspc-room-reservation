@@ -1012,6 +1012,107 @@ function generateRemark(room, status) {
   return "Fully Booked until 5:00 PM";
 }
 
+/* ------------------------------------- reactive lab state ------ */
+/** Live, reactive mirror of the high-demand lab cards.
+ *  Kept in sync with the backend on every page load and after any
+ *  booking transaction so the cards toggle Available <-> Occupied
+ *  without a page reload. */
+let labState = []; // { room, tone, remark, occ, date, slot }
+
+/** Build the reactive state array from a raw room list. */
+function buildLabState(rooms, dateValue, slot) {
+  return rooms.map((room) => {
+    const status = roomStatus(room, dateValue, slot);
+    return {
+      room,
+      tone: status.tone,
+      remark: generateRemark(room, status),
+      occ: occupancyPct(room),
+      date: dateValue,
+      slot
+    };
+  });
+}
+
+/** Render the reactive lab state into the status grid: 3 available + 3 occupied. */
+function renderLabState() {
+  if (!statusGrid) return;
+  const available = labState.filter((s) => s.tone === 'available' || s.tone === 'limited').slice(0, 3);
+  const occupied = labState.filter((s) => s.tone === 'occupied').slice(0, 3);
+
+  const availableHtml = available.length
+    ? '<div class="home-status-category">' +
+      '<h4 class="home-status-category-title">🟢 Top 3 Available Laboratories</h4>' +
+      '<div class="home-status-grid-inner">' + available.map((s) => statusCard(s.room, s.date, s.slot, s.remark)).join('') + '</div>' +
+      '</div>'
+    : '<div class="home-status-empty">No available laboratories right now.</div>';
+
+  const occupiedHtml = occupied.length
+    ? '<div class="home-status-category">' +
+      '<h4 class="home-status-category-title">🔴 Top 3 Occupied Laboratories</h4>' +
+      '<div class="home-status-grid-inner">' + occupied.map((s) => statusCard(s.room, s.date, s.slot, s.remark)).join('') + '</div>' +
+      '</div>'
+    : '<div class="home-status-empty">No occupied laboratories right now.</div>';
+
+  statusGrid.innerHTML = (available.length || occupied.length)
+    ? availableHtml + occupiedHtml
+    : '<div class="home-status-loading">No active rooms to show right now.</div>';
+
+  attachLabActionHandlers();
+}
+
+/** Attach click handlers to lab action buttons. */
+function attachLabActionHandlers() {
+  document.querySelectorAll('.home-lab-action').forEach((btn) => {
+    const clone = btn.cloneNode(true);
+    btn.parentNode.replaceChild(clone, btn);
+  });
+  document.querySelectorAll('.home-lab-action').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const roomId = Number(btn.dataset.roomId);
+      const action = btn.dataset.action;
+      if (action === 'book') openLabBookingModal(roomId);
+      else window.location.href = '/rooms-status.html';
+    });
+  });
+}
+
+/** Open the inline booking drawer pre-filled with a lab. */
+function openLabBookingModal(roomId) {
+  const state = labState.find((s) => s.room.id === roomId);
+  if (!state) return;
+  const { room } = state;
+  document.getElementById('lab-booking-room-id').value = room.id;
+  document.getElementById('lab-booking-room-field').value = room.name;
+  document.getElementById('lab-booking-building-field').value = room.building_name;
+  document.getElementById('lab-booking-capacity-field').value = room.capacity || '-';
+  document.getElementById('lab-booking-date').value = P.todayIso();
+  document.getElementById('lab-booking-purpose').value = '';
+  document.getElementById('lab-booking-alert').classList.add('d-none');
+  const modalEl = document.getElementById('lab-booking-modal');
+  const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+  modal.show();
+}
+
+/** Refresh the live lab status from the backend (reactive re-render). */
+async function refreshLabStatus() {
+  if (!statusGrid) return;
+  try {
+    const date = P.todayIso();
+    const params = new URLSearchParams({ date });
+    const data = await P.api(`/api/availability?${params.toString()}`);
+    const rooms = data.rooms || [];
+    labState = buildLabState(rooms, date, null);
+    renderLabState();
+    const openRooms = rooms.filter((room) => (room.bookings || []).length === 0);
+    const openCount = openRooms.length;
+    const heroCount = document.getElementById('hero-rooms-count');
+    if (heroCount) heroCount.textContent = openCount > 0 ? `${openCount} Room${openCount === 1 ? '' : 's'} Available Now` : 'Checking Live Availability…';
+  } catch {
+    statusGrid.innerHTML = '<div class="home-status-loading">Live availability is temporarily unavailable.</div>';
+  }
+}
+
 function statusCard(room, dateValue, slot, remark) {
   const status = roomStatus(room, dateValue, slot);
   const type = P.ROOM_TYPE_LABELS[room.room_type] || room.room_type || "Laboratory";
@@ -1021,31 +1122,36 @@ function statusCard(room, dateValue, slot, remark) {
   const occ = occupancyPct(room);
   const equip = equipmentHtml(room);
   const buildingImg = room.image_url
-    ? `<img class="home-status-building-img" src="${P.escapeHtml(room.image_url)}" alt="${P.escapeHtml(room.building_name)} building" loading="lazy">`
-    : `<div class="home-status-building-img home-status-building-placeholder"><span class="home-status-building-icon">🏛️</span></div>`;
-  const actionText = status.tone === "available" ? "Reserve Now" : "View Schedule";
-  const actionHref = status.tone === "available"
-    ? `/reservation-form.html?room_id=${room.id}&date=${encodeURIComponent(dateValue || P.todayIso())}`
-    : `/rooms-status.html`;
+    ? `<img class="home-lab-card-photo" src="${P.escapeHtml(room.image_url)}" alt="${P.escapeHtml(room.building_name)} building" loading="lazy">`
+    : `<div class="home-lab-card-photo-placeholder"><span class="home-lab-building-icon">🏛️</span></div>`;
+  const statusIcon = status.tone === "available" ? "🟢" : "🔴";
+  const statusText = status.tone === "available" ? "Available" : "Occupied";
+  const actionText = status.tone === "available" ? "Book Room" : "View Schedule";
+  const btnClass = status.tone === "available" ? "btn-cspc" : "btn-outline-secondary";
+  const remarkText = remark || generateRemark(room, status);
   return `
-    <article class="home-status-card is-${status.tone}">
+    <article class="home-lab-card is-${status.tone}" data-room-id="${room.id}">
       ${buildingImg}
-      <div class="home-status-card-top">
-        <span class="home-status-badge is-${status.tone}">${P.escapeHtml(status.label)}</span>
-        <span class="home-status-type">${P.escapeHtml(type)}</span>
-      </div>
-      <h3>${P.escapeHtml(room.name)} <span class="home-status-roomcode">${roomCode}</span></h3>
-      <p class="home-status-meta">${meta}</p>
-      ${equip}
-      <div class="home-status-remark">${P.escapeHtml(remark || generateRemark(room, status))}</div>
-      <div class="home-status-occ">
-        <span class="home-status-occ-label">Utilization</span>
-        <div class="home-status-occ-bar">
-          <div class="home-status-occ-fill is-${status.tone}" style="width: ${occ}%"></div>
+      <div class="home-lab-card-body">
+        <div class="home-lab-card-top">
+          <span class="home-lab-badge is-${status.tone}" aria-hidden="true">${statusIcon}</span>
+          <span class="home-lab-badge is-${status.tone}">${P.escapeHtml(statusText)}</span>
+          <span class="home-lab-type">${P.escapeHtml(type)}</span>
         </div>
-        <span class="home-status-occ-pct">${occ}%</span>
+        <h3>${P.escapeHtml(room.name)} <span class="home-lab-code">${roomCode}</span></h3>
+        <p class="home-lab-card-meta">${meta}</p>
+        ${equip}
+        <div class="home-lab-card-remark">${P.escapeHtml(remarkText)}</div>
+        <div class="home-lab-occ">
+          <span class="home-lab-occ-label">Utilization</span>
+          <div class="home-lab-occ-bar"><div class="home-lab-occ-fill is-${status.tone}" style="width: ${occ}%"></div></div>
+          <span class="home-lab-occ-pct">${occ}%</span>
+        </div>
+        <div class="home-lab-actions">
+          <button class="btn ${btnClass} home-lab-action" data-room-id="${room.id}" data-action="${status.tone === "available" ? "book" : "view"}">${P.escapeHtml(actionText)}</button>
+          <a href="/rooms-status.html" class="btn btn-sm btn-outline-cspc">Schedule</a>
+        </div>
       </div>
-      <a href="${actionHref}" class="home-status-action btn btn-sm btn-${status.tone === "available" ? "cspc" : "outline-cspc"}">${P.escapeHtml(actionText)}</a>
     </article>`;
 }
 
@@ -1068,36 +1174,8 @@ function statusCard(room, dateValue, slot, remark) {
       const data = await P.api(`/api/availability?${params.toString()}`);
       const rooms = data.rooms || [];
 
-      // Split into two categories: available/limited and occupied
-      const availableRooms = rooms.filter((r) => {
-        const s = roomStatus(r, date, slotOverride);
-        return s.tone === 'available' || s.tone === 'limited';
-      });
-      const occupiedRooms = rooms.filter((r) => {
-        const s = roomStatus(r, date, slotOverride);
-        return s.tone === 'occupied';
-      });
-
-      const topAvailable = availableRooms.slice(0, 3);
-      const topOccupied = occupiedRooms.slice(0, 3);
-
-      const availableHtml = topAvailable.length
-        ? '<div class="home-status-category">' +
-          '<h4 class="home-status-category-title">✅ Top 3 Available / Limited Spaces</h4>' +
-          '<div class="home-status-grid-inner">' + topAvailable.map((room) => statusCard(room, date, slotOverride)).join('') + '</div>' +
-          '</div>'
-        : '<div class="home-status-empty">No available or limited spaces right now.</div>';
-
-      const occupiedHtml = topOccupied.length
-        ? '<div class="home-status-category">' +
-          '<h4 class="home-status-category-title">⚠ Currently Occupied Spaces</h4>' +
-          '<div class="home-status-grid-inner">' + topOccupied.map((room) => statusCard(room, date, slotOverride)).join('') + '</div>' +
-          '</div>'
-        : '<div class="home-status-empty">No occupied spaces right now.</div>';
-
-      statusGrid.innerHTML = (topAvailable.length || topOccupied.length)
-        ? availableHtml + occupiedHtml
-        : '<div class="home-status-loading">No active rooms to show right now.</div>';
+      labState = buildLabState(rooms, date, slotOverride);
+      renderLabState();
 
       // Dynamic counter for the floating hero badge: count rooms with no bookings today.
       const openRooms = rooms.filter((room) => (room.bookings || []).length === 0);
@@ -1169,6 +1247,50 @@ function statusCard(room, dateValue, slot, remark) {
     let f=null;
     heroVisual.addEventListener('mousemove',e=>{if(f)cancelAnimationFrame(f);f=requestAnimationFrame(()=>{const r=heroVisual.getBoundingClientRect();const px=(e.clientX-r.left)/r.width-0.5;const py=(e.clientY-r.top)/r.height-0.5;heroSection.style.setProperty('--hero-tilt-y',(px*7).toFixed(2)+'deg');heroSection.style.setProperty('--hero-tilt-x',(-py*7).toFixed(2)+'deg');});});
     heroVisual.addEventListener('mouseleave',()=>{if(f)cancelAnimationFrame(f);heroSection.style.setProperty('--hero-tilt-x','0deg');heroSection.style.setProperty('--hero-tilt-y','0deg');});
+  }
+
+  /* ---------------------------------- inline lab booking trigger ------ */
+  const labBookingForm = document.getElementById('lab-booking-form');
+  const labBookingSubmit = document.getElementById('lab-booking-submit');
+  const labBookingAlert = document.getElementById('lab-booking-alert');
+  if (labBookingForm && labBookingSubmit) {
+    labBookingForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      labBookingAlert.classList.add('d-none');
+      const roomId = Number(document.getElementById('lab-booking-room-id').value);
+      const date = document.getElementById('lab-booking-date').value;
+      const start = document.getElementById('lab-booking-start').value;
+      const end = document.getElementById('lab-booking-end').value;
+      const purpose = document.getElementById('lab-booking-purpose').value.trim();
+      if (!roomId || !date || !start || !end || !purpose) {
+        labBookingAlert.textContent = 'Please fill in all booking fields.';
+        labBookingAlert.classList.remove('d-none');
+        return;
+      }
+      if (end <= start) {
+        labBookingAlert.textContent = 'End time must be later than start time.';
+        labBookingAlert.classList.remove('d-none');
+        return;
+      }
+      P.busy(labBookingSubmit, true, 'Requesting…');
+      try {
+        await P.api('/api/reservations', {
+          method: 'POST',
+          body: { room_id: roomId, res_date: date, start_time: start, end_time: end, purpose, attendees: 1 }
+        });
+        P.toastOk('Booking requested. The lab cards will refresh live.');
+        const modalEl = document.getElementById('lab-booking-modal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        modal?.hide();
+        labBookingForm.reset();
+        await refreshLabStatus();
+      } catch (err) {
+        labBookingAlert.textContent = err.message || 'Could not request booking. Please sign in and try again.';
+        labBookingAlert.classList.remove('d-none');
+      } finally {
+        P.busy(labBookingSubmit, false);
+      }
+    });
   }
 
   loadLiveStatus();
