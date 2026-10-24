@@ -3,6 +3,22 @@
 
 (async function () {
   const P = window.Portal;
+
+  /* Building background images for the featured "Popular spaces" cards.
+   * Each building card renders with its own photo instead of a flat tone. */
+  const BUILDING_BACKGROUNDS = {
+    'CCS BUILDING': '/img/640fd213-b190-4dd5-85ac-f5e48efaa979.jpg',
+    'CAS BUILDING': '/img/86d642c7-aab7-4114-85ec-75a84ae1b8c0.jpg',
+    'GREENBUILDING': '/img/430ad98a-b78e-4c54-b0fa-803c6eed5ef3.jpg',
+    'ACADEMIC BUILDING II': '/img/6073d9fd-be4f-4d55-bc84-bde51aa8db51.jpg',
+    'ACADEMIC BUILDING I': '/img/79f0c07c-b23e-4644-9550-536b84c2f5b4.jpg',
+    'MULTI PURPOSE BUILDING': '/img/fc87102f-d288-4b44-81f1-022acfccb7c6.jpg',
+    'MULTI PORPUSE BUILDING': '/img/fc87102f-d288-4b44-81f1-022acfccb7c6.jpg',
+    'CHS BUILDING': '/img/e4edc818-0707-48a1-87d1-cb81125f6ee4.jpg',
+    'CITD BUILDING': '/img/cookery-lab.jpg',
+    'LSB BUILDING': '/img/chemistry-lab.jpg'
+  };
+
   const session = await P.getSession();
   P.renderNavbar(session.user, 'home');
 
@@ -560,9 +576,11 @@
           const roomsLabel = `${building.active_rooms ?? building.room_count ?? 0} active rooms`;
           const resCount = Number(building.total_reservations ?? 0);
           const sub = building.location || (resCount > 0 ? `${resCount} reservation${resCount === 1 ? '' : 's'} booked` : 'CSPC campus');
+          const bgImage = BUILDING_BACKGROUNDS[name] || '';
+          const cardStyle = bgImage ? `style="background-image: linear-gradient(145deg, rgba(7, 14, 27, 0.78), rgba(5, 8, 15, 0.85)), url('${bgImage}'); background-size: cover; background-position: center;"` : '';
           return `
         <div class="col-md-4 home-building-col">
-          <article class="home-building-card building-tone-${(index % 3) + 1}">
+          <article class="home-building-card" ${cardStyle}>
             <div class="home-building-card-top"><span class="home-building-number">${String(index + 1).padStart(2, '0')}</span><span class="home-building-mark" aria-hidden="true">⌂</span></div>
             <h3>${P.escapeHtml(name)}</h3>
             <p>${P.escapeHtml(sub)}</p>
