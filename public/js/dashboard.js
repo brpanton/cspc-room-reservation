@@ -274,6 +274,7 @@
         body: { status: pendingDecision.status, remarks: decisionRemarks.value.trim() }
       });
       toastOk(data.message);
+      P.broadcastAvailabilityChange();
       modal.hide();
       await Promise.all([loadStats(), loadList()]);
     } catch (err) {
@@ -288,6 +289,7 @@
     try {
       const data = await api(`/api/reservations/${reservation.id}/cancel`, { method: 'PATCH' });
       toastOk(data.message);
+      P.broadcastAvailabilityChange();
       await Promise.all([loadStats(), loadList()]);
     } catch (err) {
       toastError(err.message);

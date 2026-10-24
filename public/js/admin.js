@@ -89,6 +89,7 @@
         try {
           const data = await api(`/api/admin/buildings/${id}`, { method: 'DELETE' });
           toastOk(data.message);
+          P.broadcastAvailabilityChange();
           await Promise.all([loadBuildings(), loadRooms(), loadRoomBuildingOptions()]);
         } catch (err) {
           toastError(err.message);
@@ -112,6 +113,7 @@
         ? await api(`/api/admin/buildings/${editing.building}`, { method: 'PUT', body: payload })
         : await api('/api/admin/buildings', { method: 'POST', body: payload });
       toastOk(data.message);
+      P.broadcastAvailabilityChange();
       buildingModal.hide();
       await Promise.all([loadBuildings(), loadRoomBuildingOptions()]);
     } catch (err) {
@@ -245,6 +247,7 @@
         try {
           const data = await api(`/api/admin/rooms/${id}`, { method: 'DELETE' });
           toastOk(data.message);
+          P.broadcastAvailabilityChange();
           await Promise.all([loadRooms(), loadBuildings()]);
         } catch (err) {
           toastError(err.message);
@@ -283,6 +286,7 @@
         ? await api(`/api/admin/rooms/${editing.room}`, { method: 'PUT', body: payload })
         : await api('/api/admin/rooms', { method: 'POST', body: payload });
       toastOk(data.message);
+      P.broadcastAvailabilityChange();
       roomModal.hide();
       await Promise.all([loadRooms(), loadBuildings()]);
     } catch (err) {

@@ -262,6 +262,7 @@
         }
       });
       toastOk(data.message || 'Reservation submitted.');
+      P.broadcastAvailabilityChange();
       setTimeout(() => P.redirectTo('/dashboard.html'), 900);
     } catch (err) {
       showAlert(err.message);

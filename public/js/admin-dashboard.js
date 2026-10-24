@@ -362,6 +362,7 @@
         body: { status: pendingDecision.status, remarks: decisionRemarks.value.trim() }
       });
       toastOk(data.message);
+      P.broadcastAvailabilityChange();
       modal.hide();
       await Promise.all([loadStats(), loadReservations()]);
     } catch (err) {
@@ -376,6 +377,7 @@
     try {
       const data = await api(`/api/reservations/${reservation.id}/cancel`, { method: 'PATCH' });
       toastOk(data.message);
+      P.broadcastAvailabilityChange();
       await Promise.all([loadStats(), loadReservations()]);
     } catch (err) {
       toastError(err.message);
@@ -533,6 +535,7 @@
         ? await api(`/api/admin/buildings/${editing.building}`, { method: 'PUT', body: payload })
         : await api('/api/admin/buildings', { method: 'POST', body: payload });
       toastOk(data.message);
+      P.broadcastAvailabilityChange();
       buildingModal.hide();
       await Promise.all([loadBuildings(), loadRooms()]);
     } catch (err) {
@@ -639,6 +642,7 @@
             }
           });
           toastOk(data.message);
+          P.broadcastAvailabilityChange();
           await loadRooms();
         } catch (err) {
           toastError(err.message);
@@ -691,6 +695,7 @@
         ? await api(`/api/admin/rooms/${editing.room}`, { method: 'PUT', body: payload })
         : await api('/api/admin/rooms', { method: 'POST', body: payload });
       toastOk(data.message);
+      P.broadcastAvailabilityChange();
       roomModal.hide();
       await Promise.all([loadRooms(), loadBuildings()]);
     } catch (err) {

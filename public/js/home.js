@@ -1037,7 +1037,7 @@ function buildLabState(rooms, dateValue, slot) {
 /** Render the reactive lab state into the status grid: 3 available + 3 occupied. */
 function renderLabState() {
   if (!statusGrid) return;
-  const available = labState.filter((s) => s.tone === 'available' || s.tone === 'limited').slice(0, 3);
+  const available = labState.filter((s) => s.tone === 'available').slice(0, 3);
   const occupied = labState.filter((s) => s.tone === 'occupied').slice(0, 3);
 
   const availableHtml = available.length
@@ -1112,6 +1112,38 @@ async function refreshLabStatus() {
     statusGrid.innerHTML = '<div class="home-status-loading">Live availability is temporarily unavailable.</div>';
   }
 }
+
+/* ------------------------------------------- cross-tab refresh --- */
+
+// Listen for availability changes broadcast from other tabs/pages
+// (reservation created, approved, rejected, cancelled, room/building managed).
+try {
+  const availabilityChannel = new BroadcastChannel('cspc-availability');
+  availabilityChannel.onmessage = (event) => {
+    if (event && event.data && event.data.type === 'availability-changed') {
+      refreshLabStatus();
+    }
+  };
+} catch {
+  // BroadcastChannel not supported: fall back to storage event.
+  window.addEventListener('storage', (event) => {
+    if (event.key === 'cspc-availability-changed') {
+      refreshLabStatus();
+    }
+  });
+}
+
+// Refresh when the user returns to this tab so the cards stay current.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    refreshLabStatus();
+  }
+});
+window.addEventListener('pageshow', (event) => {
+  if (event.persisted) {
+    refreshLabStatus();
+  }
+});
 
 function statusCard(room, dateValue, slot, remark) {
   const status = roomStatus(room, dateValue, slot);
@@ -1284,6 +1316,7 @@ function statusCard(room, dateValue, slot, remark) {
         modal?.hide();
         labBookingForm.reset();
         await refreshLabStatus();
+        P.broadcastAvailabilityChange();
       } catch (err) {
         labBookingAlert.textContent = err.message || 'Could not request booking. Please sign in and try again.';
         labBookingAlert.classList.remove('d-none');

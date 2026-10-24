@@ -1841,6 +1841,18 @@ document.body.addEventListener('click', (event) => {
 /* ---------------------------------------------------------------- exports --- */
 /* Exposed on window so the plain <script> files on each page (no bundler)
    can share one implementation. */
+/* Broadcast availability changes across tabs so the home page live cards
+   stay in sync after any reservation / room / building transaction. */
+function broadcastAvailabilityChange() {
+  try {
+    const bc = new BroadcastChannel('cspc-availability');
+    bc.postMessage({ type: 'availability-changed' });
+    bc.close();
+  } catch {
+    try { localStorage.setItem('cspc-availability-changed', String(Date.now())); } catch {}
+  }
+}
+
 window.Portal = {
   setLocale: setPortalLocale,
   getLocale: currentUiLocale,
@@ -1868,5 +1880,6 @@ window.Portal = {
   emptyRow,
   busy,
   formToObject,
-  setFormValue
+  setFormValue,
+  broadcastAvailabilityChange
 };
