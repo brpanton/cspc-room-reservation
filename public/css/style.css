@@ -4731,10 +4731,10 @@ body[data-login-page="admin"] .admin-page-support {
 }
 
 /* Neutralize legacy color variants — hooks kept, rendered as glass. */
-.stat-total,
-.stat-pending,
-.stat-approved,
-.stat-rejected { border-color: #3b82f6; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), 0 0 24px rgba(59, 130, 246, 0.3); }
+.stat-card.stat-total,
+.stat-card.stat-pending,
+.stat-card.stat-approved,
+.stat-card.stat-rejected { border: 1px solid rgba(59, 130, 246, 0.4); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), 0 0 24px rgba(59, 130, 246, 0.3); }
 .stat-cancelled { border-color: rgba(255, 255, 255, 0.1); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); }
 
 .stat-total::after,

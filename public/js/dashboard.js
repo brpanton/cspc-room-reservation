@@ -145,24 +145,17 @@
     toastError('You do not have access to that screen.');
   }
 
-  async function loadStats() {
-    try {
-      const data = await api('/api/reservations/stats');
-      document.getElementById('stat-total').textContent = data.totals.total;
-      document.getElementById('stat-pending').textContent = data.totals.pending;
-      document.getElementById('stat-approved').textContent = data.totals.approved;
-      document.getElementById('stat-rejected').textContent = data.totals.rejected;
-
-      const inv = data.inventory || {};
-      if (isStaff && inv.total_rooms !== undefined) {
-        document.getElementById('inventory-row').classList.remove('d-none');
-        document.getElementById('stat-rooms').textContent = inv.total_rooms;
-        document.getElementById('stat-buildings').textContent = inv.total_buildings;
-        document.getElementById('stat-users').textContent = inv.total_users;
-      }
-    } catch (err) {
-      toastError(`Could not load statistics: ${err.message}`);
-    }
+  function renderStats(reservations) {
+    document.getElementById('stat-total').textContent = reservations.length;
+    document.getElementById('stat-pending').textContent = reservations.filter((item) =>
+      String(item.status || '').toLowerCase() === 'pending'
+    ).length;
+    document.getElementById('stat-approved').textContent = reservations.filter((item) =>
+      String(item.status || '').toLowerCase() === 'approved'
+    ).length;
+    document.getElementById('stat-rejected').textContent = reservations.filter((item) =>
+      String(item.status || '').toLowerCase() === 'rejected'
+    ).length;
   }
 
   const bodyEl = document.getElementById('reservations-body');
@@ -180,10 +173,14 @@
       // Remove duplicate entries by reservation id
       const seen = new Set();
       items = items.filter((item) => {
-        if (seen.has(item.id)) return false;
-        seen.add(item.id);
+        if (item.id == null) return true;
+        const id = String(item.id);
+        if (seen.has(id)) return false;
+        seen.add(id);
         return true;
       });
+
+      renderStats(items);
 
       // Frontend status filter (case-insensitive)
       if (state.status) {
@@ -204,11 +201,11 @@
       bodyEl.innerHTML = emptyRow(9, 'No reservations found.');
       return;
     }
-    bodyEl.innerHTML = state.items.map(rowHtml).join('');
+    bodyEl.innerHTML = state.items.map((reservation, index) => rowHtml(reservation, index)).join('');
     bindRowActions();
   }
 
-  function rowHtml(r) {
+  function rowHtml(r, index) {
     const isOwner = r.user_id === user.id;
     const canDecide = isStaff && r.status === 'Pending';
     const canCancel = (isOwner || isStaff) && r.status !== 'Cancelled';
@@ -231,7 +228,7 @@
 
     return `
       <tr data-row-id="${r.id}">
-        <td>#${r.id}</td>
+        <td>#${index + 1}</td>
         <td>
           <div class="fw-semibold">${escapeHtml(r.room_name)}</div>
           <div class="text-muted-sm">${escapeHtml(r.building_name)}</div>
@@ -288,7 +285,7 @@
       toastOk(data.message);
       P.broadcastAvailabilityChange();
       modal.hide();
-      await Promise.all([loadStats(), loadList()]);
+      await loadList();
     } catch (err) {
       toastError(err.message);
     } finally {
@@ -302,7 +299,7 @@
       const data = await api(`/api/reservations/${reservation.id}/cancel`, { method: 'PATCH' });
       toastOk(data.message);
       P.broadcastAvailabilityChange();
-      await Promise.all([loadStats(), loadList()]);
+      await loadList();
     } catch (err) {
       toastError(err.message);
     }
@@ -334,7 +331,6 @@
     renderActivityFeed();
     renderMiniCalendar();
     updateDashboardClock();
-    loadStats();
     loadList();
   });
 
@@ -492,5 +488,5 @@
 
   renderActivityFeed();
   renderMiniCalendar();
-  await Promise.all([loadStats(), loadList(), loadLabStatus()]);
+  await Promise.all([loadList(), loadLabStatus()]);
 });
