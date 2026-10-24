@@ -42,25 +42,25 @@
     <section class="row g-3 mb-4" aria-label="Statistics">
       <div class="col-6 col-lg-3">
         <div class="card stat-card stat-total"><div class="card-body">
-          <div class="stat-value" id="stat-total">-</div>
+          <div class="stat-value" id="stat-total">0</div>
           <div class="stat-label">TOTAL REQUESTS</div>
         </div></div>
       </div>
       <div class="col-6 col-lg-3">
         <div class="card stat-card stat-pending"><div class="card-body">
-          <div class="stat-value" id="stat-pending">-</div>
+          <div class="stat-value" id="stat-pending">0</div>
           <div class="stat-label">PENDING</div>
         </div></div>
       </div>
       <div class="col-6 col-lg-3">
         <div class="card stat-card stat-approved"><div class="card-body">
-          <div class="stat-value" id="stat-approved">-</div>
+          <div class="stat-value" id="stat-approved">0</div>
           <div class="stat-label">APPROVED</div>
         </div></div>
       </div>
       <div class="col-6 col-lg-3">
         <div class="card stat-card stat-rejected"><div class="card-body">
-          <div class="stat-value" id="stat-rejected">-</div>
+          <div class="stat-value" id="stat-rejected">0</div>
           <div class="stat-label">REJECTED</div>
         </div></div>
       </div>
@@ -69,19 +69,19 @@
     <section class="row g-3 mb-4 d-none" id="inventory-row" aria-label="Inventory">
       <div class="col-4">
         <div class="card stat-card"><div class="card-body">
-          <div class="stat-value" id="stat-rooms">-</div>
+          <div class="stat-value" id="stat-rooms">0</div>
           <div class="stat-label">Active rooms</div>
         </div></div>
       </div>
       <div class="col-4">
         <div class="card stat-card"><div class="card-body">
-          <div class="stat-value" id="stat-buildings">-</div>
+          <div class="stat-value" id="stat-buildings">0</div>
           <div class="stat-label">Buildings</div>
         </div></div>
       </div>
       <div class="col-4">
         <div class="card stat-card"><div class="card-body">
-          <div class="stat-value" id="stat-users">-</div>
+          <div class="stat-value" id="stat-users">0</div>
           <div class="stat-label">User accounts</div>
         </div></div>
       </div>
@@ -95,7 +95,11 @@
             <a href="/rooms-status.html" class="text-decoration-none text-muted-sm">View all →</a>
           </div>
           <div class="card-body p-0">
-            <div id="dashboard-lab-grid"></div>
+            <div id="dashboard-lab-grid" class="skeleton-placeholder">
+              <div class="skeleton-line"></div>
+              <div class="skeleton-line"></div>
+              <div class="skeleton-line"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -109,7 +113,12 @@
             <span class="text-muted-sm">This week</span>
           </div>
           <div class="card-body">
-            <div class="calendar-grid" id="mini-calendar"></div>
+            <div class="calendar-grid" id="mini-calendar" class="skeleton-placeholder">
+              <div class="skeleton-line"></div>
+              <div class="skeleton-line"></div>
+              <div class="skeleton-line"></div>
+              <div class="skeleton-line"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -119,7 +128,10 @@
             <span>Recent activity</span>
           </div>
           <div class="card-body">
-            <ul class="activity-feed" id="activity-feed"></ul>
+            <ul class="activity-feed skeleton-placeholder" id="activity-feed">
+              <li class="skeleton-item"><div class="skeleton-line"></div><div class="skeleton-line short"></div></li>
+              <li class="skeleton-item"><div class="skeleton-line"></div><div class="skeleton-line short"></div></li>
+            </ul>
           </div>
         </div>
       </div>

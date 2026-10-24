@@ -42,6 +42,7 @@
         </div>
       </li>
     `).join('');
+    feed.classList.remove('skeleton-placeholder');
   }
 
   function renderMiniCalendar() {
@@ -73,6 +74,7 @@
     }
 
     host.innerHTML = html;
+    host.classList.remove('skeleton-placeholder');
   }
 
   document.querySelectorAll('.shortcut-btn').forEach((button) => {
@@ -85,6 +87,7 @@
   });
 
   const isStaff = user.role === 'custodian' || user.role === 'admin';
+  const isStudent = user.role === 'student';
   const state = { status: '', items: [], mine: queryParam('mine') === '1' };
 
   // Admin Dashboard: admins review/process requests, so never show personal
@@ -93,6 +96,10 @@
   const newReservationBtn = document.getElementById('new-reservation-link');
   if (isStaff && newReservationBtn) newReservationBtn.hidden = true;
   if (heroEl) heroEl.classList.toggle('is-admin-view', isStaff);
+
+  // Students do not manage rooms — hide the Manage Rooms shortcut.
+  const manageRoomsBtn = document.querySelector('.shortcut-btn[data-shortcut="room-status"]');
+  if (isStudent && manageRoomsBtn) manageRoomsBtn.hidden = true;
 
   const titleEl = document.getElementById('welcome-title');
   const subtitleEl = document.getElementById('welcome-subtitle');
@@ -188,7 +195,7 @@
 
   function renderList() {
     if (!state.items.length) {
-      bodyEl.innerHTML = emptyRow(9, 'No reservations match this filter yet.');
+      bodyEl.innerHTML = emptyRow(9, 'No reservations found.');
       return;
     }
     bodyEl.innerHTML = state.items.map(rowHtml).join('');
@@ -469,9 +476,11 @@
       grid.innerHTML = (topAvailable.length || topOccupied.length)
         ? availableHtml + occupiedHtml
         : '<div class="home-status-loading">No active rooms to show right now.</div>';
+      grid.classList.remove('skeleton-placeholder');
     } catch (err) {
       grid.innerHTML = '<div class="home-status-loading">Could not load laboratory status.</div>';
       console.error('[dashboard lab] Error:', err.message);
+      grid.classList.remove('skeleton-placeholder');
     }
   }
 

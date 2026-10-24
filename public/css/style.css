@@ -4731,19 +4731,39 @@ body[data-login-page="admin"] .admin-page-support {
 }
 
 /* Neutralize legacy color variants — hooks kept, rendered as glass. */
-.stat-total   { border-color: #3b82f6; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), 0 0 24px rgba(59, 130, 246, 0.3); }
-.stat-pending   { border-color: #facc15; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), 0 0 24px rgba(250, 204, 21, 0.3); }
-.stat-approved  { border-color: #4ade80; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), 0 0 24px rgba(74, 222, 128, 0.3); }
-.stat-rejected  { border-color: #f87171; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), 0 0 24px rgba(248, 113, 113, 0.3); }
+.stat-total,
+.stat-pending,
+.stat-approved,
+.stat-rejected { border-color: #3b82f6; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), 0 0 24px rgba(59, 130, 246, 0.3); }
 .stat-cancelled { border-color: rgba(255, 255, 255, 0.1); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); }
 
-.stat-total::after   { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at top, rgba(59, 130, 246, 0.12), transparent 60%); pointer-events: none; }
-.stat-pending::after   { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at top, rgba(250, 204, 21, 0.12), transparent 60%); pointer-events: none; }
-.stat-approved::after  { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at top, rgba(74, 222, 128, 0.12), transparent 60%); pointer-events: none; }
-.stat-rejected::after  { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at top, rgba(248, 113, 113, 0.12), transparent 60%); pointer-events: none; }
+.stat-total::after,
+.stat-pending::after,
+.stat-approved::after,
+.stat-rejected::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at top, rgba(59, 130, 246, 0.12), transparent 60%); pointer-events: none; }
 
 /* Hide legacy progress bar; percentage now lives in .stat-sub. */
 .stat-card .mini-progress { display: none; }
+
+/* --------------------------------------------------- skeleton loaders --- */
+.skeleton-placeholder { opacity: 0.85; }
+.skeleton-line {
+  height: 0.9rem;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.14) 50%, rgba(255,255,255,0.06) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-pulse 1.4s ease infinite;
+  margin-bottom: 0.5rem;
+}
+.skeleton-line.short { width: 60%; }
+.skeleton-item { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+.skeleton-item .skeleton-line { height: 0.85rem; margin: 0; }
+.skeleton-item .skeleton-line.short { width: 45%; }
+
+@keyframes skeleton-pulse {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 
 /* ------------------------------------------------------- room timetable --- */
 .room-card {
