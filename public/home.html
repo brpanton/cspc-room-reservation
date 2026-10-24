@@ -202,6 +202,113 @@
 
   </main>
 
+  <!-- ============================================================ -->
+  <!-- BUILDING DETAIL MODAL                                        -->
+  <!-- ============================================================ -->
+  <div class="modal fade building-detail-modal" id="building-detail-modal" tabindex="-1" aria-labelledby="building-detail-title" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content building-modal-content">
+        <div class="modal-header building-modal-header">
+          <div>
+            <span class="profile-modal-kicker building-modal-kicker">Building Details</span>
+            <h2 class="modal-title fs-5" id="building-detail-title">Building Name</h2>
+            <div class="building-code-badge" id="building-code-badge">CSPC-000</div>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body building-modal-body">
+          <!-- Overview Section -->
+          <div class="building-section mb-4">
+            <h3 class="building-section-title">General Overview</h3>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label building-field-label">Building Name</label>
+                <p class="building-field-value" id="bd-name">-</p>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label building-field-label">Building Code</label>
+                <p class="building-field-value" id="bd-code">-</p>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label building-field-label">Location</label>
+                <p class="building-field-value" id="bd-location">-</p>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label building-field-label">Operating Hours</label>
+                <p class="building-field-value" id="bd-hours">-</p>
+              </div>
+              <div class="col-12">
+                <label class="form-label building-field-label">Description</label>
+                <p class="building-field-value building-description" id="bd-description">-</p>
+              </div>
+            </div>
+            <div class="building-stats mt-3">
+              <span class="building-stat"><span class="building-stat-number" id="bd-active-rooms">0</span> Active Rooms</span>
+              <span class="building-stat"><span class="building-stat-number" id="bd-total-rooms">0</span> Total Rooms</span>
+              <span class="building-stat"><span class="building-stat-number" id="bd-equipment-count">0</span> Equipment Types</span>
+            </div>
+          </div>
+
+          <!-- Rooms Section -->
+          <div class="building-section mb-4">
+            <h3 class="building-section-title">Active Rooms &amp; Laboratories</h3>
+            <div class="table-responsive">
+              <table class="table building-rooms-table">
+                <thead>
+                  <tr>
+                    <th>Room</th>
+                    <th>Type</th>
+                    <th>Capacity</th>
+                    <th>Floor</th>
+                    <th>Equipment</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="bd-rooms-body">
+                  <tr><td colspan="6" class="text-center text-muted-sm py-3">Loading rooms…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Equipment Section -->
+          <div class="building-section mb-4">
+            <h3 class="building-section-title">Equipment &amp; Facilities</h3>
+            <div class="building-equipment-grid" id="bd-equipment-grid">
+              <div class="building-equipment-item"><span class="building-equipment-icon">📽️</span><span>Projector</span></div>
+              <div class="building-equipment-item"><span class="building-equipment-icon">❄️</span><span>Air Conditioning</span></div>
+              <div class="building-equipment-item"><span class="building-equipment-icon">🔊</span><span>Sound System</span></div>
+            </div>
+          </div>
+
+          <!-- Bookings Section -->
+          <div class="building-section mb-4">
+            <h3 class="building-section-title">Current &amp; Upcoming Bookings</h3>
+            <div class="table-responsive">
+              <table class="table building-bookings-table">
+                <thead>
+                  <tr>
+                    <th>Room</th>
+                    <th>Time</th>
+                    <th>Status</th>
+                    <th>Requested By</th>
+                  </tr>
+                </thead>
+                <tbody id="bd-bookings-body">
+                  <tr><td colspan="4" class="text-center text-muted-sm py-3">Loading bookings…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer building-modal-footer">
+          <button class="btn btn-outline-cspc" data-bs-dismiss="modal">Close</button>
+          <a href="/reservation-form.html" class="btn btn-cspc" id="bd-reserve-btn">Quick Reservation →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal fade visitor-auth-modal" id="experience-feedback-modal" tabindex="-1" aria-labelledby="experience-feedback-title" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">

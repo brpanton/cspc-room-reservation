@@ -629,6 +629,10 @@
       }
     }
 
+    function buildingThumbnail(name) {
+      return BUILDING_BACKGROUNDS[name] || '/img/campus-bg-sm.jpg';
+    }
+
     function showAutocomplete(query) {
       const q = query.toLowerCase().trim();
       if (!q) {
@@ -650,7 +654,18 @@
       searchResults.innerHTML = matches
         .map((b) => {
           const name = b.building_name || b.name;
-          return `<button class="search-dropdown-item" type="button" data-name="${P.escapeHtml(name)}">${P.escapeHtml(name)}</button>`;
+          const rooms = Number(b.active_rooms ?? b.room_count ?? 0);
+          const thumb = buildingThumbnail(name);
+          return `
+            <button class="search-dropdown-item d-flex align-items-center gap-2" type="button"
+                    data-id="${b.id}" data-name="${P.escapeHtml(name)}">
+              <img src="${P.escapeHtml(thumb)}" class="search-dropdown-thumb" alt="" loading="lazy" />
+              <div class="flex-fill">
+                <div class="search-dropdown-name">${P.escapeHtml(name)}</div>
+                <div class="search-dropdown-meta">${rooms} active room${rooms !== 1 ? 's' : ''}</div>
+              </div>
+              <span class="search-dropdown-arrow">›</span>
+            </button>`;
         })
         .join('');
       searchResults.classList.add('show');
@@ -678,17 +693,127 @@
     searchResults.addEventListener('click', (e) => {
       const item = e.target.closest('.search-dropdown-item');
       if (item) {
+        const id = Number(item.getAttribute('data-id'));
         const name = item.getAttribute('data-name');
         searchInput.value = name;
         searchResults.classList.remove('show');
         filterBuildings(name);
+        openBuildingDetail(id, name);
       }
     });
   }
 
-  /* -------------------------------------- buildings expand / collapse --- */
+  async function openBuildingDetail(buildingId, buildingName) {
+    const bdName = document.getElementById('bd-name');
+    const bdCode = document.getElementById('bd-code');
+    const bdLocation = document.getElementById('bd-location');
+    const bdHours = document.getElementById('bd-hours');
+    const bdDescription = document.getElementById('bd-description');
+    const bdActiveRooms = document.getElementById('bd-active-rooms');
+    const bdTotalRooms = document.getElementById('bd-total-rooms');
+    const bdEquipmentCount = document.getElementById('bd-equipment-count');
+    const bdRoomsBody = document.getElementById('bd-rooms-body');
+    const bdBookingsBody = document.getElementById('bd-bookings-body');
+    const bdEquipmentGrid = document.getElementById('bd-equipment-grid');
 
-  const buildingsToggle = document.getElementById('home-buildings-toggle');
+    if (bdName) bdName.textContent = buildingName;
+    if (bdCode) bdCode.textContent = 'Loading…';
+    if (bdLocation) bdLocation.textContent = 'Loading…';
+    if (bdHours) bdHours.textContent = 'Loading…';
+    if (bdDescription) bdDescription.textContent = 'Loading…';
+    if (bdActiveRooms) bdActiveRooms.textContent = '–';
+    if (bdTotalRooms) bdTotalRooms.textContent = '–';
+    if (bdEquipmentCount) bdEquipmentCount.textContent = '–';
+    if (bdRoomsBody) bdRoomsBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted-sm py-3">Loading rooms…</td></tr>';
+    if (bdBookingsBody) bdBookingsBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted-sm py-3">Loading bookings…</td></tr>';
+
+    const buildingDetailModalEl = document.getElementById('building-detail-modal');
+    if (buildingDetailModalEl) {
+      const buildingDetailModal = new bootstrap.Modal(buildingDetailModalEl);
+      buildingDetailModal.show();
+    }
+
+    try {
+      const [detailsRes, bookingsRes] = await Promise.all([
+        P.api(`/api/buildings/${buildingId}/details`),
+        P.api(`/api/buildings/${buildingId}/bookings`)
+      ]);
+
+      const { building, rooms, equipment, operating_hours, description, building_code } = detailsRes;
+      const { bookings, date } = bookingsRes;
+
+      if (bdName) bdName.textContent = building.name;
+      if (bdCode) bdCode.textContent = building_code;
+      if (bdLocation) bdLocation.textContent = building.location || 'CSPC Campus';
+      if (bdHours) bdHours.textContent = operating_hours;
+      if (bdDescription) bdDescription.textContent = description;
+      if (bdActiveRooms) bdActiveRooms.textContent = building.active_rooms;
+      if (bdTotalRooms) bdTotalRooms.textContent = building.room_count;
+      const eqCount = Object.values(equipment).filter((v) => v > 0).length;
+      if (bdEquipmentCount) bdEquipmentCount.textContent = eqCount;
+
+      if (bdRoomsBody) {
+        if (rooms.length) {
+          bdRoomsBody.innerHTML = rooms.map((r) => {
+            const equip = [];
+            if (r.has_projector) equip.push('Projector');
+            if (r.has_aircon) equip.push('Aircon');
+            if (r.has_sound) equip.push('Sound');
+            const status = r.bookings && r.bookings.length ? 'In Use' : 'Available';
+            const statusClass = status === 'Available' ? 'status-available' : 'status-inuse';
+            return `
+              <tr>
+                <td>${P.escapeHtml(r.name)}</td>
+                <td><span class="room-type-badge">${P.escapeHtml(r.room_type)}</span></td>
+                <td>${r.capacity}</td>
+                <td>${r.floor || '–'}</td>
+                <td><span class="room-equip">${equip.join(', ') || '–'}</span></td>
+                <td><span class="room-status ${statusClass}">${status}</span></td>
+              </tr>`;
+          }).join('');
+        } else {
+          bdRoomsBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted-sm py-3">No active rooms found.</td></tr>';
+        }
+      }
+
+      if (bdEquipmentGrid) {
+        const eqItems = [];
+        if (equipment.projector > 0) eqItems.push('<div class="building-equipment-item"><span class="building-equipment-icon">📽️</span><span>Projector (' + equipment.projector + ' rooms)</span></div>');
+        if (equipment.aircon > 0) eqItems.push('<div class="building-equipment-item"><span class="building-equipment-icon">❄️</span><span>Air Conditioning (' + equipment.aircon + ' rooms)</span></div>');
+        if (equipment.sound > 0) eqItems.push('<div class="building-equipment-item"><span class="building-equipment-icon">🔊</span><span>Sound System (' + equipment.sound + ' rooms)</span></div>');
+        bdEquipmentGrid.innerHTML = eqItems.length ? eqItems.join('') : '<div class="text-muted-sm">No specific equipment listed.</div>';
+      }
+
+      if (bdBookingsBody) {
+        if (bookings.length) {
+          bdBookingsBody.innerHTML = bookings.map((b) => {
+            const statusClass = b.status === 'Approved' ? 'booking-approved' : 'booking-pending';
+            return `
+              <tr>
+                <td>${P.escapeHtml(b.room_name)}</td>
+                <td>${P.escapeHtml(b.start_time)} – ${P.escapeHtml(b.end_time)}</td>
+                <td><span class="booking-status ${statusClass}">${b.status}</span></td>
+                <td>${P.escapeHtml(b.requested_by)}</td>
+              </tr>`;
+          }).join('');
+        } else {
+          bdBookingsBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted-sm py-3">No upcoming bookings on ${date}.</td></tr>`;
+        }
+      }
+
+    } catch (err) {
+      if (bdName) bdName.textContent = buildingName;
+      if (bdCode) bdCode.textContent = '–';
+      if (bdLocation) bdLocation.textContent = '–';
+      if (bdHours) bdHours.textContent = '–';
+      if (bdDescription) bdDescription.textContent = 'Could not load building details.';
+      if (bdRoomsBody) bdRoomsBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-3">Failed to load rooms.</td></tr>';
+      if (bdBookingsBody) bdBookingsBody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-3">Failed to load bookings.</td></tr>';
+      console.error('[building detail] Error:', err.message);
+    }
+  }
+
+  /* -------------------------------------- buildings expand / collapse --- */
   const buildingsToggleLabel = document.getElementById('home-buildings-toggle-label');
   const COLLAPSED_BUILDINGS = 3; // one tidy row on desktop, first three on mobile
 

@@ -204,5 +204,90 @@ router.get('/availability', async (req, res, next) => {
   }
 });
 
+/**
+ * GET /api/buildings/:id/details
+ *
+ * Comprehensive building detail: rooms aggregated with availability,
+ * equipment summary, and basic building info.
+ */
+router.get('/buildings/:id/details', async (req, res, next) => {
+  try {
+    const buildingId = Number(req.params.id);
+
+    // ---- Building info -------------------------------------------------
+    const { rows: bldgRows } = await pool.query(
+      `SELECT b.id, b.name, b.location, b.created_at,
+              COUNT(r.id) AS room_count,
+              COUNT(CASE WHEN r.is_active = TRUE THEN 1 END) AS active_rooms
+       FROM buildings b
+       LEFT JOIN rooms r ON r.building_id = b.id
+       WHERE b.id = $1
+       GROUP BY b.id, b.name, b.location, b.created_at`,
+      [buildingId]
+    );
+    if (!bldgRows.length) return res.status(404).json({ error: 'Building not found.' });
+    const building = bldgRows[0];
+
+    // ---- Rooms with equipment flags ------------------------------------
+    const { rows: rooms } = await pool.query(
+      `SELECT r.id, r.name, r.room_type, r.capacity, r.floor, r.image_url,
+              r.has_projector, r.has_aircon, r.has_sound
+       FROM rooms r
+       WHERE r.building_id = $1 AND r.is_active = TRUE
+       ORDER BY r.room_type, r.name`,
+      [buildingId]
+    );
+
+    // ---- Equipment summary across all rooms ----------------------------
+    const equipment = {
+      projector: rooms.filter((r) => r.has_projector).length,
+      aircon: rooms.filter((r) => r.has_aircon).length,
+      sound: rooms.filter((r) => r.has_sound).length,
+    };
+
+    res.json({
+      building,
+      rooms,
+      equipment,
+      operating_hours: '7:00 AM – 7:00 PM (Mon–Fri)',
+      description: `${building.name} is a CSPC campus facility housing ${building.active_rooms} active rooms and laboratories.`,
+      building_code: `CSPC-${String(building.id).padStart(3, '0')}`,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /api/buildings/:id/bookings?date=YYYY-MM-DD
+ *
+ * Current & upcoming bookings for a building on a given date (default today).
+ */
+router.get('/buildings/:id/bookings', async (req, res, next) => {
+  try {
+    const buildingId = Number(req.params.id);
+    const date = req.query.date ? req.query.date : new Date().toISOString().slice(0, 10);
+
+    const { rows } = await pool.query(
+      `SELECT res.id, res.res_date, res.start_time, res.end_time, res.status,
+              r.name AS room_name, r.room_type,
+              u.full_name AS requested_by
+       FROM reservations res
+       JOIN rooms r ON r.id = res.room_id
+       JOIN users u ON u.id = res.user_id
+       WHERE r.building_id = $1
+         AND res.res_date >= $2
+         AND res.status IN ('Pending', 'Approved')
+       ORDER BY res.res_date, res.start_time
+       LIMIT 20`,
+      [buildingId, date]
+    );
+
+    res.json({ date, bookings: rows });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;
 module.exports.BLOCKING_STATUSES = BLOCKING_STATUSES;
