@@ -1375,17 +1375,6 @@ function renderNavbar(user, active) {
   if (profileDropdownWrap && window.bootstrap) {
     const profileDropdown = bootstrap.Dropdown.getOrCreateInstance(document.querySelector('.profile-chevron-btn'));
 
-    // Make the entire user chip (avatar + name + role badge) clickable to open
-    // the profile dropdown — works for both admins and regular users.
-    const userChip = document.querySelector('.user-chip');
-    if (userChip) {
-      userChip.addEventListener('click', (e) => {
-        // Don't trigger if clicking inside a dropdown item or modal trigger
-        if (e.target.closest('[data-bs-toggle="modal"]')) return;
-        profileDropdown.toggle();
-      });
-    }
-
     // Account Settings — only when the modal exists on this page.
     const accountSettingsMenuItem = document.getElementById('accountSettingsMenuItem');
     if (accountSettingsMenuItem && accountSettingsModalEl) {
@@ -1820,23 +1809,6 @@ function setFormValue(form, name, value) {
     else field.value = value === undefined || value === null ? '' : value;
   });
 }
-
-/* ----------------------------------------------------------------
-   Isolated profile modal click handler — document-level delegation
-   Clicks on the user chip (avatar + name + badge) open Account Settings
-   modal directly. Uses document-level delegation so it works regardless
-   of when renderNavbar() injects the modal HTML into the DOM.
-   ------------------------------------------------------------------ */
-document.body.addEventListener('click', (event) => {
-  const userChip = event.target.closest('.user-chip');
-  if (!userChip) return;
-
-  const modalEl = document.getElementById('accountSettingsModal');
-  if (!modalEl || !window.bootstrap) return;
-
-  const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
-  modal.show();
-});
 
 /* ---------------------------------------------------------------- exports --- */
 /* Exposed on window so the plain <script> files on each page (no bundler)
