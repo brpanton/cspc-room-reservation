@@ -324,5 +324,155 @@
     loadList();
   });
 
-  await Promise.all([loadStats(), loadList()]);
-})();
+  /* Laboratory status on dashboard */
+  function labMinutesFromValue(value) {
+    const [h, m] = String(value || '').split(':').map(Number);
+    return Number.isNaN(h) ? null : h * 60 + (m || 0);
+  }
+
+  function labRoomStatus(room, dateValue) {
+    const bookings = room.bookings || [];
+    const today = P.todayIso();
+    const now = new Date().getHours() * 60 + new Date().getMinutes();
+    if (dateValue === today) {
+      const current = bookings.find((b) => {
+        const bs = labMinutesFromValue(b.start_time);
+        const be = labMinutesFromValue(b.end_time);
+        return bs !== null && be !== null && bs <= now && now < be;
+      });
+      if (current) return { tone: 'occupied', label: 'Occupied', detail: `Until ${P.formatTime(current.end_time)}` };
+    }
+    if (!bookings.length) return { tone: 'available', label: 'Available', detail: 'Free all day' };
+    return { tone: 'limited', label: 'Limited', detail: `${bookings.length} booking${bookings.length > 1 ? 's' : ''} today` };
+  }
+
+  function labOccupancyPct(room) {
+    const bookings = room.bookings || [];
+    const today = P.todayIso();
+    const bookedMinutes = bookings.reduce((sum, b) => {
+      if (b.res_date !== today) return sum;
+      const bs = labMinutesFromValue(b.start_time);
+      const be = labMinutesFromValue(b.end_time);
+      return bs !== null && be !== null ? sum + (be - bs) : sum;
+    }, 0);
+    return Math.round((bookedMinutes / 720) * 100);
+  }
+
+  function labEquipmentHtml(room) {
+    const icons = [];
+    if (room.has_projector) icons.push('<span class="home-equip-icon" title="Projector">📽️</span>');
+    if (room.has_aircon) icons.push('<span class="home-equip-icon" title="AirCon">❄️</span>');
+    if (room.has_sound) icons.push('<span class="home-equip-icon" title="Sound System">🔊</span>');
+    return icons.length ? `<div class="home-equipment">${icons.join('')}</div>` : '';
+  }
+
+  function labGenerateRemark(room, status) {
+    const bookings = room.bookings || [];
+    const today = P.todayIso();
+    const now = new Date().getHours() * 60 + new Date().getMinutes();
+    if (status.tone === 'available') {
+      if (bookings.length === 0) return 'Ready for immediate booking';
+      const nextBooking = bookings
+        .filter((b) => b.res_date === today)
+        .map((b) => ({ ...b, bs: labMinutesFromValue(b.start_time), be: labMinutesFromValue(b.end_time) }))
+        .filter((b) => b.bs !== null && b.be !== null && b.bs > now)
+        .sort((a, b) => a.bs - b.bs)[0];
+      if (nextBooking) {
+        const minsUntil = nextBooking.bs - now;
+        const hours = Math.floor(minsUntil / 60);
+        return hours >= 1 ? `Free for next ${hours} hour${hours > 1 ? 's' : ''}` : 'Free now';
+      }
+      return 'Available for booking';
+    }
+    if (status.tone === 'limited') {
+      const count = bookings.length;
+      return `${count}/4 slots remaining`;
+    }
+    const current = bookings.find((b) => {
+      if (b.res_date !== today) return false;
+      const bs = labMinutesFromValue(b.start_time);
+      const be = labMinutesFromValue(b.end_time);
+      return bs !== null && be !== null && bs <= now && now < be;
+    });
+    if (current) {
+      const endMin = labMinutesFromValue(current.end_time);
+      const endHr = Math.floor(endMin / 60);
+      const endMinDisplay = (endMin % 60).toString().padStart(2, '0');
+      const ampm = endHr >= 12 ? 'PM' : 'AM';
+      const displayHr = endHr % 12 || 12;
+      return `Class in Session (${current.requested_by || 'CS 101'}) — until ${displayHr}:${endMinDisplay} ${ampm}`;
+    }
+    return 'Fully Booked until 5:00 PM';
+  }
+  function labStatusCard(room, dateValue, remark) {
+    const status = labRoomStatus(room, dateValue);
+    const type = P.ROOM_TYPE_LABELS[room.room_type] || room.room_type || 'Laboratory';
+    const roomCode = 'L-' + String(room.id).padStart(3, '0');
+    const meta = [room.building_name, room.capacity ? 'Seats ' + room.capacity : '']
+      .filter(Boolean).map(P.escapeHtml).join(' · ');
+    const occ = labOccupancyPct(room);
+    const equip = labEquipmentHtml(room);
+    const actionText = status.tone === 'available' ? 'Reserve Now' : 'View Schedule';
+    const actionHref = status.tone === 'available'
+      ? '/reservation-form.html?room_id=' + room.id + '&date=' + encodeURIComponent(dateValue || P.todayIso())
+      : '/rooms-status.html';
+    return '<article class="home-status-card is-' + status.tone + '">' +
+      '<div class="home-status-card-top">' +
+        '<span class="home-status-badge is-' + status.tone + '">' + P.escapeHtml(status.label) + '</span>' +
+        '<span class="home-status-type">' + P.escapeHtml(type) + '</span>' +
+      '</div>' +
+      '<h3>' + P.escapeHtml(room.name) + ' <span class="home-status-roomcode">' + roomCode + '</span></h3>' +
+      '<p class="home-status-meta">' + meta + '</p>' +
+      equip +
+      '<div class="home-status-remark">' + P.escapeHtml(remark || labGenerateRemark(room, status)) + '</div>' +
+      '<div class="home-status-occ">' +
+        '<span class="home-status-occ-label">Utilization</span>' +
+        '<div class="home-status-occ-bar">' +
+          '<div class="home-status-occ-fill is-' + status.tone + '" style="width: ' + occ + '%"></div>' +
+        '</div>' +
+        '<span class="home-status-occ-pct">' + occ + '%</span>' +
+      '</div>' +
+      '<a href="' + actionHref + '" class="home-status-action btn btn-sm btn-' + (status.tone === 'available' ? 'cspc' : 'outline-cspc') + '">' + P.escapeHtml(actionText) + '</a>' +
+    '</article>';
+  }
+
+  async function loadLabStatus() {
+    const grid = document.getElementById('dashboard-lab-grid');
+    if (!grid) return;
+    try {
+      const date = P.todayIso();
+      const data = await P.api('/api/availability?date=' + date);
+      const rooms = data.rooms || [];
+      const availableRooms = rooms.filter((r) => {
+        const s = labRoomStatus(r, date);
+        return s.tone === 'available' || s.tone === 'limited';
+      });
+      const occupiedRooms = rooms.filter((r) => {
+        const s = labRoomStatus(r, date);
+        return s.tone === 'occupied';
+      });
+      const topAvailable = availableRooms.slice(0, 3);
+      const topOccupied = occupiedRooms.slice(0, 3);
+      const availableHtml = topAvailable.length
+        ? '<div class="home-status-category">' +
+          '<h4 class="home-status-category-title">✅ Top 3 Available / Limited Spaces</h4>' +
+          '<div class="home-status-grid-inner">' + topAvailable.map((room) => labStatusCard(room, date)).join('') + '</div>' +
+          '</div>'
+        : '<div class="home-status-empty">No available or limited spaces right now.</div>';
+      const occupiedHtml = topOccupied.length
+        ? '<div class="home-status-category">' +
+          '<h4 class="home-status-category-title">⚠ Currently Occupied Spaces</h4>' +
+          '<div class="home-status-grid-inner">' + topOccupied.map((room) => labStatusCard(room, date)).join('') + '</div>' +
+          '</div>'
+        : '<div class="home-status-empty">No occupied spaces right now.</div>';
+      grid.innerHTML = (topAvailable.length || topOccupied.length)
+        ? availableHtml + occupiedHtml
+        : '<div class="home-status-loading">No active rooms to show right now.</div>';
+    } catch (err) {
+      grid.innerHTML = '<div class="home-status-loading">Could not load laboratory status.</div>';
+      console.error('[dashboard lab] Error:', err.message);
+    }
+  }
+
+  await Promise.all([loadStats(), loadList(), loadLabStatus()]);
+});
