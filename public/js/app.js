@@ -1453,6 +1453,19 @@ function renderNavbar(user, active) {
       pill.setAttribute('aria-expanded', 'false');
     }
 
+    /* Cache modal instances so we never create a new bootstrap.Modal on every click.
+       This prevents backdrop/instance conflicts, especially when Bootstrap bundle
+       is loaded only once (no duplicate script tags). */
+    const modalCache = new Map();
+    function getCachedModal(id) {
+      if (!window.bootstrap) return null;
+      if (!modalCache.has(id)) {
+        const el = document.getElementById(id);
+        if (el) modalCache.set(id, new bootstrap.Modal(el));
+      }
+      return modalCache.get(id) || null;
+    }
+
     document.addEventListener('click', (e) => {
       const pill = getPill();
       const menu = getMenu();
@@ -1480,20 +1493,14 @@ function renderNavbar(user, active) {
           closeDropdown();
 
           if (item.id === 'menu-account-settings') {
-            const modalEl = document.getElementById('accountSettingsModal');
-            if (modalEl && window.bootstrap) {
-              new bootstrap.Modal(modalEl).show();
-            }
+            const modal = getCachedModal('accountSettingsModal');
+            if (modal) modal.show();
           } else if (item.id === 'menu-change-password') {
-            const modalEl = document.getElementById('changePasswordModal');
-            if (modalEl && window.bootstrap) {
-              new bootstrap.Modal(modalEl).show();
-            }
+            const modal = getCachedModal('changePasswordModal');
+            if (modal) modal.show();
           } else if (item.id === 'menu-add-admin') {
-            const modalEl = document.getElementById('admin-modal');
-            if (modalEl && window.bootstrap) {
-              new bootstrap.Modal(modalEl).show();
-            }
+            const modal = getCachedModal('admin-modal');
+            if (modal) modal.show();
           } else if (item.id === 'menu-logout') {
             if (confirm('Are you sure you want to log out?')) {
               window.location.href = '/api/auth/logout';
