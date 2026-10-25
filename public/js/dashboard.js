@@ -247,6 +247,11 @@
     if (loadingEl) loadingEl.removeAttribute('hidden');
     if (bodyEl) bodyEl.innerHTML = emptyRow(9, 'Loading your reservations&hellip;');
 
+    /* Safety net: never let the loading overlay block the page forever. */
+    const safetyTimer = setTimeout(() => {
+      if (loadingEl) loadingEl.setAttribute('hidden', '');
+    }, 10000);
+
     try {
       const params = new URLSearchParams({ limit: '200', mine: '1' });
       const data = await api('/api/reservations?' + params.toString());
@@ -271,6 +276,7 @@
       console.error('[dashboard reservations] Error:', err.message);
       if (bodyEl) bodyEl.innerHTML = emptyRow(9, 'Unable to load reservations. Please try again later.');
     } finally {
+      clearTimeout(safetyTimer);
       if (loadingEl) loadingEl.setAttribute('hidden', '');
     }
   }

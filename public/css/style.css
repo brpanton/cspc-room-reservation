@@ -206,7 +206,8 @@ main.container {
 }
 .dashboard-loading-overlay:not([hidden]) {
   display: flex !important;
-  pointer-events: auto;
+  /* Never block clicks — let users interact with the page while data loads. */
+  pointer-events: none;
 }
 
 .portal-navbar .navbar-brand {
@@ -4892,6 +4893,7 @@ main.container,
 }
 
 /* Ensure all interactive elements remain clickable. */
+body,
 button,
 .btn,
 .btn-close,
