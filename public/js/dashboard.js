@@ -8,7 +8,7 @@
   const P = window.Portal;
   const {
     api, requireRole, renderNavbar, escapeHtml, formatTime, formatDateShort, getLocale,
-    statusBadge, emptyRow, toastOk, toastError, busy, todayIso
+    statusBadge, emptyRow, toastOk, toastError, busy, queryParam, todayIso
   } = P;
 
   /* ------------------------------------------------------------- auth ---- */
@@ -345,6 +345,30 @@
     });
   }
 
+  /* ------------------------------------------------------ filters ------- */
+  function initFilters() {
+    const filterGroup = document.getElementById('status-filters');
+    if (!filterGroup) return;
+    filterGroup.querySelectorAll('button').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        filterGroup.querySelectorAll('button').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.status = btn.getAttribute('data-status') || '';
+        renderTable(state.items);
+      });
+    });
+
+    const tab = queryParam('tab');
+    if (tab) {
+      const btn = filterGroup.querySelector('button[data-status="' + tab + '"]');
+      if (btn) {
+        filterGroup.querySelectorAll('button').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.status = tab;
+      }
+    }
+  }
+
   /* ------------------------------------------------------- actions ------ */
   function initActions() {
     const newResBtn = document.getElementById('new-reservation-link');
@@ -363,6 +387,7 @@
   }
 
   /* ------------------------------------------------------------- boot --- */
+  initFilters();
   initActions();
   await loadReservations();
 })();
