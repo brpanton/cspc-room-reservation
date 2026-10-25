@@ -5817,3 +5817,32 @@ body:not(.modal-open) {
 .password-match-feedback.not-match {
   color: #fca5a5;
 }
+
+/* ================================================================
+   NUCLEAR OVERRIDE — Permanently disable Bootstrap's backdrop system
+   Bootstrap JS crashes mid-transition and leaves stuck .modal-backdrop
+   layers that freeze the entire page. This override kills the backdrop
+   entirely and applies a custom glass background directly on the active
+   modal container instead.
+==================================================================== */
+
+/* Force kill Bootstrap's backdrop layer */
+.modal-backdrop {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Prevent body locking */
+body, body.modal-open {
+  overflow: auto !important;
+  padding-right: 0 !important;
+  pointer-events: auto !important;
+}
+
+/* Apply custom glass background directly on active modal container */
+.modal.show {
+  background: rgba(15, 23, 42, 0.75) !important;
+  backdrop-filter: blur(8px) !important;
+  pointer-events: auto !important;
+}
