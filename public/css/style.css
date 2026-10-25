@@ -189,6 +189,26 @@ main.container {
   z-index: 1000;
 }
 
+/* ============================================================
+   LOADING OVERLAY - never blocks clicks when hidden
+   ============================================================ */
+.dashboard-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.dashboard-loading-overlay:not([hidden]) {
+  display: flex !important;
+  pointer-events: auto;
+}
+
 .portal-navbar .navbar-brand {
   flex: 0 0 auto;
   display: flex;
@@ -1051,7 +1071,7 @@ main.container {
 
 .profile-menu {
   position: absolute !important;
-  z-index: 99999 !important;
+  z-index: 1001 !important;
   min-width: 15.5rem;
   margin-top: 0.65rem !important;
   padding: 0.45rem;
@@ -4860,6 +4880,33 @@ body.building-photo-background::after {
   margin: 0 0.2rem 0.25rem 0;
 }
 
+/* ============================================================
+   MAIN CONTENT STACKING CONTEXT
+   ============================================================ */
+main,
+main.container,
+.main-content,
+.dashboard-container {
+  position: relative;
+  z-index: 1;
+}
+
+/* Ensure all interactive elements remain clickable. */
+button,
+.btn,
+.btn-close,
+.btn-close-white,
+input,
+select,
+textarea,
+a,
+.nav-link,
+.lab-status-card,
+.status-card {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
 /* ---------------------------------------------------------- alerts/modal --- */
 .alert {
   border-radius: 14px;
@@ -4964,13 +5011,26 @@ button,
   cursor: pointer !important;
 }
 
+/* Modal backdrop base: never blocks clicks when hidden/inactive. */
+.modal-backdrop {
+  pointer-events: none;
+  z-index: 2000;
+}
+.modal-backdrop[hidden] {
+  display: none !important;
+}
+.modal-backdrop:not([hidden]) {
+  pointer-events: auto;
+  display: block;
+}
+
 .modal-backdrop.show {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  z-index: 1050;
+  z-index: 2000;
   background: rgba(15, 23, 42, 0.65);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
