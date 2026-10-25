@@ -355,6 +355,15 @@ router.post('/logout', (req, res, next) => {
   });
 });
 
+/* GET fallback: if a user navigates directly to /api/auth/logout in the browser,
+   redirect them to the login page instead of showing raw JSON. */
+router.get('/logout', (req, res) => {
+  req.session.destroy(() => {
+    res.clearCookie('cspc.sid');
+    res.redirect('/login.html');
+  });
+});
+
 router.get('/me', (req, res) => {
   if (!req.session || !req.session.user) {
     return res.status(401).json({ error: 'Not authenticated.' });

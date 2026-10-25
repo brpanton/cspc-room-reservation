@@ -1466,7 +1466,7 @@ function renderNavbar(user, active) {
       return modalCache.get(id) || null;
     }
 
-    document.addEventListener('click', (e) => {
+    document.addEventListener('click', async (e) => {
       const pill = getPill();
       const menu = getMenu();
       const wrapper = getWrapper();
@@ -1503,7 +1503,13 @@ function renderNavbar(user, active) {
             if (modal) modal.show();
           } else if (item.id === 'menu-logout') {
             if (confirm('Are you sure you want to log out?')) {
-              window.location.href = '/api/auth/logout';
+              try {
+                await api('/api/auth/logout', { method: 'POST' });
+              } catch {
+                /* even if the call fails, still clear session and redirect */
+              }
+              sessionCache = null;
+              redirectTo('/?logged_out=1');
             }
           }
           return;
