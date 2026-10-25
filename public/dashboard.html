@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Dashboard - CSPC Lab &amp; Room Reservation</title>
+  <title>Student Dashboard - CSPC Lab &amp; Room Reservation</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="/css/style.css" rel="stylesheet" />
   <link rel="icon" type="image/jpeg" href="/img/hornet-logo.jpg" />
@@ -11,71 +11,168 @@
 <body>
   <div id="navbar-placeholder"></div>
 
+  <!-- Full-page loading overlay (shown while data loads) -->
+  <div id="dashboard-loading" class="dashboard-loading-overlay">
+    <div class="dashboard-loading-spinner">
+      <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;"></div>
+      <div class="mt-3 text-muted-small">Loading your reservations&hellip;</div>
+    </div>
+  </div>
+
   <main class="container py-4">
-    <div class="dashboard-hero card">
-      <div class="dashboard-hero-identity">
-        <button type="button" class="dashboard-avatar-button" id="dashboard-avatar-trigger" aria-label="Edit profile photo" title="Edit profile photo">
-          <span class="avatar-shell dashboard-avatar" aria-hidden="true">
-            <span class="avatar-initials" id="dashboard-avatar-initials">?</span>
-            <img class="user-avatar-img" id="dashboard-avatar-img" alt="" hidden />
-          </span>
-        </button>
-        <div class="dashboard-hero-content">
-          <div class="dashboard-eyebrow">SYSTEM OVERVIEW</div>
-          <h1 class="page-title h4 mb-1" id="welcome-title">Welcome back, <span id="welcome-username"></span>!</h1>
-          <p class="text-muted-sm mb-0" id="welcome-subtitle">Track the status of your own room reservation requests.</p>
+    <!-- ===== WELCOME BANNER / HERO ===== -->
+    <div class="dashboard-hero card mb-4">
+      <div class="dashboard-hero-identity d-flex align-items-start">
+        <div class="avatar-shell dashboard-avatar me-3 mt-1" aria-hidden="true">
+          <span class="avatar-initials" id="dashboard-avatar-initials">?</span>
+          <img class="user-avatar-img" id="dashboard-avatar-img" alt="" hidden />
+        </div>
+        <div class="dashboard-hero-content flex-fill">
+          <div class="dashboard-eyebrow text-uppercase small">System Overview</div>
+          <h1 class="page-title h4 mb-1" id="welcome-title">
+            Welcome back, <span id="welcome-username"></span>!
+          </h1>
+          <p class="text-muted-sm mb-0" id="welcome-subtitle">
+            Track the status of your own room reservation requests.
+          </p>
         </div>
       </div>
 
-      <div class="dashboard-hero-actions">
-        <button type="button" class="shortcut-btn primary" id="new-reservation-link" data-shortcut="new-reservation">+ New Reservation</button>
-        <button type="button" class="shortcut-btn ghost" data-shortcut="room-status">Manage Rooms</button>
-        <button type="button" class="shortcut-btn ghost" data-shortcut="pending">View Pending</button>
+      <div class="dashboard-hero-actions mt-3 d-flex flex-wrap gap-2">
+        <button type="button" class="btn btn-primary btn-lg" id="new-reservation-link">
+          + New Reservation
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-lg" id="view-pending-link">
+          View Pending
+        </button>
       </div>
 
-      <div class="dashboard-hero-meta">
+      <div class="dashboard-hero-meta mt-3 d-flex flex-wrap align-items-center gap-3">
         <div class="dashboard-status-pill"><span class="status-dot"></span> System online</div>
-        <div id="dashboard-timestamp">--</div>
+        <div id="dashboard-timestamp" class="text-muted-small">--</div>
       </div>
     </div>
 
+    <!-- ===== STAT METRICS CARDS (ALL-BLUE THEME) ===== -->
     <section class="row g-3 mb-4" aria-label="Statistics">
-      <div class="col-6 col-lg-3">
-        <div class="card stat-card stat-total"><div class="card-body">
-          <div class="stat-value" id="stat-total">0</div>
-          <div class="stat-label">TOTAL REQUESTS</div>
-        </div></div>
+      <div class="col-6 col-sm-6 col-lg-3">
+        <div class="card stat-card stat-blue h-100">
+          <div class="card-body d-flex flex-column">
+            <div class="stat-value" id="stat-total">0</div>
+            <div class="stat-label mt-auto">TOTAL REQUESTS</div>
+          </div>
+        </div>
       </div>
-      <div class="col-6 col-lg-3">
-        <div class="card stat-card stat-pending"><div class="card-body">
-          <div class="stat-value" id="stat-pending">0</div>
-          <div class="stat-label">PENDING</div>
-        </div></div>
+      <div class="col-6 col-sm-6 col-lg-3">
+        <div class="card stat-card stat-blue h-100">
+          <div class="card-body d-flex flex-column">
+            <div class="stat-value" id="stat-pending">0</div>
+            <div class="stat-label mt-auto">PENDING</div>
+          </div>
+        </div>
       </div>
-      <div class="col-6 col-lg-3">
-        <div class="card stat-card stat-approved"><div class="card-body">
-          <div class="stat-value" id="stat-approved">0</div>
-          <div class="stat-label">APPROVED</div>
-        </div></div>
+      <div class="col-6 col-sm-6 col-lg-3">
+        <div class="card stat-card stat-blue h-100">
+          <div class="card-body d-flex flex-column">
+            <div class="stat-value" id="stat-approved">0</div>
+            <div class="stat-label mt-auto">APPROVED</div>
+          </div>
+        </div>
       </div>
-      <div class="col-6 col-lg-3">
-        <div class="card stat-card stat-rejected"><div class="card-body">
-          <div class="stat-value" id="stat-rejected">0</div>
-          <div class="stat-label">REJECTED</div>
-        </div></div>
+      <div class="col-6 col-sm-6 col-lg-3">
+        <div class="card stat-card stat-blue h-100">
+          <div class="card-body d-flex flex-column">
+            <div class="stat-value" id="stat-rejected">0</div>
+            <div class="stat-label mt-auto">REJECTED</div>
+          </div>
+        </div>
       </div>
     </section>
 
-    <section class="row g-3 mb-4 d-none" id="inventory-row" aria-label="Inventory">
-      <div class="col-4">
-        <div class="card stat-card"><div class="card-body">
-          <div class="stat-value" id="stat-rooms">0</div>
-          <div class="stat-label">Active rooms</div>
-        </div></div>
+    <!-- ===== LABORATORY STATUS ===== -->
+    <section class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">Laboratory Status</span>
+        <a href="/rooms-status.html" class="btn btn-sm btn-outline-primary">View all &rarr;</a>
       </div>
-      <div class="col-4">
-        <div class="card stat-card"><div class="card-body">
-          <div class="stat-value" id="stat-buildings">0</div>
+      <div class="card-body" id="laboratory-status">
+        <!-- Lab / room status cards rendered here by JS -->
+      </div>
+    </section>
+
+    <!-- ===== ROOM SNAPSHOT & RECENT ACTIVITY ===== -->
+    <section class="row g-3 mb-4">
+      <!-- Room Snapshot (student's upcoming reservations) -->
+      <div class="col-lg-8">
+        <div class="card h-100">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span class="fw-semibold">Room Snapshot</span>
+            <span class="text-muted-small">This week</span>
+          </div>
+          <div class="card-body p-3" id="room-snapshot">
+            <!-- Upcoming reservations rendered here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Activity (activity timeline) -->
+      <div class="col-lg-4">
+        <div class="card h-100">
+          <div class="card-header">
+            <span class="fw-semibold">Recent Activity</span>
+          </div>
+          <div class="card-body p-3" id="activity-feed">
+            <!-- Activity items rendered here -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== MY RESERVATIONS TABLE ===== -->
+    <section class="card">
+      <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span id="list-title" class="fw-semibold">My Reservations</span>
+        <div class="btn-group btn-group-sm" role="group" id="status-filters">
+          <button type="button" class="btn btn-outline-primary active" data-status="">All</button>
+          <button type="button" class="btn btn-outline-primary" data-status="Pending">Pending</button>
+          <button type="button" class="btn btn-outline-primary" data-status="Approved">Approved</button>
+          <button type="button" class="btn btn-outline-primary" data-status="Rejected">Rejected</button>
+          <button type="button" class="btn btn-outline-primary" data-status="Cancelled">Cancelled</button>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-portal table-hover mb-0 align-middle">
+          <thead>
+            <tr>
+              <th style="width: 40px;">#</th>
+              <th>Room</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Purpose</th>
+              <th class="text-center" style="width: 100px;">Attendees</th>
+              <th class="text-center" style="width: 120px;">Status</th>
+              <th class="text-end" style="width: 130px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="reservations-body">
+            <!-- Rows rendered by JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="portal-footer">
+    CSPC Lab &amp; Room Reservation System &middot; Computer Studies Department
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/app.js"></script>
+  <script src="/js/cookie-consent.js"></script>
+  <script src="/js/dashboard.js?v=20261026"></script>
+</body>
+</html>
           <div class="stat-label">Buildings</div>
         </div></div>
       </div>
@@ -201,6 +298,5 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/js/app.js"></script>
   <script src="/js/cookie-consent.js"></script>
-  <script src="/js/dashboard.js?v=20261019-cancel-red"></script>
 </body>
 </html>
