@@ -284,7 +284,7 @@
 
     if (filtered.length === 0) {
       bodyEl.innerHTML = '<tr>' +
-        '<td colspan="8" class="text-center text-muted-sm py-4">' +
+        '<td colspan="9" class="text-center text-muted-sm py-4">' +
         'No reservations found. Click \'<span class="fw-semibold">+ New Reservation</span>\' to get started.' +
         '</td></tr>';
       return;
