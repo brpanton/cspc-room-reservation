@@ -1417,6 +1417,96 @@ function renderNavbar(user, active) {
     }
   });
 
+  /* ------------------------------------ new-style profile pill (delegation) ---
+     Handles #profile-pill / #profile-dropdown-menu on pages that render the
+     user-profile-wrapper but have no page-specific handler (e.g. index.html).
+     Uses document-level click delegation so it works regardless of when the
+     navbar is injected. On pages where dashboard.js binds a direct listener,
+     stopPropagation() in that listener prevents this delegate from firing.
+     -------------------------------------------------------------------------- */
+
+  (function initProfilePillDelegation() {
+    const getPill = () => document.getElementById('profile-pill');
+    const getMenu = () => document.getElementById('profile-dropdown-menu');
+    const getWrapper = () => document.getElementById('user-profile-wrapper');
+
+    function openDropdown() {
+      const pill = getPill();
+      const menu = getMenu();
+      if (!pill || !menu) return;
+      menu.classList.add('show');
+      menu.removeAttribute('hidden');
+      pill.classList.add('active');
+      pill.setAttribute('aria-expanded', 'true');
+    }
+
+    function closeDropdown() {
+      const pill = getPill();
+      const menu = getMenu();
+      if (!pill || !menu) return;
+      menu.classList.remove('show');
+      menu.setAttribute('hidden', '');
+      pill.classList.remove('active');
+      pill.setAttribute('aria-expanded', 'false');
+    }
+
+    document.addEventListener('click', (e) => {
+      const pill = getPill();
+      const menu = getMenu();
+      const wrapper = getWrapper();
+      if (!pill || !menu || !wrapper) return;
+
+      /* Toggle when the pill itself is clicked */
+      if (pill.contains(e.target)) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (menu.classList.contains('show')) {
+          closeDropdown();
+        } else {
+          openDropdown();
+        }
+        return;
+      }
+
+      /* Handle menu-item clicks while the dropdown is open */
+      if (menu.classList.contains('show')) {
+        const item = e.target.closest('.dropdown-item');
+        if (item) {
+          e.preventDefault();
+          e.stopPropagation();
+          closeDropdown();
+
+          if (item.id === 'menu-account-settings') {
+            const modalEl = document.getElementById('accountSettingsModal');
+            if (modalEl && window.bootstrap) {
+              new bootstrap.Modal(modalEl).show();
+            }
+          } else if (item.id === 'menu-change-password') {
+            const modalEl = document.getElementById('changePasswordModal');
+            if (modalEl && window.bootstrap) {
+              new bootstrap.Modal(modalEl).show();
+            }
+          } else if (item.id === 'menu-add-admin') {
+            const modalEl = document.getElementById('admin-modal');
+            if (modalEl && window.bootstrap) {
+              new bootstrap.Modal(modalEl).show();
+            }
+          } else if (item.id === 'menu-logout') {
+            if (confirm('Are you sure you want to log out?')) {
+              window.location.href = '/api/auth/logout';
+            }
+          }
+          return;
+        }
+      }
+
+      /* Close when clicking anywhere outside the wrapper */
+      if (menu.classList.contains('show') && !wrapper.contains(e.target)) {
+        closeDropdown();
+      }
+    });
+  })();
+
   /* ------------------------------------------- security / change password --- */
 
   const securityMenuItem = document.getElementById('security-settings-menu-item');

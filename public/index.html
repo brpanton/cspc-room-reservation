@@ -11,6 +11,9 @@
 <body>
   <div id="navbar-placeholder"></div>
 
+  <!-- User Profile Dropdown Trigger (rendered inside navbar by app.js when logged in) -->
+  <div class="user-profile-wrapper" id="user-profile-wrapper" hidden></div>
+
   <main class="auth-wrap">
     <div class="card auth-card" id="login-card">
       <div class="auth-hero">
@@ -170,6 +173,103 @@
   <footer class="portal-footer">
     CSPC Lab &amp; Room Reservation System &middot; Computer Studies Department
   </footer>
+
+  <!-- Account Settings Modal (shared with navbar profile dropdown) -->
+  <div class="modal fade profile-modal" id="accountSettingsModal" tabindex="-1" aria-labelledby="accountSettingsTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <span class="profile-modal-kicker">Your Account</span>
+            <h5 class="modal-title fw-semibold" id="accountSettingsTitle">Account Settings</h5>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="accountSettingsForm" novalidate>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label required">Full Name</label>
+                <input type="text" class="form-control" id="acct-full-name" name="full_name" placeholder="e.g. Juan Dela Cruz" required />
+                <div class="invalid-feedback">Please enter your full name.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label required">Student / Employee ID</label>
+                <input type="text" class="form-control" id="acct-student-id" name="student_id" placeholder="e.g. 2021-00123" required />
+                <div class="invalid-feedback">Please enter your ID number.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label required">Email Address</label>
+                <input type="email" class="form-control" id="acct-email" name="email" placeholder="e.g. name@cspc.edu.ph" required />
+                <div class="invalid-feedback">Please enter a valid email address.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Department</label>
+                <input type="text" class="form-control" id="acct-department" name="department" placeholder="e.g. Computer Studies" />
+              </div>
+              <div class="col-12">
+                <label class="form-label">Contact Number</label>
+                <input type="tel" class="form-control" id="acct-contact" name="contact_number" placeholder="e.g. +63 9xx xxx xxxx" />
+              </div>
+            </div>
+            <div class="mt-4 text-end">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-cspc" id="acct-save-btn">Save Changes</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Change Password Modal (shared with navbar profile dropdown) -->
+  <div class="modal fade profile-modal" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <span class="profile-modal-kicker">Security</span>
+            <h5 class="modal-title fw-semibold" id="changePasswordTitle">Change Password</h5>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="changePasswordForm" novalidate>
+            <div class="mb-3">
+              <label class="form-label required">Current Password</label>
+              <div class="password-input-wrap">
+                <input type="password" class="form-control" id="cpwd-current" name="current_password" placeholder="Enter your current password" required />
+                <button type="button" class="password-toggle-btn" aria-label="Toggle password visibility" aria-pressed="false">&#128065;</button>
+              </div>
+              <div class="invalid-feedback">Please enter your current password.</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label required">New Password</label>
+              <div class="password-input-wrap">
+                <input type="password" class="form-control" id="cpwd-new" name="new_password" placeholder="Create a new password" required />
+                <button type="button" class="password-toggle-btn" aria-label="Toggle password visibility" aria-pressed="false">&#128065;</button>
+              </div>
+              <div class="invalid-feedback">Password must be at least 8 characters.</div>
+              <div class="password-strength" id="cpwd-strength" role="status" aria-live="polite"></div>
+              <p class="password-strength-label" id="cpwd-strength-label">Enter a password to check strength</p>
+            </div>
+            <div class="mb-4">
+              <label class="form-label required">Confirm New Password</label>
+              <div class="password-input-wrap">
+                <input type="password" class="form-control" id="cpwd-confirm" name="confirm_password" placeholder="Repeat your new password" required />
+                <button type="button" class="password-toggle-btn" aria-label="Toggle password visibility" aria-pressed="false">&#128065;</button>
+              </div>
+              <div class="invalid-feedback">Passwords do not match.</div>
+            </div>
+            <div class="mt-4 text-end">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-cspc" id="cpwd-save-btn">Save Changes</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/js/app.js"></script>
