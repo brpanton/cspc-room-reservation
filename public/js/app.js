@@ -1103,7 +1103,10 @@ function renderNavbar(user, active) {
     navLinks += '<li class="nav-item"><button class="nav-link nav-link-button" type="button" data-bs-toggle="modal" data-bs-target="#about-us-modal">About Us</button></li>';
   }
 
-  const userArea = user
+  // If the page already has its own user-profile-wrapper (e.g. dashboard.html),
+  // skip rendering the legacy profile dropdown to avoid duplicate profile pills.
+  const hasOwnProfileWrapper = document.getElementById('user-profile-wrapper') !== null;
+  const userArea = user && !hasOwnProfileWrapper
     ? `
       <div class="profile-dropdown d-flex align-items-center">
         <div class="user-chip">
