@@ -1109,6 +1109,25 @@ function renderNavbar(user, active) {
   // If the page already has its own user-profile-wrapper (e.g. dashboard.html),
   // skip rendering the legacy profile dropdown to avoid duplicate profile pills.
   const hasOwnProfileWrapper = document.getElementById('user-profile-wrapper') !== null;
+
+  /* Administration section: only admins see "Add New Admin Account". */
+  const adminSectionLegacy = isAdmin
+    ? `          <div class="profile-menu-heading">Administration</div>
+          <button class="dropdown-item" id="add-admin-menu-item" type="button"><span class="profile-menu-icon">➕</span> + Add New Admin Account</button>
+          <div class="dropdown-divider"></div>`
+    : `          <div class="dropdown-divider"></div>`;
+
+  const adminSectionNewStyle = isAdmin
+    ? `          <div class="dropdown-section">
+            <div class="dropdown-section-title">Administration</div>
+            <button type="button" class="dropdown-item" id="menu-add-admin">
+              <span class="item-icon">➕</span>
+              <span class="item-label">Add New Admin Account</span>
+            </button>
+          </div>
+          <hr class="dropdown-divider" />`
+    : `          <hr class="dropdown-divider" />`;
+
   const userArea = user && !hasOwnProfileWrapper
     ? `
       <div class="profile-dropdown d-flex align-items-center">
@@ -1127,14 +1146,12 @@ function renderNavbar(user, active) {
           <div class="profile-menu-heading">Your account</div>
           <button class="dropdown-item" id="accountSettingsMenuItem" type="button" data-bs-toggle="modal" data-bs-target="#accountSettingsModal"><span class="profile-menu-icon">◎</span> Account Settings</button>
           <button class="dropdown-item" id="change-password-menu-item" type="button"><span class="profile-menu-icon">🔒</span> Change Password</button>
-          <div class="profile-menu-heading">Administration</div>
-          <button class="dropdown-item" id="add-admin-menu-item" type="button"><span class="profile-menu-icon">➕</span> + Add New Admin Account</button>
-          <div class="dropdown-divider"></div>
+${adminSectionLegacy}
           <button class="dropdown-item profile-logout-item" id="logout-btn" type="button"><span class="profile-menu-icon">↪</span> Log out</button>
         </div>
       </div>`
     : user && hasOwnProfileWrapper
-      ? `\n      <div class="user-profile-wrapper d-inline-flex align-items-center gap-0 position-relative">\n        <button type="button" class="profile-pill" id="profile-pill" aria-haspopup="true" aria-expanded="false">\n          <span class="avatar-circle" id="profile-avatar">${avatarInitial}</span>\n          <span class="profile-name" id="profile-name">${escapeHtml(user.full_name || 'User')}</span>\n          <span class="role-badge" id="profile-role">${String(user.role || 'STUDENT').toUpperCase()}</span>\n          <span class="dropdown-arrow">▼</span>\n        </button>\n        <div class="profile-dropdown-menu" id="profile-dropdown-menu" hidden>\n          <div class="dropdown-section">\n            <div class="dropdown-section-title">Your Account</div>\n            <button type="button" class="dropdown-item" id="menu-account-settings">\n              <span class="item-icon">⚙️</span>\n              <span class="item-label">Account Settings</span>\n            </button>\n            <button type="button" class="dropdown-item" id="menu-change-password">\n              <span class="item-icon">🔒</span>\n              <span class="item-label">Change Password</span>\n            </button>\n          </div>\n          <div class="dropdown-section">\n            <div class="dropdown-section-title">Administration</div>\n            <button type="button" class="dropdown-item" id="menu-add-admin">\n              <span class="item-icon">➕</span>\n              <span class="item-label">Add New Admin Account</span>\n            </button>\n          </div>\n          <hr class="dropdown-divider" />\n          <button type="button" class="dropdown-item dropdown-item-danger" id="menu-logout">\n            <span class="item-icon">🚪</span>\n            <span class="item-label">Log Out</span>\n          </button>\n        </div>\n      </div>`
+      ? `\n      <div class="user-profile-wrapper d-inline-flex align-items-center gap-0 position-relative">\n        <button type="button" class="profile-pill" id="profile-pill" aria-haspopup="true" aria-expanded="false">\n          <span class="avatar-circle" id="profile-avatar">${avatarInitial}</span>\n          <span class="profile-name" id="profile-name">${escapeHtml(user.full_name || 'User')}</span>\n          <span class="role-badge" id="profile-role">${String(user.role || 'STUDENT').toUpperCase()}</span>\n          <span class="dropdown-arrow">▼</span>\n        </button>\n        <div class="profile-dropdown-menu" id="profile-dropdown-menu" hidden>\n          <div class="dropdown-section">\n            <div class="dropdown-section-title">Your Account</div>\n            <button type="button" class="dropdown-item" id="menu-account-settings">\n              <span class="item-icon">⚙️</span>\n              <span class="item-label">Account Settings</span>\n            </button>\n            <button type="button" class="dropdown-item" id="menu-change-password">\n              <span class="item-icon">🔒</span>\n              <span class="item-label">Change Password</span>\n            </button>\n          </div>\n${adminSectionNewStyle}\n          <button type="button" class="dropdown-item dropdown-item-danger" id="menu-logout">\n            <span class="item-icon">🚪</span>\n            <span class="item-label">Log Out</span>\n          </button>\n        </div>\n      </div>`
       : isPublicLanding
         ? `
         <button class="btn btn-sm btn-outline-light" id="visitor-login-trigger" type="button" data-bs-toggle="modal" data-bs-target="#visitor-login-modal">Log in</button>
