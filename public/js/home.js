@@ -22,6 +22,12 @@
   const session = await P.getSession();
   P.renderNavbar(session.user, 'home');
 
+  // Unhide the user-profile-wrapper so the profile pill shows the logged-in user
+  const profileWrapper = document.getElementById('user-profile-wrapper');
+  if (session.authenticated && profileWrapper) {
+    profileWrapper.hidden = false;
+  }
+
   const primaryAction = document.getElementById('home-primary-action');
   if (session.authenticated && primaryAction) {
     primaryAction.removeAttribute('data-bs-toggle');
