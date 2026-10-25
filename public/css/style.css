@@ -5299,6 +5299,10 @@ button,
   display: flex;
   align-items: center;
   gap: 0;
+  position: fixed;
+  top: 0.85rem;
+  right: 1rem;
+  z-index: 10000 !important;
 }
 
 .profile-pill {

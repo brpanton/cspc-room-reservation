@@ -398,7 +398,11 @@
   const profileRole = document.getElementById('profile-role');
   const dropdownArrow = document.getElementById('dropdown-arrow');
 
-  if (profileWrapper) profileWrapper.style.display = 'flex';
+  if (profileWrapper) profileWrapper.hidden = false;
+
+  /* Hide the navbar's Bootstrap profile dropdown to avoid duplicate profile menus */
+  const navbarProfileDropdown = document.querySelector('.profile-dropdown');
+  if (navbarProfileDropdown) navbarProfileDropdown.style.display = 'none';
 
   if (profileAvatar) profileAvatar.textContent = (user.full_name || 'U')
     .trim().split(/\s+/).slice(0, 1).map(p => p.charAt(0).toUpperCase()).join('') || 'U';
