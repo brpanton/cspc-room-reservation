@@ -245,7 +245,7 @@
   /* ---------------------------------------------------- reservations --- */
   async function loadReservations() {
     if (loadingEl) loadingEl.style.display = 'flex';
-    if (bodyEl) bodyEl.innerHTML = emptyRow(8, 'Loading your reservations&hellip;');
+    if (bodyEl) bodyEl.innerHTML = emptyRow(9, 'Loading your reservations&hellip;');
 
     try {
       const params = new URLSearchParams({ limit: '200', mine: '1' });
@@ -269,7 +269,7 @@
       renderTable(items);
     } catch (err) {
       console.error('[dashboard reservations] Error:', err.message);
-      if (bodyEl) bodyEl.innerHTML = emptyRow(8, 'Unable to load reservations. Please try again later.');
+      if (bodyEl) bodyEl.innerHTML = emptyRow(9, 'Unable to load reservations. Please try again later.');
     } finally {
       if (loadingEl) loadingEl.style.display = 'none';
     }
