@@ -5054,6 +5054,16 @@ button,
   opacity: 1;
 }
 
+/* Backdrop safeguards: never let a stuck backdrop freeze the page */
+body:not(.modal-open) .modal-backdrop {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+body:not(.modal-open) {
+  overflow: auto !important;
+}
+
 /* Ensure every interactive element inside modals can receive clicks. */
 .modal-dialog,
 .modal-content,

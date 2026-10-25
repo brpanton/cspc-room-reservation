@@ -1797,3 +1797,38 @@ window.Portal = {
   setFormValue,
   broadcastAvailabilityChange
 };
+
+/* ------------------------------------------------------------
+   Stuck-backdrop cleanup safety net.
+   Bootstrap sometimes leaves a .modal-backdrop attached to
+   <body> when a modal fails to open/close cleanly. That stray
+   backdrop (plus the .modal-open class on <body>) blocks every
+   click and blurs the page.  We clean it up in two places:
+
+   1. After every modal closes        (hidden.bs.modal)
+   2. Periodically as a safety net    (setInterval)
+------------------------------------------------------------ */
+(function cleanupStuckBackdrops() {
+  function removeStuckBackdrops() {
+    // If a modal is genuinely open, leave everything alone.
+    if (document.querySelector('.modal.show')) return;
+
+    // Remove any orphaned backdrops.
+    document.querySelectorAll('.modal-backdrop').forEach((el) => el.remove());
+
+    // Strip the lock-scrolling class so the page is usable again.
+    if (document.body.classList.contains('modal-open')) {
+      document.body.classList.remove('modal-open');
+      document.body.style.overflow = '';
+    }
+  }
+
+  // Clean up whenever any Bootstrap modal finishes closing.
+  document.addEventListener('hidden.bs.modal', removeStuckBackdrops);
+
+  // Periodic safety net: every second, check for stray backdrops.
+  setInterval(removeStuckBackdrops, 1000);
+
+  // Run once immediately on load.
+  removeStuckBackdrops();
+})();
