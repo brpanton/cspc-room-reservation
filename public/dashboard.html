@@ -11,6 +11,46 @@
 <body>
   <div id="navbar-placeholder"></div>
 
+  <!-- User Profile Dropdown Trigger (top-right of navbar) -->
+  <div class="user-profile-wrapper" style="margin-left: auto; display: none;" id="user-profile-wrapper">
+    <button type="button" class="profile-pill" id="profile-pill" aria-haspopup="true" aria-expanded="false">
+      <span class="avatar-circle" id="profile-avatar">U</span>
+      <span class="profile-name" id="profile-name">User</span>
+      <span class="role-badge" id="profile-role">STUDENT</span>
+      <span class="dropdown-arrow">▼</span>
+    </button>
+
+    <!-- Dropdown Menu (glassmorphic) -->
+    <div class="profile-dropdown-menu" id="profile-dropdown-menu" hidden>
+      <div class="dropdown-section">
+        <div class="dropdown-section-title">Your Account</div>
+        <button type="button" class="dropdown-item" id="menu-account-settings">
+          <span class="item-icon">⚙️</span>
+          <span class="item-label">Account Settings</span>
+        </button>
+        <button type="button" class="dropdown-item" id="menu-change-password">
+          <span class="item-icon">🔒</span>
+          <span class="item-label">Change Password</span>
+        </button>
+      </div>
+
+      <div class="dropdown-section">
+        <div class="dropdown-section-title">Administration</div>
+        <button type="button" class="dropdown-item" id="menu-add-admin">
+          <span class="item-icon">➕</span>
+          <span class="item-label">Add New Admin Account</span>
+        </button>
+      </div>
+
+      <hr class="dropdown-divider" />
+
+      <button type="button" class="dropdown-item dropdown-item-danger" id="menu-logout">
+        <span class="item-icon">🚪</span>
+        <span class="item-label">Log Out</span>
+      </button>
+    </div>
+  </div>
+
   <!-- Full-page loading overlay (shown while data loads) -->
   <div id="dashboard-loading" class="dashboard-loading-overlay">
     <div class="dashboard-loading-spinner">
@@ -190,6 +230,316 @@
     </div>
   </div>
 
+  <!-- Account Settings Modal -->
+  <div class="modal fade profile-modal" id="accountSettingsModal" tabindex="-1" aria-labelledby="accountSettingsTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <span class="profile-modal-kicker">Your Account</span>
+            <h5 class="modal-title fw-semibold" id="accountSettingsTitle">Account Settings</h5>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="accountSettingsForm" novalidate>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label required">Full Name</label>
+                <input type="text" class="form-control" id="acct-full-name" name="full_name" placeholder="e.g. Juan Dela Cruz" required />
+                <div class="invalid-feedback">Please enter your full name.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label required">Student / Employee ID</label>
+                <input type="text" class="form-control" id="acct-student-id" name="student_id" placeholder="e.g. 2021-00123" required />
+                <div class="invalid-feedback">Please enter your ID number.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label required">Email Address</label>
+                <input type="email" class="form-control" id="acct-email" name="email" placeholder="e.g. name@cspc.edu.ph" required />
+                <div class="invalid-feedback">Please enter a valid email address.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Department</label>
+                <input type="text" class="form-control" id="acct-department" name="department" placeholder="e.g. Computer Studies" />
+              </div>
+              <div class="col-12">
+                <label class="form-label">Contact Number</label>
+                <input type="tel" class="form-control" id="acct-contact" name="contact_number" placeholder="e.g. +63 9xx xxx xxxx" />
+              </div>
+            </div>
+            <div class="mt-4 text-end">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-cspc" id="acct-save-btn">Save Changes</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Change Password Modal -->
+  <div class="modal fade profile-modal" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <span class="profile-modal-kicker">Security</span>
+            <h5 class="modal-title fw-semibold" id="changePasswordTitle">Change Password</h5>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="changePasswordForm" novalidate>
+            <div class="mb-3">
+              <label class="form-label required">Current Password</label>
+              <div class="password-input-wrap">
+                <input type="password" class="form-control" id="cpwd-current" name="current_password" placeholder="Enter your current password" required />
+                <button type="button" class="password-toggle-btn" aria-label="Toggle password visibility" aria-pressed="false">&#128065;</button>
+              </div>
+              <div class="invalid-feedback">Please enter your current password.</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label required">New Password</label>
+              <div class="password-input-wrap">
+                <input type="password" class="form-control" id="cpwd-new" name="new_password" placeholder="Create a new password" required />
+                <button type="button" class="password-toggle-btn" aria-label="Toggle password visibility" aria-pressed="false">&#128065;</button>
+              </div>
+              <div class="invalid-feedback">Password must be at least 8 characters.</div>
+              <div class="password-strength" id="cpwd-strength" role="status" aria-live="polite"></div>
+              <p class="password-strength-label" id="cpwd-strength-label">Enter a password to check strength</p>
+            </div>
+            <div class="mb-4">
+              <label class="form-label required">Confirm New Password</label>
+              <div class="password-input-wrap">
+                <input type="password" class="form-control" id="cpwd-confirm" name="confirm_password" placeholder="Repeat your new password" required />
+                <button type="button" class="password-toggle-btn" aria-label="Toggle password visibility" aria-pressed="false">&#128065;</button>
+              </div>
+              <div class="invalid-feedback">Please confirm your new password.</div>
+              <p class="password-match-feedback" id="cpwd-match-feedback"></p>
+            </div>
+            <div class="mt-4 text-end">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-cspc" id="cpwd-save-btn" disabled>Change Password</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Admin Account Modal (Admin only) -->
+  <div class="modal fade profile-modal" id="addAdminModal" tabindex="-1" aria-labelledby="addAdminTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <span class="profile-modal-kicker">Administration</span>
+            <h5 class="modal-title fw-semibold" id="addAdminTitle">Add New Admin Account</h5>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="addAdminForm" novalidate>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label required">Full Name</label>
+                <input type="text" class="form-control" id="admin-full-name" name="full_name" placeholder="e.g. Maria Admin" required />
+                <div class="invalid-feedback">Please enter the admin's full name.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label required">Admin ID</label>
+                <input type="text" class="form-control" id="admin-id" name="admin_id" placeholder="e.g. ADM-2021-001" required />
+                <div class="invalid-feedback">Please enter an admin ID.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label required">Email Address</label>
+                <input type="email" class="form-control" id="admin-email" name="email" placeholder="e.g. admin@cspc.edu.ph" required />
+                <div class="invalid-feedback">Please enter a valid email address.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Department</label>
+                <input type="text" class="form-control" id="admin-department" name="department" placeholder="e.g. Computer Studies" />
+              </div>
+              <div class="col-12">
+                <label class="form-label required">Password</label>
+                <div class="password-input-wrap">
+                  <input type="password" class="form-control" id="admin-password" name="password" placeholder="Create a secure password" required />
+                  <button type="button" class="password-toggle-btn" aria-label="Toggle password visibility" aria-pressed="false">&#128065;</button>
+                </div>
+                <div class="invalid-feedback">Password must be at least 8 characters.</div>
+              </div>
+            </div>
+            <div class="mt-4 text-end">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-cspc" id="admin-save-btn">Add Admin Account</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Logout Confirmation Modal -->
+  <div class="modal fade profile-modal" id="logoutModal" tabindex="-1" aria-labelledby="logoutTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <span class="profile-modal-kicker">Sign Out</span>
+            <h5 class="modal-title fw-semibold" id="logoutTitle">Log Out</h5>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body text-center">
+          <div class="mb-4">
+            <span class="logout-icon" aria-hidden="true">&#128271;</span>
+          </div>
+          <p class="text-muted-sm mb-0">Are you sure you want to log out of your account?</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-outline-danger" id="logout-confirm-btn">Log Out</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Glassmorphism Modal Backdrop -->
+  <div class="modal-backdrop" id="profile-modal-backdrop" hidden></div>
+
+  <!-- Account Settings Modal -->
+  <div class="profile-modal" id="modal-account-settings" hidden role="dialog" aria-modal="true" aria-labelledby="modal-account-title">
+    <div class="profile-modal-content">
+      <div class="profile-modal-header">
+        <h3 class="profile-modal-title" id="modal-account-title">Account Settings</h3>
+        <button type="button" class="profile-modal-close" id="close-account-settings" aria-label="Close">×</button>
+      </div>
+      <div class="profile-modal-body">
+        <form id="form-account-settings" novalidate>
+          <div class="modal-field">
+            <label class="modal-field-label">Full Name</label>
+            <input type="text" class="modal-field-input" id="setting-full-name" placeholder="Full name" required />
+          </div>
+          <div class="modal-field">
+            <label class="modal-field-label">Student / Employee ID</label>
+            <input type="text" class="modal-field-input" id="setting-student-id" placeholder="ID number" required />
+          </div>
+          <div class="modal-field">
+            <label class="modal-field-label">Email Address</label>
+            <input type="email" class="modal-field-input" id="setting-email" placeholder="you@cspc.edu.ph" required />
+          </div>
+          <div class="modal-field">
+            <label class="modal-field-label">Department</label>
+            <input type="text" class="modal-field-input" id="setting-department" placeholder="Department" required />
+          </div>
+          <div class="modal-field">
+            <label class="modal-field-label">Contact Number</label>
+            <input type="tel" class="modal-field-input" id="setting-contact" placeholder="+63 9xx xxx xxxx" required />
+          </div>
+          <div class="modal-field-hint" id="account-save-hint"></div>
+        </form>
+      </div>
+      <div class="profile-modal-footer">
+        <button type="button" class="btn btn-outline-secondary" id="cancel-account-settings">Cancel</button>
+        <button type="button" class="btn btn-primary" id="save-account-settings">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Change Password Modal -->
+  <div class="profile-modal" id="modal-change-password" hidden role="dialog" aria-modal="true" aria-labelledby="modal-password-title">
+    <div class="profile-modal-content">
+      <div class="profile-modal-header">
+        <h3 class="profile-modal-title" id="modal-password-title">Change Password</h3>
+        <button type="button" class="profile-modal-close" id="close-change-password" aria-label="Close">×</button>
+      </div>
+      <div class="profile-modal-body">
+        <form id="form-change-password" novalidate>
+          <div class="modal-field">
+            <label class="modal-field-label">Current Password</label>
+            <input type="password" class="modal-field-input" id="pwd-current" placeholder="Current password" required />
+          </div>
+          <div class="modal-field">
+            <label class="modal-field-label">New Password</label>
+            <input type="password" class="modal-field-input" id="pwd-new" placeholder="New password (min 8 chars)" required />
+            <ul class="password-rules" id="pwd-rules">
+              <li class="rule" id="rule-length">At least 8 characters</li>
+              <li class="rule" id="rule-case">Uppercase &amp; lowercase letters</li>
+              <li class="rule" id="rule-digit">At least one number</li>
+            </ul>
+          </div>
+          <div class="modal-field">
+            <label class="modal-field-label">Confirm New Password</label>
+            <input type="password" class="modal-field-input" id="pwd-confirm" placeholder="Confirm new password" required />
+          </div>
+          <div class="password-match-feedback" id="pwd-match-feedback"></div>
+          <div class="modal-field-hint" id="password-save-hint"></div>
+        </form>
+      </div>
+      <div class="profile-modal-footer">
+        <button type="button" class="btn btn-outline-secondary" id="cancel-change-password">Cancel</button>
+        <button type="button" class="btn btn-primary" id="save-change-password" disabled>Change Password</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Admin Account Modal (role-gated) -->
+  <div class="profile-modal" id="modal-add-admin" hidden role="dialog" aria-modal="true" aria-labelledby="modal-add-admin-title">
+    <div class="profile-modal-content">
+      <div class="profile-modal-header">
+        <h3 class="profile-modal-title" id="modal-add-admin-title">Add New Admin Account</h3>
+        <button type="button" class="profile-modal-close" id="close-add-admin" aria-label="Close">×</button>
+      </div>
+      <div class="profile-modal-body">
+        <form id="form-add-admin" novalidate>
+          <div class="modal-field">
+            <label class="modal-field-label">Full Name</label>
+            <input type="text" class="modal-field-input" id="admin-full-name" placeholder="Full name" required />
+          </div>
+          <div class="modal-field">
+            <label class="modal-field-label">Employee ID</label>
+            <input type="text" class="modal-field-input" id="admin-employee-id" placeholder="Employee ID" required />
+          </div>
+          <div class="modal-field">
+            <label class="modal-field-label">Email Address</label>
+            <input type="email" class="modal-field-input" id="admin-email" placeholder="admin@cspc.edu.ph" required />
+          </div>
+          <div class="modal-field">
+            <label class="modal-field-label">Department</label>
+            <input type="text" class="modal-field-input" id="admin-department" placeholder="Department" required />
+          </div>
+          <div class="modal-field">
+            <label class="modal-field-label">Password</label>
+            <input type="password" class="modal-field-input" id="admin-password" placeholder="Set initial password (min 8 chars)" required />
+          </div>
+          <div class="modal-field-hint" id="admin-save-hint"></div>
+        </form>
+      </div>
+      <div class="profile-modal-footer">
+        <button type="button" class="btn btn-outline-secondary" id="cancel-add-admin">Cancel</button>
+        <button type="button" class="btn btn-primary" id="save-add-admin">Create Admin Account</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Logout Confirmation Modal -->
+  <div class="profile-modal" id="modal-logout" hidden role="dialog" aria-modal="true" aria-labelledby="modal-logout-title">
+    <div class="profile-modal-content">
+      <div class="profile-modal-header">
+        <h3 class="profile-modal-title" id="modal-logout-title">Log Out</h3>
+        <button type="button" class="profile-modal-close" id="close-logout" aria-label="Close">×</button>
+      </div>
+      <div class="profile-modal-body">
+        <p class="modal-confirm-text">Are you sure you want to log out of your account?</p>
+        <div class="modal-field-hint" id="logout-hint"></div>
+      </div>
+      <div class="profile-modal-footer">
+        <button type="button" class="btn btn-outline-secondary" id="cancel-logout">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirm-logout">Yes, Log Out</button>
+      </div>
+    </div>
+  </div>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/js/app.js"></script>
   <script src="/js/cookie-consent.js"></script>

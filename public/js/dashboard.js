@@ -386,6 +386,418 @@
     }
   }
 
+  /* ============================================================
+     USER PROFILE DROPDOWN & MODAL SYSTEM
+     ============================================================ */
+
+  const profileWrapper = document.getElementById('user-profile-wrapper');
+  const profilePill = document.getElementById('profile-pill');
+  const profileDropdown = document.getElementById('profile-dropdown-menu');
+  const profileAvatar = document.getElementById('profile-avatar');
+  const profileName = document.getElementById('profile-name');
+  const profileRole = document.getElementById('profile-role');
+  const dropdownArrow = document.getElementById('dropdown-arrow');
+
+  if (profileWrapper) profileWrapper.style.display = 'flex';
+
+  if (profileAvatar) profileAvatar.textContent = (user.full_name || 'U')
+    .trim().split(/\s+/).slice(0, 1).map(p => p.charAt(0).toUpperCase()).join('') || 'U';
+  if (profileName) profileName.textContent = user.full_name || 'User';
+  if (profileRole) profileRole.textContent = String(user.role || 'STUDENT').toUpperCase();
+
+  let dropdownOpen = false;
+
+  function toggleDropdown() {
+    dropdownOpen = !dropdownOpen;
+    if (profileDropdown) {
+      if (dropdownOpen) {
+        profileDropdown.removeAttribute('hidden');
+        profileDropdown.setAttribute('aria-hidden', 'false');
+      } else {
+        profileDropdown.setAttribute('hidden', '');
+        profileDropdown.setAttribute('aria-hidden', 'true');
+      }
+    }
+    if (profilePill) profilePill.setAttribute('aria-expanded', String(dropdownOpen));
+    if (dropdownArrow) dropdownArrow.classList.toggle('open', dropdownOpen);
+  }
+
+  if (profilePill) {
+    profilePill.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleDropdown();
+    });
+  }
+
+  document.addEventListener('click', (e) => {
+    if (!dropdownOpen) return;
+    if (profileWrapper && !profileWrapper.contains(e.target)) {
+      toggleDropdown();
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && dropdownOpen) {
+      toggleDropdown();
+    }
+  });
+
+  /* ------------------------------------------------- modal helpers ---- */
+  const modalBackdrop = document.getElementById('profile-modal-backdrop');
+
+  function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+    if (modalBackdrop) modalBackdrop.removeAttribute('hidden');
+    modal.removeAttribute('hidden');
+    modal.setAttribute('aria-modal', 'true');
+    document.body.style.overflow = 'hidden';
+    const firstFocusable = modal.querySelector('button, input, select, textarea, a[href]');
+    if (firstFocusable) firstFocusable.focus();
+  }
+
+  function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+    modal.setAttribute('hidden', '');
+    modal.removeAttribute('aria-modal');
+    if (modalBackdrop) modalBackdrop.setAttribute('hidden', '');
+    document.body.style.overflow = '';
+    if (profilePill) profilePill.focus();
+  }
+
+  function closeAllModals() {
+    document.querySelectorAll('.profile-modal:not([hidden])').forEach((m) => {
+      m.setAttribute('hidden', '');
+      m.removeAttribute('aria-modal');
+    });
+    if (modalBackdrop) modalBackdrop.setAttribute('hidden', '');
+    document.body.style.overflow = '';
+    if (profilePill) profilePill.focus();
+  }
+
+  if (modalBackdrop) {
+    modalBackdrop.addEventListener('click', closeAllModals);
+  }
+
+  /* ------------------------------------------------- dropdown items --- */
+
+  // Account Settings -> open modal
+  const menuAccountSettings = document.getElementById('menu-account-settings');
+  if (menuAccountSettings) {
+    menuAccountSettings.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleDropdown();
+      openModal('modal-account-settings');
+      populateAccountSettingsForm();
+    });
+  }
+
+  // Change Password -> open modal
+  const menuChangePassword = document.getElementById('menu-change-password');
+  if (menuChangePassword) {
+    menuChangePassword.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleDropdown();
+      openModal('modal-change-password');
+      resetChangePasswordForm();
+    });
+  }
+
+  // Add New Admin Account -> role-gated
+  const menuAddAdmin = document.getElementById('menu-add-admin');
+  if (menuAddAdmin) {
+    const isAdmin = user && (user.role === 'admin' || user.role === 'ADMIN');
+    if (!isAdmin) {
+      menuAddAdmin.classList.add('restricted');
+      menuAddAdmin.setAttribute('aria-disabled', 'true');
+      menuAddAdmin.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleDropdown();
+        const hint = document.getElementById('admin-save-hint') || document.getElementById('account-save-hint') || document.getElementById('logout-hint');
+        if (hint) {
+          hint.textContent = 'Access Restricted: Admin privileges required.';
+          hint.className = 'modal-field-hint error';
+          setTimeout(() => { hint.textContent = ''; hint.className = 'modal-field-hint'; }, 3500);
+        }
+      });
+    } else {
+      menuAddAdmin.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleDropdown();
+        openModal('modal-add-admin');
+        resetAddAdminForm();
+      });
+    }
+  }
+
+  // Log Out -> confirmation modal
+  const menuLogout = document.getElementById('menu-logout');
+  if (menuLogout) {
+    menuLogout.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleDropdown();
+      openModal('modal-logout');
+    });
+  }
+
+  /* ------------------------------------------------- account settings modal -- */
+  const modalAccountSettings = document.getElementById('modal-account-settings');
+  const formAccountSettings = document.getElementById('form-account-settings');
+  const closeAccountSettings = document.getElementById('close-account-settings');
+  const cancelAccountSettings = document.getElementById('cancel-account-settings');
+  const saveAccountSettings = document.getElementById('save-account-settings');
+
+  function populateAccountSettingsForm() {
+    if (!formAccountSettings) return;
+    document.getElementById('setting-full-name').value = user.full_name || '';
+    document.getElementById('setting-student-id').value = user.school_id || '';
+    document.getElementById('setting-email').value = user.email || '';
+    document.getElementById('setting-department').value = user.department || '';
+    document.getElementById('setting-contact').value = user.contact_number || '';
+    const hint = document.getElementById('account-save-hint');
+    if (hint) { hint.textContent = ''; hint.className = 'modal-field-hint'; }
+  }
+
+  if (closeAccountSettings) closeAccountSettings.addEventListener('click', () => closeModal('modal-account-settings'));
+  if (cancelAccountSettings) cancelAccountSettings.addEventListener('click', () => closeModal('modal-account-settings'));
+
+  if (formAccountSettings && saveAccountSettings) {
+    saveAccountSettings.addEventListener('click', async () => {
+      const hint = document.getElementById('account-save-hint');
+      if (hint) { hint.textContent = 'Saving changes...'; hint.className = 'modal-field-hint'; }
+      saveAccountSettings.disabled = true;
+      saveAccountSettings.textContent = 'Saving…';
+
+      try {
+        const payload = {
+          full_name: document.getElementById('setting-full-name').value.trim(),
+          school_id: document.getElementById('setting-student-id').value.trim() || null,
+          email: document.getElementById('setting-email').value.trim(),
+          department: document.getElementById('setting-department').value.trim(),
+          contact_number: document.getElementById('setting-contact').value.trim(),
+        };
+        const result = await api('/api/profile', {
+          method: 'PATCH',
+          body: payload,
+        });
+        closeModal('modal-account-settings');
+        if (hint) { hint.textContent = ''; hint.className = 'modal-field-hint'; }
+        toastOk(result.message || 'Profile updated.');
+        if (result.user) {
+          Object.assign(user, result.user);
+          if (profileName) profileName.textContent = result.user.full_name || user.full_name;
+          if (profileRole) profileRole.textContent = String(result.user.role || user.role).toUpperCase();
+          if (profileAvatar) profileAvatar.textContent = (result.user.full_name || 'U')
+            .trim().split(/\s+/).slice(0, 1).map(p => p.charAt(0).toUpperCase()).join('') || 'U';
+        }
+      } catch (err) {
+        if (hint) { hint.textContent = err.message || 'Failed to save changes.'; hint.className = 'modal-field-hint error'; }
+        toastError(err.message || 'Failed to save changes.');
+      } finally {
+        saveAccountSettings.disabled = false;
+        saveAccountSettings.textContent = 'Save Changes';
+      }
+    });
+  }
+
+  /* ------------------------------------------------- change password modal --- */
+  const modalChangePassword = document.getElementById('modal-change-password');
+  const formChangePassword = document.getElementById('form-change-password');
+  const closeChangePassword = document.getElementById('close-change-password');
+  const cancelChangePassword = document.getElementById('cancel-change-password');
+  const saveChangePassword = document.getElementById('save-change-password');
+  const pwdCurrent = document.getElementById('pwd-current');
+  const pwdNew = document.getElementById('pwd-new');
+  const pwdConfirm = document.getElementById('pwd-confirm');
+  const pwdRules = document.getElementById('pwd-rules');
+  const pwdMatchFeedback = document.getElementById('pwd-match-feedback');
+  const passwordSaveHint = document.getElementById('password-save-hint');
+
+  const passwordRulesMap = {
+    'rule-length': (pw) => pw.length >= 8,
+  };
+
+  function evaluatePasswordRules(pw) {
+    if (!pwdRules) return;
+    pwdRules.querySelectorAll('li').forEach((li) => {
+      const ruleId = li.dataset.rule;
+      const fn = passwordRulesMap[ruleId];
+      const met = fn ? fn(pw) : false;
+      li.classList.toggle('rule-met', met);
+    });
+  }
+
+  function validateChangePassword() {
+    const current = pwdCurrent ? pwdCurrent.value : '';
+    const newPw = pwdNew ? pwdNew.value : '';
+    const confirm = pwdConfirm ? pwdConfirm.value : '';
+    let valid = true;
+    let message = '';
+
+    if (!current) { valid = false; message = 'Current password is required.'; }
+    else if (!newPw) { valid = false; message = 'New password is required.'; }
+    else if (newPw.length < 8) { valid = false; message = 'New password must be at least 8 characters.'; }
+    else if (newPw === current) { valid = false; message = 'New password must differ from current password.'; }
+    else if (!confirm) { valid = false; message = 'Please confirm your new password.'; }
+    else if (newPw !== confirm) { valid = false; message = 'Passwords do not match.'; }
+
+    if (saveChangePassword) {
+      saveChangePassword.disabled = !valid;
+    }
+    if (passwordSaveHint) {
+      passwordSaveHint.textContent = message;
+      passwordSaveHint.className = 'modal-field-hint' + (valid ? '' : ' error');
+    }
+    return valid;
+  }
+
+  if (closeChangePassword) closeChangePassword.addEventListener('click', () => closeModal('modal-change-password'));
+  if (cancelChangePassword) cancelChangePassword.addEventListener('click', () => closeModal('modal-change-password'));
+
+  function resetChangePasswordForm() {
+    if (formChangePassword) formChangePassword.reset();
+    if (saveChangePassword) saveChangePassword.disabled = true;
+    if (pwdMatchFeedback) { pwdMatchFeedback.textContent = ''; pwdMatchFeedback.className = 'password-match-feedback'; }
+    if (passwordSaveHint) { passwordSaveHint.textContent = ''; passwordSaveHint.className = 'modal-field-hint'; }
+    if (pwdRules) {
+      pwdRules.querySelectorAll('li').forEach((li) => li.classList.remove('rule-met'));
+    }
+  }
+
+  if (pwdNew) {
+    pwdNew.addEventListener('input', () => {
+      evaluatePasswordRules(pwdNew.value);
+      validateChangePassword();
+    });
+  }
+
+  if (pwdConfirm) {
+    pwdConfirm.addEventListener('input', () => {
+      if (pwdNew && pwdConfirm) {
+        const match = pwdNew.value === pwdConfirm.value;
+        if (pwdMatchFeedback) {
+          pwdMatchFeedback.textContent = match ? 'Passwords match.' : 'Passwords do not match.';
+          pwdMatchFeedback.className = 'password-match-feedback ' + (match ? 'is-match' : 'not-match');
+        }
+      }
+      validateChangePassword();
+    });
+  }
+
+  if (pwdCurrent) {
+    pwdCurrent.addEventListener('input', validateChangePassword);
+  }
+
+  if (formChangePassword && saveChangePassword) {
+    saveChangePassword.addEventListener('click', async () => {
+      if (!validateChangePassword()) return;
+      const hint = document.getElementById('password-save-hint');
+      if (hint) { hint.textContent = 'Changing password...'; hint.className = 'modal-field-hint'; }
+      saveChangePassword.disabled = true;
+      saveChangePassword.textContent = 'Updating…';
+
+      try {
+        const result = await api('/api/auth/change-password', {
+          method: 'POST',
+          body: {
+            current_password: pwdCurrent.value,
+            new_password: pwdNew.value,
+          },
+        });
+        closeModal('modal-change-password');
+        if (hint) { hint.textContent = ''; hint.className = 'modal-field-hint'; }
+        toastOk(result.message || 'Password updated successfully.');
+      } catch (err) {
+        if (hint) { hint.textContent = err.message || 'Failed to change password.'; hint.className = 'modal-field-hint error'; }
+        toastError(err.message || 'Failed to change password.');
+      } finally {
+        saveChangePassword.disabled = false;
+        saveChangePassword.textContent = 'Change Password';
+      }
+    });
+  }
+
+  /* ------------------------------------------------- add admin modal ------- */
+  const modalAddAdmin = document.getElementById('modal-add-admin');
+  const formAddAdmin = document.getElementById('form-add-admin');
+  const closeAddAdmin = document.getElementById('close-add-admin');
+  const cancelAddAdmin = document.getElementById('cancel-add-admin');
+  const saveAddAdmin = document.getElementById('save-add-admin');
+  const adminSaveHint = document.getElementById('admin-save-hint');
+
+  if (closeAddAdmin) closeAddAdmin.addEventListener('click', () => closeModal('modal-add-admin'));
+  if (cancelAddAdmin) cancelAddAdmin.addEventListener('click', () => closeModal('modal-add-admin'));
+
+  function resetAddAdminForm() {
+    if (formAddAdmin) formAddAdmin.reset();
+    if (adminSaveHint) { adminSaveHint.textContent = ''; adminSaveHint.className = 'modal-field-hint'; }
+  }
+
+  if (formAddAdmin && saveAddAdmin) {
+    saveAddAdmin.addEventListener('click', async () => {
+      const hint = document.getElementById('admin-save-hint');
+      if (hint) { hint.textContent = 'Creating admin account...'; hint.className = 'modal-field-hint'; }
+      saveAddAdmin.disabled = true;
+      saveAddAdmin.textContent = 'Creating…';
+
+      try {
+        const result = await api('/api/admin/users', {
+          method: 'POST',
+          body: {
+            school_id: document.getElementById('admin-employee-id').value.trim(),
+            full_name: document.getElementById('admin-full-name').value.trim(),
+            email: document.getElementById('admin-email').value.trim(),
+            password: document.getElementById('admin-password').value,
+            role: 'admin',
+          },
+        });
+        closeModal('modal-add-admin');
+        if (hint) { hint.textContent = ''; hint.className = 'modal-field-hint'; }
+        toastOk(result.message || 'Admin account created.');
+      } catch (err) {
+        if (hint) { hint.textContent = err.message || 'Failed to create admin account.'; hint.className = 'modal-field-hint error'; }
+        toastError(err.message || 'Failed to create admin account.');
+      } finally {
+        saveAddAdmin.disabled = false;
+        saveAddAdmin.textContent = 'Create Admin Account';
+      }
+    });
+  }
+
+  /* ------------------------------------------------- logout modal ---------- */
+  const modalLogout = document.getElementById('modal-logout');
+  const closeLogout = document.getElementById('close-logout');
+  const cancelLogout = document.getElementById('cancel-logout');
+  const confirmLogout = document.getElementById('confirm-logout');
+  const logoutHint = document.getElementById('logout-hint');
+
+  if (closeLogout) closeLogout.addEventListener('click', () => closeModal('modal-logout'));
+  if (cancelLogout) cancelLogout.addEventListener('click', () => closeModal('modal-logout'));
+
+  if (confirmLogout) {
+    confirmLogout.addEventListener('click', async () => {
+      const hint = document.getElementById('logout-hint');
+      if (hint) { hint.textContent = 'Logging out...'; hint.className = 'modal-field-hint'; }
+      confirmLogout.disabled = true;
+      confirmLogout.textContent = 'Logging out…';
+
+      try {
+        await api('/api/auth/logout', { method: 'POST' });
+      } catch {
+        // Ignore API errors - proceed to logout anyway
+      } finally {
+        localStorage.removeItem('cspc_token');
+        localStorage.removeItem('cspc_user');
+        sessionStorage.clear();
+        closeModal('modal-logout');
+        window.location.replace('/index.html?auth=logged_out');
+      }
+    });
+  }
+
   /* ------------------------------------------------------------- boot --- */
   initFilters();
   initActions();
