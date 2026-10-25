@@ -179,14 +179,14 @@ main.container {
 }
 /* -------------------------------------------------------------- navbar --- */
 .portal-navbar {
-  background: rgba(7, 12, 24, 0.72);
+  background: rgba(15, 23, 42, 0.9);
   border-bottom: 1px solid var(--glass-border);
   box-shadow: 0 14px 34px -26px rgba(0, 0, 0, 0.95);
-  backdrop-filter: blur(var(--glass-blur)) saturate(170%);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(170%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   position: sticky;
   top: 0;
-  z-index: 9999 !important;
+  z-index: 1000;
 }
 
 .portal-navbar .navbar-brand {
@@ -321,11 +321,17 @@ main.container {
 
 .portal-nav-utility {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-right: 24px;
 }
 
 /* ------------------------------------------------ building search --- */
 .navbar-search {
   padding: 0.15rem 0.75rem;
+  margin-right: 0.6rem;  /* clear gap between search bar and account area */
+  flex: 0 0 auto;        /* keep search compact, prevent stretching */
 }
 
 .search-wrapper {
@@ -336,7 +342,7 @@ main.container {
 
 .search-icon {
   position: absolute;
-  left: 1rem;
+  left: 0.5rem;
   top: 50%;
   transform: translateY(-50%);
   color: rgba(147, 197, 253, 0.55);
@@ -353,8 +359,9 @@ main.container {
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 999px;
   color: #fff;
-  padding: 0.5rem 1rem 0.5rem 2.75rem;
+  padding: 6px 14px;
   font-size: 0.875rem;
+  max-width: 200px;
   width: 100%;
   transition: all 0.25s ease;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
@@ -5299,10 +5306,7 @@ button,
   display: flex;
   align-items: center;
   gap: 0;
-  position: fixed;
-  top: 0.85rem;
-  right: 1rem;
-  z-index: 10000 !important;
+  position: relative;
 }
 
 .profile-pill {
@@ -5394,7 +5398,7 @@ button,
 
 .profile-dropdown-menu {
   position: absolute;
-  top: 110%;
+  top: calc(100% + 8px);
   right: 0;
   min-width: 17rem;
   background: rgba(15, 23, 42, 0.95);
@@ -5403,9 +5407,8 @@ button,
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--cspc-radius);
   box-shadow: var(--card-shadow);
-  z-index: 1060;
+  z-index: 1001;
   overflow: hidden;
-  margin-top: 0.5rem;
   animation: dropdownFadeIn 0.18s ease forwards;
 }
 

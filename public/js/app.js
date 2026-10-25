@@ -1131,7 +1131,7 @@ function renderNavbar(user, active) {
         </div>
       </div>`
     : user && hasOwnProfileWrapper
-      ? ``
+      ? `\n      <div class="user-profile-wrapper d-inline-flex align-items-center gap-0 position-relative">\n        <button type="button" class="profile-pill" id="profile-pill" aria-haspopup="true" aria-expanded="false">\n          <span class="avatar-circle" id="profile-avatar">U</span>\n          <span class="profile-name" id="profile-name">User</span>\n          <span class="role-badge" id="profile-role">STUDENT</span>\n          <span class="dropdown-arrow">▼</span>\n        </button>\n        <div class="profile-dropdown-menu" id="profile-dropdown-menu" hidden>\n          <div class="dropdown-section">\n            <div class="dropdown-section-title">Your Account</div>\n            <button type="button" class="dropdown-item" id="menu-account-settings">\n              <span class="item-icon">⚙️</span>\n              <span class="item-label">Account Settings</span>\n            </button>\n            <button type="button" class="dropdown-item" id="menu-change-password">\n              <span class="item-icon">🔒</span>\n              <span class="item-label">Change Password</span>\n            </button>\n          </div>\n          <div class="dropdown-section">\n            <div class="dropdown-section-title">Administration</div>\n            <button type="button" class="dropdown-item" id="menu-add-admin">\n              <span class="item-icon">➕</span>\n              <span class="item-label">Add New Admin Account</span>\n            </button>\n          </div>\n          <hr class="dropdown-divider" />\n          <button type="button" class="dropdown-item dropdown-item-danger" id="menu-logout">\n            <span class="item-icon">🚪</span>\n            <span class="item-label">Log Out</span>\n          </button>\n        </div>\n      </div>`
       : isPublicLanding
         ? `
         <button class="btn btn-sm btn-outline-light" id="visitor-login-trigger" type="button" data-bs-toggle="modal" data-bs-target="#visitor-login-modal">Log in</button>
@@ -1166,7 +1166,7 @@ function renderNavbar(user, active) {
         </button>
         <div class="collapse navbar-collapse portal-nav-collapse" id="portalNav">
           <ul class="navbar-nav portal-nav-links mb-2 mb-lg-0 ${user ? 'portal-nav-authenticated' : 'portal-nav-public'}">${navLinks}</ul>
-          <div class="navbar-search ms-lg-auto d-flex align-items-center">
+          <div class="navbar-search d-flex align-items-center">
             <div class="search-wrapper position-relative" style="max-width: 340px; width: 100%;">
               <input type="search" id="building-search" class="building-search-input" placeholder="Search buildings…" aria-label="Search buildings" autocomplete="off" />
               <span class="search-icon" aria-hidden="true">

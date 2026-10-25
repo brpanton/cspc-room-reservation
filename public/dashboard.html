@@ -11,45 +11,8 @@
 <body>
   <div id="navbar-placeholder"></div>
 
-  <!-- User Profile Dropdown Trigger (top-right of navbar) -->
-  <div class="user-profile-wrapper" id="user-profile-wrapper" hidden>
-    <button type="button" class="profile-pill" id="profile-pill" aria-haspopup="true" aria-expanded="false">
-      <span class="avatar-circle" id="profile-avatar">U</span>
-      <span class="profile-name" id="profile-name">User</span>
-      <span class="role-badge" id="profile-role">STUDENT</span>
-      <span class="dropdown-arrow">▼</span>
-    </button>
-
-    <!-- Dropdown Menu (glassmorphic) -->
-    <div class="profile-dropdown-menu" id="profile-dropdown-menu" hidden>
-      <div class="dropdown-section">
-        <div class="dropdown-section-title">Your Account</div>
-        <button type="button" class="dropdown-item" id="menu-account-settings">
-          <span class="item-icon">⚙️</span>
-          <span class="item-label">Account Settings</span>
-        </button>
-        <button type="button" class="dropdown-item" id="menu-change-password">
-          <span class="item-icon">🔒</span>
-          <span class="item-label">Change Password</span>
-        </button>
-      </div>
-
-      <div class="dropdown-section">
-        <div class="dropdown-section-title">Administration</div>
-        <button type="button" class="dropdown-item" id="menu-add-admin">
-          <span class="item-icon">➕</span>
-          <span class="item-label">Add New Admin Account</span>
-        </button>
-      </div>
-
-      <hr class="dropdown-divider" />
-
-      <button type="button" class="dropdown-item dropdown-item-danger" id="menu-logout">
-        <span class="item-icon">🚪</span>
-        <span class="item-label">Log Out</span>
-      </button>
-    </div>
-  </div>
+  <!-- User Profile Dropdown Trigger (rendered inside navbar by app.js when logged in) -->
+  <div class="user-profile-wrapper" id="user-profile-wrapper" hidden></div>
 
   <!-- Full-page loading overlay (shown while data loads) -->
   <div id="dashboard-loading" class="dashboard-loading-overlay">
