@@ -1130,11 +1130,13 @@ function renderNavbar(user, active) {
           <button class="dropdown-item profile-logout-item" id="logout-btn" type="button"><span class="profile-menu-icon">↪</span> Log out</button>
         </div>
       </div>`
-    : isPublicLanding
-      ? `
+    : user && hasOwnProfileWrapper
+      ? ``
+      : isPublicLanding
+        ? `
         <button class="btn btn-sm btn-outline-light" id="visitor-login-trigger" type="button" data-bs-toggle="modal" data-bs-target="#visitor-login-modal">Log in</button>
         <button class="btn btn-sm btn-light" id="visitor-register-trigger" type="button" data-bs-toggle="modal" data-bs-target="#visitor-register-modal">Register</button>`
-      : `
+        : `
         <a class="btn btn-sm btn-outline-light" href="/?auth=login">Log in</a>
         <a class="btn btn-sm btn-light" href="/?auth=register">Register</a>`;
 
