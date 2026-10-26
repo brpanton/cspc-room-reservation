@@ -493,17 +493,6 @@
 
   /* ------------------------------------------------- dropdown items --- */
 
-  // Account Settings -> open modal
-  const menuAccountSettings = document.getElementById('menu-account-settings');
-  if (menuAccountSettings) {
-    menuAccountSettings.addEventListener('click', (e) => {
-      e.stopPropagation();
-      toggleDropdown();
-      openModal('modal-account-settings');
-      populateAccountSettingsForm();
-    });
-  }
-
   // Change Password -> open modal
   const menuChangePassword = document.getElementById('menu-change-password');
   if (menuChangePassword) {

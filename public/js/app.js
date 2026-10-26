@@ -1099,11 +1099,11 @@ function renderNavbar(user, active) {
     navLinks += link('/', 'Home', 'home');
     navLinks += link('/dashboard.html', 'Dashboard', 'dashboard');
     navLinks += link('/rooms-status.html', 'Room Status', 'rooms');
-    navLinks += '<li class="nav-item"><button class="nav-link nav-link-button" type="button" data-bs-toggle="modal" data-bs-target="#about-us-modal">About Us</button></li>';
+    navLinks += '<li class="nav-item"><button class="nav-link nav-link-button" type="button" id="btn-about-us">About Us</button></li>';
   } else {
     // Guest / pre-login navbar: keep it minimal — Home + About Us only.
     navLinks += link('/#overview', 'Home', 'home');
-    navLinks += '<li class="nav-item"><button class="nav-link nav-link-button" type="button" data-bs-toggle="modal" data-bs-target="#about-us-modal">About Us</button></li>';
+    navLinks += '<li class="nav-item"><button class="nav-link nav-link-button" type="button" id="btn-about-us">About Us</button></li>';
   }
 
 
@@ -1175,6 +1175,54 @@ function renderNavbar(user, active) {
     setPortalLocale(event.target.value);
     toastInfo('Language preference saved.');
   });
+
+  /* ------------------------------------------------ About Us modal (all pages) --- */
+  (function initAboutUs() {
+    const MODAL_ID = 'about-us-modal';
+    const BTN_ID = 'btn-about-us';
+    const modalHtml = `<!-- About Us Modal (injected by app.js when a page lacks it) -->
+<div class="modal fade about-modal" id="${MODAL_ID}" tabindex="-1" aria-labelledby="about-us-title" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <span class="profile-modal-kicker">About</span>
+          <h2 class="modal-title fs-5" id="about-us-title">About CSPC Lab &amp; Room Reservation</h2>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>The CSPC Laboratory and Room Reservation System streamlines booking and approval workflows for campus facilities.</p>
+        <p><strong>Version:</strong> 1.0.0</p>
+        <p><strong>© 2026 CSPC — Computer Studies Department</strong></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>`;
+
+    function ensureModal() {
+      if (!document.getElementById(MODAL_ID)) {
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+      }
+    }
+
+    /* Document-level delegation so it works no matter when renderNavbar()
+       injects the #btn-about-us button into the DOM. */
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('#' + BTN_ID);
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      ensureModal();
+      if (!window.bootstrap) return;
+      const modalEl = document.getElementById(MODAL_ID);
+      const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+      modal.show();
+    });
+  })();
 
   /* ------------------------------------------- building search (all pages) --- */
   (function initBuildingSearch() {
@@ -1281,13 +1329,13 @@ function renderNavbar(user, active) {
     });
   }
 
-  const profileDropdownWrap = document.querySelector('.profile-dropdown');
+  const profileDropdownWrap = document.getElementById('profile-dropdown-menu');
   const accountSettingsModalEl = document.getElementById('accountSettingsModal');
   if (profileDropdownWrap && window.bootstrap) {
-    const profileDropdown = bootstrap.Dropdown.getOrCreateInstance(document.querySelector('.profile-chevron-btn'));
+    const profileDropdown = bootstrap.Dropdown.getOrCreateInstance(document.getElementById('profile-pill'));
 
     // Account Settings — only when the modal exists on this page.
-    const accountSettingsMenuItem = document.getElementById('accountSettingsMenuItem');
+    const accountSettingsMenuItem = document.getElementById('menu-account-settings');
     if (accountSettingsMenuItem && accountSettingsModalEl) {
       const accountSettingsModal = new bootstrap.Modal(accountSettingsModalEl);
       accountSettingsMenuItem.addEventListener('click', (e) => {
@@ -1322,7 +1370,7 @@ function renderNavbar(user, active) {
     if (accountSettingsModalEl) {
       const accountSettingsModal = new bootstrap.Modal(accountSettingsModalEl);
       const accountSettingsForm = document.getElementById('accountSettingsForm');
-      const saveAccountSettingsBtn = document.getElementById('saveAccountSettingsBtn');
+      const saveAccountSettingsBtn = document.getElementById('acct-save-btn');
       const cancelAccountSettingsBtn = document.getElementById('cancelAccountSettingsBtn');
       const accountSettingsCloseBtn = accountSettingsModalEl.querySelector('.btn-close');
       const avatarInput = document.getElementById('profile-avatar-input');
@@ -1339,12 +1387,10 @@ function renderNavbar(user, active) {
 
     if (accountSettingsForm && saveAccountSettingsBtn) {
       accountSettingsModalEl.addEventListener('show.bs.modal', () => {
-        document.getElementById('profile-full-name').value = user.full_name || '';
-        document.getElementById('profile-admin-id').value = user.school_id || '';
-        document.getElementById('profile-email').value = user.email || '';
-        document.getElementById('profile-recovery-email').value = user.recovery_email || '';
-        document.getElementById('profile-permission-level').value = user.admin_level || 'Assistant Admin';
-        document.getElementById('profile-date-created').value = user.created_at || '—';
+        document.getElementById('acct-full-name').value = user.full_name || '';
+        document.getElementById('acct-student-id').value = user.school_id || '';
+        document.getElementById('acct-email').value = user.email || '';
+        document.getElementById('acct-contact').value = user.contact_number || '';
         const currentUrl = user && user.avatar_url;
         if (previewImg && previewInitials) {
           previewImg.src = currentUrl || '';
@@ -1365,6 +1411,12 @@ function renderNavbar(user, active) {
         previewInitials.hidden = true;
       });
 
+      // Clicking the 📷 button opens the file picker
+      const avatarBtn = document.querySelector('.avatar-upload-btn');
+      avatarBtn?.addEventListener('click', () => {
+        avatarInput?.click();
+      });
+
       accountSettingsForm.addEventListener('submit', async (event) => {
         event.preventDefault();
         saveAccountSettingsBtn.disabled = true;
@@ -1380,11 +1432,10 @@ function renderNavbar(user, active) {
           }
 
           const payload = {
-            full_name: document.getElementById('profile-full-name').value.trim(),
-            school_id: document.getElementById('profile-admin-id').value.trim() || null,
-            email: document.getElementById('profile-email').value.trim(),
-            recovery_email: document.getElementById('profile-recovery-email').value.trim() || null,
-            admin_level: document.getElementById('profile-permission-level').value || null,
+            full_name: document.getElementById('acct-full-name').value.trim(),
+            school_id: document.getElementById('acct-student-id').value.trim() || null,
+            email: document.getElementById('acct-email').value.trim(),
+            contact_number: document.getElementById('acct-contact').value.trim() || null,
           };
           const result = await api('/api/profile', { method: 'PATCH', body: payload });
           dismissAccountSettingsModal();
@@ -1393,13 +1444,10 @@ function renderNavbar(user, active) {
             Object.assign(user, result.user);
             if (sessionCache && sessionCache.user) Object.assign(sessionCache.user, result.user);
           }
-          // Update navbar avatar badge
-          const navbarImg = document.getElementById('navbar-avatar-img');
-          const navbarInitials = document.getElementById('navbar-avatar-initials');
-          if (navbarImg && navbarInitials && avatarUrl) {
-            navbarImg.src = avatarUrl;
-            navbarImg.hidden = false;
-            navbarInitials.hidden = true;
+          // Update navbar avatar badge (profile pill uses #profile-avatar initials span)
+          const navbarAvatar = document.getElementById('profile-avatar');
+          if (navbarAvatar && avatarUrl) {
+            navbarAvatar.innerHTML = `<img src="${escapeHtml(avatarUrl)}" alt="Avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" />`;
           }
         } catch (err) {
           toastError(err.message);
@@ -1417,21 +1465,13 @@ function renderNavbar(user, active) {
         event.stopImmediatePropagation();
         console.log('[Account Settings Modal] Save changes clicked');
 
-        const emailInput = document.getElementById('profile-email');
-        const recoveryEmailInput = document.getElementById('profile-recovery-email');
+        const emailInput = document.getElementById('acct-email');
         let emailValid = true;
 
         if (emailInput && emailInput.value.trim() && !emailInput.value.trim().endsWith('@my.cspc.edu.ph')) {
           console.warn('[Account Settings Modal] Invalid email domain:', emailInput.value.trim());
           toastError('Please use your institutional email (@my.cspc.edu.ph).');
           emailInput.focus();
-          emailValid = false;
-        }
-
-        if (recoveryEmailInput && recoveryEmailInput.value.trim() && !recoveryEmailInput.value.trim().endsWith('@my.cspc.edu.ph')) {
-          console.warn('[Account Settings Modal] Invalid recovery email domain:', recoveryEmailInput.value.trim());
-          toastError('Please use your institutional email (@my.cspc.edu.ph) for recovery email.');
-          recoveryEmailInput.focus();
           emailValid = false;
         }
 
@@ -1465,11 +1505,15 @@ function renderNavbar(user, active) {
     });
 
     accountSettingsModalEl.addEventListener('hidden.bs.modal', () => {
-      avatarInput.value = '';
+      if (avatarInput) avatarInput.value = '';
       const currentUrl = user && user.avatar_url;
-      previewImg.src = currentUrl || '';
-      previewImg.hidden = !currentUrl;
-      previewInitials.hidden = Boolean(currentUrl);
+      if (previewImg) {
+        previewImg.src = currentUrl || '';
+        previewImg.hidden = !currentUrl;
+      }
+      if (previewInitials) {
+        previewInitials.hidden = Boolean(currentUrl);
+      }
     });
     }
 
