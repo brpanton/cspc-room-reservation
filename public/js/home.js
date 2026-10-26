@@ -921,7 +921,12 @@
     return bs < slot.end && be > slot.start;
   }
 
-  /** Green = free, amber = some bookings, red = occupied right now / in slot. */
+  /** Green = free, amber = some bookings, red = occupied right now / in slot.
+   *  Occupied  -> an APPROVED booking is happening right now.
+   *  Limited   -> a Pending request today, or any booking today that is not
+   *               currently active (partial time-slot).
+   *  Available -> zero active/pending bookings.
+   */
   function roomStatus(room, dateValue, slot) {
     const bookings = room.bookings || [];
     if (slot) {
@@ -933,11 +938,14 @@
     if (dateValue === P.todayIso()) {
       const now = new Date().getHours() * 60 + new Date().getMinutes();
       const current = bookings.find((b) => {
+        if (b.status !== 'Approved') return false;
         const bs = minutesFromValue(b.start_time);
         const be = minutesFromValue(b.end_time);
         return bs !== null && be !== null && bs <= now && now < be;
       });
       if (current) return { tone: 'occupied', label: 'Occupied', detail: `Until ${P.formatTime(current.end_time)}` };
+      if (bookings.length > 0) return { tone: 'limited', label: 'Limited', detail: `${bookings.length} booking${bookings.length > 1 ? 's' : ''} today` };
+      return { tone: 'available', label: 'Available', detail: 'Free all day' };
     }
     if (!bookings.length) return { tone: 'available', label: 'Available', detail: 'Free all day' };
     return { tone: 'limited', label: 'Limited', detail: `${bookings.length} booking${bookings.length > 1 ? 's' : ''} today` };
@@ -1025,46 +1033,73 @@ function generateRemark(room, status) {
  *  without a page reload. */
 let labState = []; // { room, tone, remark, occ, date, slot }
 
-/** Build the reactive state array from a raw room list. */
-function buildLabState(rooms, dateValue, slot) {
-  return rooms.map((room) => {
-    const status = roomStatus(room, dateValue, slot);
-    return {
-      room,
-      tone: status.tone,
-      remark: generateRemark(room, status),
-      occ: occupancyPct(room),
-      date: dateValue,
-      slot
-    };
-  });
-}
+/** The three campus buildings shown in "High-demand spaces at a glance".
+ *  `match` accepts a single building name or a list of building names whose
+ *  rooms roll up into that container. */
+const BUILDING_GROUPS = [
+  { label: 'Academic Building II', match: ['ACADEMIC BUILDING II'] },
+  { label: 'CAS Building', match: ['CAS BUILDING'] },
+  { label: 'IT / Engineering Building', match: ['CCS BUILDING', 'CITD BUILDING', 'LSB BUILDING', 'MULTI PURPOSE BUILDING', 'MULTI PORPUSE BUILDING', 'ENGINEERING BUILDING', 'IT BUILDING'] }
+];
 
-/** Render the reactive lab state into the status grid: 3 available + 3 occupied. */
-function renderLabState() {
+/** Group rooms into the three building containers and render live status cards. */
+function renderBuildingStatus(rooms) {
   if (!statusGrid) return;
-  const available = labState.filter((s) => s.tone === 'available').slice(0, 3);
-  const occupied = labState.filter((s) => s.tone === 'occupied').slice(0, 3);
 
-  const availableHtml = available.length
-    ? '<div class="home-status-category">' +
-      '<h4 class="home-status-category-title">🟢 Top 3 Available Laboratories</h4>' +
-      '<div class="home-status-grid-inner">' + available.map((s) => statusCard(s.room, s.date, s.slot, s.remark)).join('') + '</div>' +
-      '</div>'
-    : '<div class="home-status-empty">No available laboratories right now.</div>';
+  const html = BUILDING_GROUPS.map((group) => {
+    const matchList = Array.isArray(group.match) ? group.match : [group.match];
+    const buildingRooms = rooms
+      .filter((room) => matchList.includes(room.building_name))
+      .sort((a, b) => {
+        const rank = (r) => (r.room_type === 'hall' ? 2 : r.room_type === 'laboratory' ? 1 : 0);
+        return rank(b) - rank(a) || String(a.name).localeCompare(String(b.name));
+      });
 
-  const occupiedHtml = occupied.length
-    ? '<div class="home-status-category">' +
-      '<h4 class="home-status-category-title">🔴 Top 3 Occupied Laboratories</h4>' +
-      '<div class="home-status-grid-inner">' + occupied.map((s) => statusCard(s.room, s.date, s.slot, s.remark)).join('') + '</div>' +
-      '</div>'
-    : '<div class="home-status-empty">No occupied laboratories right now.</div>';
+    const cardsHtml = buildingRooms.map((room) =>
+      statusCard(room, P.todayIso(), null)
+    ).join('');
 
-  statusGrid.innerHTML = (available.length || occupied.length)
-    ? availableHtml + occupiedHtml
+    return `
+      <section class="home-building-section">
+        <div class="home-building-title">
+          <span class="home-building-count">${buildingRooms.length}</span>
+          ${P.escapeHtml(group.label)}
+        </div>
+        <div class="home-building-grid">
+          ${cardsHtml || '<div class="home-building-empty">No laboratories in this building.</div>'}
+        </div>
+      </section>
+    `;
+  }).join('');
+
+  statusGrid.innerHTML = html
+    ? html
     : '<div class="home-status-loading">No active rooms to show right now.</div>';
 
   attachLabActionHandlers();
+}
+
+/** Fetch live room statuses from the backend and re-render the 3 buildings. */
+async function fetchRoomStatuses() {
+  if (!statusGrid) return;
+  try {
+    const data = await P.api('/api/rooms/status');
+    const rooms = data.rooms || [];
+    labState = rooms.map((room) => {
+      const status = roomStatus(room, P.todayIso(), null);
+      return {
+        room,
+        tone: status.tone,
+        remark: generateRemark(room, status),
+        occ: occupancyPct(room),
+        date: P.todayIso(),
+        slot: null
+      };
+    });
+    renderBuildingStatus(rooms);
+  } catch {
+    statusGrid.innerHTML = '<div class="home-status-loading">Live availability is temporarily unavailable. Open the full timetable to check rooms.</div>';
+  }
 }
 
 /** Attach click handlers to lab action buttons. */
@@ -1102,20 +1137,12 @@ function openLabBookingModal(roomId) {
 
 /** Refresh the live lab status from the backend (reactive re-render). */
 async function refreshLabStatus() {
-  if (!statusGrid) return;
-  try {
-    const date = P.todayIso();
-    const params = new URLSearchParams({ date });
-    const data = await P.api(`/api/availability?${params.toString()}`);
-    const rooms = data.rooms || [];
-    labState = buildLabState(rooms, date, null);
-    renderLabState();
-    const openRooms = rooms.filter((room) => (room.bookings || []).length === 0);
+  await fetchRoomStatuses();
+  const heroCount = document.getElementById('hero-rooms-count');
+  if (heroCount) {
+    const openRooms = (labState || []).filter((s) => s.tone === 'available');
     const openCount = openRooms.length;
-    const heroCount = document.getElementById('hero-rooms-count');
-    if (heroCount) heroCount.textContent = openCount > 0 ? `${openCount} Room${openCount === 1 ? '' : 's'} Available Now` : 'Checking Live Availability…';
-  } catch {
-    statusGrid.innerHTML = '<div class="home-status-loading">Live availability is temporarily unavailable.</div>';
+    heroCount.textContent = openCount > 0 ? `${openCount} Room${openCount === 1 ? '' : 's'} Available Now` : 'Checking Live Availability…';
   }
 }
 
@@ -1162,18 +1189,19 @@ function statusCard(room, dateValue, slot, remark) {
   const buildingImg = room.image_url
     ? `<img class="home-lab-card-photo" src="${P.escapeHtml(room.image_url)}" alt="${P.escapeHtml(room.building_name)} building" loading="lazy">`
     : `<div class="home-lab-card-photo-placeholder"><span class="home-lab-building-icon">🏛️</span></div>`;
-  const statusIcon = status.tone === "available" ? "🟢" : "🔴";
-  const statusText = status.tone === "available" ? "Available" : "Occupied";
-  const actionText = status.tone === "available" ? "Book Room" : "View Schedule";
-  const btnClass = status.tone === "available" ? "btn-cspc" : "btn-outline-secondary";
+  const tone = status.tone;
+  const statusIcon = tone === "available" ? "🟢" : tone === "limited" ? "🟡" : "🔴";
+  const statusText = tone === "available" ? "Available" : tone === "limited" ? "Limited" : "Occupied";
+  const actionText = tone === "available" ? "Book Room" : "View Schedule";
+  const btnClass = tone === "available" ? "btn-cspc" : "btn-outline-secondary";
   const remarkText = remark || generateRemark(room, status);
   return `
-    <article class="home-lab-card is-${status.tone}" data-room-id="${room.id}">
+    <article class="home-lab-card is-${tone}" data-room-id="${room.id}">
       ${buildingImg}
       <div class="home-lab-card-body">
         <div class="home-lab-card-top">
-          <span class="home-lab-badge is-${status.tone}" aria-hidden="true">${statusIcon}</span>
-          <span class="home-lab-badge is-${status.tone}">${P.escapeHtml(statusText)}</span>
+          <span class="home-lab-badge is-${tone} status-${tone}" aria-hidden="true">${statusIcon}</span>
+          <span class="home-lab-badge is-${tone} status-${tone}">${P.escapeHtml(statusText)}</span>
           <span class="home-lab-type">${P.escapeHtml(type)}</span>
         </div>
         <h3>${P.escapeHtml(room.name)} <span class="home-lab-code">${roomCode}</span></h3>
@@ -1182,11 +1210,11 @@ function statusCard(room, dateValue, slot, remark) {
         <div class="home-lab-card-remark">${P.escapeHtml(remarkText)}</div>
         <div class="home-lab-occ">
           <span class="home-lab-occ-label">Utilization</span>
-          <div class="home-lab-occ-bar"><div class="home-lab-occ-fill is-${status.tone}" style="width: ${occ}%"></div></div>
+          <div class="home-lab-occ-bar"><div class="home-lab-occ-fill is-${tone}" style="width: ${occ}%"></div></div>
           <span class="home-lab-occ-pct">${occ}%</span>
         </div>
         <div class="home-lab-actions">
-          <button class="btn ${btnClass} home-lab-action" data-room-id="${room.id}" data-action="${status.tone === "available" ? "book" : "view"}">${P.escapeHtml(actionText)}</button>
+          <button class="btn ${btnClass} home-lab-action" data-room-id="${room.id}" data-action="${tone === "available" ? "book" : "view"}">${P.escapeHtml(actionText)}</button>
           <a href="/rooms-status.html" class="btn btn-sm btn-outline-cspc">Schedule</a>
         </div>
       </div>
@@ -1203,38 +1231,6 @@ function statusCard(room, dateValue, slot, remark) {
       .slice(0, 6);
   }
 
-  async function loadLiveStatus(dateOverride, slotOverride, buildingIdOverride) {
-    if (!statusGrid) return;
-    try {
-      const date = dateOverride || P.todayIso();
-      const params = new URLSearchParams({ date });
-      if (buildingIdOverride) params.set('building_id', buildingIdOverride);
-      const data = await P.api(`/api/availability?${params.toString()}`);
-      const rooms = data.rooms || [];
-
-      labState = buildLabState(rooms, date, slotOverride);
-      renderLabState();
-
-      // Dynamic counter for the floating hero badge: count rooms with no bookings today.
-      const openRooms = rooms.filter((room) => (room.bookings || []).length === 0);
-      const openCount = openRooms.length;
-      const heroCount = document.getElementById('hero-rooms-count');
-      if (heroCount) heroCount.textContent = openCount > 0 ? `${openCount} Room${openCount === 1 ? '' : 's'} Available Now` : 'Checking Live Availabilityâ€¦';
-      // Hover tooltip preview â€” list 2-3 open rooms by name.
-      const heroTooltip = document.getElementById('hero-rooms-tooltip');
-      if (heroTooltip) {
-        if (openRooms.length) {
-          const preview = openRooms.slice(0, 3).map((room) => P.escapeHtml(room.name)).join('<br />');
-          const extra = openRooms.length > 3 ? `<br />+${openRooms.length - 3} more open today` : '';
-          heroTooltip.innerHTML = `<b>Open now:</b><br />${preview}${extra}`;
-        } else {
-          heroTooltip.textContent = 'All rooms have bookings today â€” check another date.';
-        }
-      }
-    } catch {
-      statusGrid.innerHTML = '<div class="home-status-loading">Live availability is temporarily unavailable. Open the full timetable to check rooms.</div>';
-    }
-  }
 
   searchForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -1269,7 +1265,7 @@ function statusCard(room, dateValue, slot, remark) {
       }
       searchResult.hidden = false;
       // Also refresh the live status grid with the same filters
-      loadLiveStatus(date, slot, searchBuilding?.value || undefined);
+      fetchRoomStatuses();
     } catch (err) {
       P.toastError(`Could not check availability: ${err.message}`);
     } finally {
@@ -1332,5 +1328,27 @@ function statusCard(room, dateValue, slot, remark) {
     });
   }
 
-  loadLiveStatus();
+  /* ---- auto-refresh: re-fetch every 30 seconds, pause when tab is hidden ---- */
+  let statusRefreshTimer = null;
+  function startStatusRefresh() {
+    if (statusRefreshTimer) clearInterval(statusRefreshTimer);
+    statusRefreshTimer = setInterval(fetchRoomStatuses, 30000);
+  }
+  function stopStatusRefresh() {
+    if (statusRefreshTimer) {
+      clearInterval(statusRefreshTimer);
+      statusRefreshTimer = null;
+    }
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      fetchRoomStatuses();
+      startStatusRefresh();
+    } else {
+      stopStatusRefresh();
+    }
+  });
+
+  fetchRoomStatuses();
+  startStatusRefresh();
 })();

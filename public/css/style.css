@@ -2903,11 +2903,141 @@ main.container {
   .home-status-grid-inner { grid-template-columns: 1fr; }
 }
 
+/* ------------------------------------- 3-building layout --- */
+.home-building-section { margin-bottom: 2rem; }
+
+.home-building-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(16, 33, 57, 0.55), rgba(7, 14, 27, 0.62));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.home-building-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.18);
+  color: #7cb0ff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+.home-building-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.home-building-empty {
+  grid-column: 1 / -1;
+  padding: 1.25rem;
+  border: 1px dashed rgba(147, 197, 253, 0.24);
+  border-radius: 15px;
+  color: #9aadc7;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+/* ------------------------------------- lab cards (home-lab-*) --- */
+.home-lab-card {
+  display: flex;
+  flex-direction: column;
+  padding: 1.05rem 1.1rem;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-left-width: 3px;
+  border-radius: 16px;
+  background: linear-gradient(145deg, rgba(16, 33, 57, 0.72), rgba(7, 14, 27, 0.86));
+}
+
+.home-lab-card.is-available { border-left-color: rgba(34, 197, 94, 0.85); }
+.home-lab-card.is-limited   { border-left-color: rgba(251, 191, 36, 0.85); }
+.home-lab-card.is-occupied  { border-left-color: rgba(239, 68, 68, 0.85); }
+
+.home-lab-card-top { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+
+.home-lab-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.24rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.home-lab-badge.status-available { background: rgba(34, 197, 94, 0.16); color: #86efac; }
+.home-lab-badge.status-limited   { background: rgba(234, 179, 8, 0.16); color: #fde68a; }
+.home-lab-badge.status-occupied  { background: rgba(239, 68, 68, 0.16); color: #fca5a5; }
+
+.home-lab-type { color: #91a4bf; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+
+.home-lab-card h3 { margin: 0.45rem 0 0; color: #f2f7ff; font-size: 0.98rem; font-weight: 700; }
+
+.home-lab-card-meta { margin: 0.15rem 0 0; color: #93a4bd; font-size: 0.76rem; }
+
+.home-lab-equipment,
+.home-equipment { display: flex; gap: 0.5rem; margin: 0.5rem 0 0.75rem; }
+
+.home-equip-icon { width: 1.5rem; height: 1.5rem; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem; border-radius: 8px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12); }
+
+.home-lab-card-remark { margin: 0.5rem 0 0.75rem; font-size: 0.75rem; color: var(--cspc-muted); font-style: italic; }
+
+.home-lab-occ { display: flex; align-items: center; gap: 0.5rem; margin: 0.75rem 0 0; font-size: 0.72rem; color: var(--cspc-muted); }
+.home-lab-occ-label { flex: 0 0 auto; font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.home-lab-occ-bar { flex: 1; height: 0.5rem; background: rgba(255, 255, 255, 0.08); border-radius: 999px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.06); }
+.home-lab-occ-fill { height: 100%; border-radius: 999px; transition: width 0.5s ease; }
+.home-lab-occ-fill.is-available { background: #4ade80; }
+.home-lab-occ-fill.is-limited   { background: #facc15; }
+.home-lab-occ-fill.is-occupied  { background: #f87171; }
+.home-lab-occ-pct { flex: 0 0 auto; font-size: 0.68rem; font-weight: 700; }
+
+.home-lab-actions { margin-top: auto; width: 100%; display: flex; gap: 0.5rem; }
+.home-lab-action { flex: 1; }
+
+.home-lab-card-photo {
+  width: 100%;
+  height: 9rem;
+  object-fit: cover;
+  border-radius: 12px;
+  margin-bottom: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.home-lab-card-photo-placeholder {
+  width: 100%;
+  height: 9rem;
+  border-radius: 12px;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--cspc-muted);
+  font-size: 2.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.home-lab-building-icon { filter: opacity(0.6); }
 
 @media (max-width: 767.98px) {
-  .home-status-card { padding: 0.9rem 1rem; }
-  .home-status-occ { font-size: 0.68rem; }
-  .home-status-occ-bar { height: 0.4rem; }
+  .home-building-grid { grid-template-columns: 1fr; }
+  .home-lab-card { padding: 0.9rem 1rem; }
+  .home-lab-occ-bar { height: 0.4rem; }
+}
 }
 
 

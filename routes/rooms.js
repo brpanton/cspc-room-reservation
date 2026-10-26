@@ -5,6 +5,8 @@
  *  GET  /api/rooms                     -> rooms, optionally ?building_id= (public)
  *  GET  /api/rooms/:id                 -> single room detail (public)
  *  GET  /api/availability              -> booked slots for a date (public)
+ *  GET  /api/rooms/status              -> all active rooms with today's
+ *                                         bookings for live status badges
  *
  * The availability endpoint is what powers rooms-status.html and the live
  * preview panel on reservation-form.html, so it must never leak another
@@ -100,6 +102,52 @@ router.get('/rooms', async (req, res, next) => {
       params
     );
     res.json({ rooms: rows });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/rooms/status', async (req, res, next) => {
+  try {
+    const date = todayIso();
+
+    const { rows: bookings } = await pool.query(
+      `SELECT res.id, res.room_id, r.name AS room_name, b.name AS building_name,
+              res.res_date, res.start_time, res.end_time, res.status,
+              u.full_name AS requested_by
+       FROM reservations res
+       JOIN rooms r     ON r.id = res.room_id
+       JOIN buildings b ON b.id = r.building_id
+       JOIN users u     ON u.id = res.user_id
+       WHERE res.res_date = $1 AND res.status IN ('Pending', 'Approved')
+       ORDER BY res.start_time`,
+      [date]
+    );
+
+    const { rows: roomRows } = await pool.query(
+      `SELECT r.id, r.name, r.room_type, r.capacity, r.floor, r.image_url,
+              r.has_projector, r.has_aircon, r.has_sound,
+              b.id AS building_id, b.name AS building_name
+       FROM rooms r
+       JOIN buildings b ON b.id = r.building_id
+       WHERE r.is_active = TRUE
+       ORDER BY b.name, r.name`,
+    );
+
+    const rooms = roomRows.map((room) => {
+      const roomBookings = bookings
+        .filter((bk) => bk.room_id === room.id)
+        .map((bk) => ({
+          id: bk.id,
+          start_time: bk.start_time,
+          end_time: bk.end_time,
+          status: bk.status,
+          requested_by: bk.requested_by
+        }));
+      return { ...room, bookings: roomBookings };
+    });
+
+    res.json({ date, rooms, total_rooms: rooms.length });
   } catch (err) {
     next(err);
   }
