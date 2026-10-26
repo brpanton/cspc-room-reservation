@@ -3212,7 +3212,7 @@ main.container {
 @media (max-width: 991.98px) {
   .home-search-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .home-search-submit { grid-column: 1 / -1; }
-  .home-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home-status-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .home-how-steps { grid-template-columns: 1fr; }
   .home-hero { grid-template-columns: 1fr; }
   .home-hero::before {
@@ -3235,7 +3235,7 @@ main.container {
 
 @media (max-width: 767.98px) {
   .home-search-form { grid-template-columns: 1fr; }
-  .home-status-grid { grid-template-columns: 1fr; }
+  .home-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 767.98px) {
@@ -5975,4 +5975,129 @@ body, body.modal-open {
   background: rgba(15, 23, 42, 0.75) !important;
   backdrop-filter: blur(8px) !important;
   pointer-events: auto !important;
+}
+
+/* ============================================================
+   Building cards — "High-demand spaces at a glance"
+   ============================================================ */
+.home-status-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.home-building-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 16px;
+  background: linear-gradient(145deg, rgba(16, 33, 57, 0.72), rgba(7, 14, 27, 0.86));
+  overflow: hidden;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.home-building-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(96, 165, 250, 0.42);
+  box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.5);
+}
+
+.home-building-card.is-available { border-left-color: rgba(34, 197, 94, 0.85); }
+.home-building-card.is-limited   { border-left-color: rgba(251, 191, 36, 0.85); }
+.home-building-card.is-occupied  { border-left-color: rgba(239, 68, 68, 0.85); }
+
+.home-building-card-photo {
+  width: 100%;
+  height: 12rem;
+  object-fit: cover;
+  object-position: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: block;
+}
+
+.home-building-card-photo-placeholder {
+  width: 100%;
+  height: 12rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(16, 185, 129, 0.15));
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 3rem;
+}
+
+.home-building-card-overlay {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+  padding: 0.5rem;
+}
+
+.home-building-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.home-building-badge.labs-badge {
+  background: rgba(15, 23, 42, 0.55);
+  color: #e8f0fb;
+  margin-right: auto;
+}
+
+.home-building-badge.status-badge {
+  margin-left: auto;
+}
+
+.home-building-badge.is-available { background: rgba(34, 197, 94, 0.9); color: #ffffff; }
+.home-building-badge.is-limited   { background: rgba(251, 191, 36, 0.9); color: #ffffff; }
+.home-building-badge.is-occupied  { background: rgba(239, 68, 68, 0.9); color: #ffffff; }
+
+.home-building-card-body {
+  padding: 0.9rem 1rem 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.home-building-card-body h3 {
+  margin: 0 0 0.25rem;
+  color: #f2f7ff;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.home-building-card-meta {
+  margin: 0;
+  color: #93a4bd;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+@media (max-width: 991.98px) {
+  .home-status-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 767.98px) {
+  .home-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 575.98px) {
+  .home-status-grid { grid-template-columns: 1fr; }
 }

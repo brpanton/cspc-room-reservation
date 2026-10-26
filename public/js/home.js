@@ -1053,55 +1053,86 @@ function generateRemark(room, status) {
  *  without a page reload. */
 let labState = []; // { room, tone, remark, occ, date, slot }
 
-/** Group rooms by live status tone and render up to 3 laboratories per category
- *  (Occupied, Available, Limited). Re-rendered on every status poll so the
- *  cards toggle live as booking state changes. */
+/** Compute the overall status tone for a building from its rooms.
+ *  Occupied if any room has an active booking now.
+ *  Limited if any room has pending/bookings today (but none occupied).
+ *  Available if all rooms have zero bookings. */
+function buildingStatus(rooms) {
+  let hasOccupied = false;
+  let hasLimited = false;
+  for (const room of rooms) {
+    const status = roomStatus(room, P.todayIso(), null);
+    if (status.tone === 'occupied') { hasOccupied = true; break; }
+    if (status.tone === 'limited') hasLimited = true;
+  }
+  if (hasOccupied) return 'occupied';
+  if (hasLimited) return 'limited';
+  return 'available';
+}
+
+/** Get a background image for a building card. */
+function buildingImageUrl(buildingName, rooms) {
+  const key = String(buildingName).trim().toUpperCase().replace(/\s+/g, ' ');
+  if (BUILDING_BACKGROUNDS[key]) return BUILDING_BACKGROUNDS[key];
+  // Fall back to first room's image_url
+  for (const room of rooms) {
+    if (room.image_url) return room.image_url;
+  }
+  return null;
+}
+
+/** Group rooms by building and render building cards with live status badges. */
 function renderStatusGroups(rooms) {
   if (!statusGrid) return;
 
-  // Compute status tone for every room and bucket by tone
-  const byTone = { occupied: [], available: [], limited: [] };
+  // Group rooms by building name
+  const byBuilding = new Map();
   rooms.forEach((room) => {
-    const status = roomStatus(room, P.todayIso(), null);
-    byTone[status.tone].push(room);
+    const bName = room.building_name || 'Unknown Building';
+    if (!byBuilding.has(bName)) byBuilding.set(bName, []);
+    byBuilding.get(bName).push(room);
   });
-
-  const toneOrder = ['occupied', 'available', 'limited'];
-  const toneLabels = {
-    occupied: { label: 'Occupied', dot: 'is-occupied' },
-    available: { label: 'Available', dot: 'is-available' },
-    limited: { label: 'Limited', dot: 'is-limited' }
-  };
 
   let html = '';
   let anyShown = false;
 
-  toneOrder.forEach((tone) => {
-    const roomsForTone = byTone[tone].slice(0, 3); // max 3 labs per status
-    if (roomsForTone.length === 0) return;
+  for (const [buildingName, buildingRooms] of byBuilding) {
+    const tone = buildingStatus(buildingRooms);
+    const labCount = buildingRooms.length;
+    const imgUrl = buildingImageUrl(buildingName, buildingRooms);
     anyShown = true;
 
-    const info = toneLabels[tone];
+    const imgHtml = imgUrl
+      ? `<img class="home-building-card-photo" src="${P.escapeHtml(imgUrl)}" alt="${P.escapeHtml(buildingName)}" loading="lazy">`
+      : `<div class="home-building-card-photo-placeholder"><span class="home-building-card-icon">🏛️</span></div>`;
+
+    const statusLabels = {
+      available: { text: 'Available', dot: 'is-available' },
+      limited:   { text: 'Limited Availability', dot: 'is-limited' },
+      occupied:  { text: 'Occupied', dot: 'is-occupied' }
+    };
+    const sl = statusLabels[tone];
+
     html += `
-      <div class="home-status-category">
-        <div class="home-status-category-title">
-          <span class="home-status-dot ${info.dot}" aria-hidden="true"></span>
-          ${info.label} <span class="home-status-count">(${roomsForTone.length})</span>
+      <article class="home-building-card is-${tone}" data-building="${P.escapeHtml(buildingName)}">
+        ${imgHtml}
+        <div class="home-building-card-overlay">
+          <span class="home-building-badge labs-badge">${labCount} lab${labCount !== 1 ? 's' : ''}</span>
+          <span class="home-building-badge status-badge is-${tone}">${sl.text}</span>
         </div>
-        <div class="home-status-grid-inner">
-          ${roomsForTone.map((room) => statusCard(room, P.todayIso(), null)).join('')}
+        <div class="home-building-card-body">
+          <h3>${P.escapeHtml(buildingName)}</h3>
+          <p class="home-building-card-meta">${labCount} laboratory${labCount !== 1 ? 'ies' : ''} • Live status</p>
         </div>
-      </div>
+      </article>
     `;
-  });
+  }
 
   if (!anyShown) {
     statusGrid.innerHTML = '<div class="home-status-loading">No active rooms to show right now.</div>';
   } else {
     statusGrid.innerHTML = html;
   }
-
-  attachLabActionHandlers();
 }
 
 /** Fetch live room statuses from the backend and re-render the 3 buildings. */
