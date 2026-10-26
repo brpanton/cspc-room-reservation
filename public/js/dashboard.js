@@ -422,8 +422,10 @@
     if (profileDropdown) {
       if (dropdownOpen) {
         profileDropdown.removeAttribute('hidden');
+        profileDropdown.classList.add('show');
         profileDropdown.setAttribute('aria-hidden', 'false');
       } else {
+        profileDropdown.classList.remove('show');
         profileDropdown.setAttribute('hidden', '');
         profileDropdown.setAttribute('aria-hidden', 'true');
       }

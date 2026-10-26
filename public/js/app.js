@@ -1593,6 +1593,7 @@ function renderNavbar(user, active) {
       if (!pill || !menu) return;
       menu.classList.remove('show');
       menu.setAttribute('hidden', '');
+      menu.setAttribute('aria-hidden', 'true');
       pill.classList.remove('active');
       pill.setAttribute('aria-expanded', 'false');
     }
@@ -1628,8 +1629,10 @@ function renderNavbar(user, active) {
         return;
       }
 
-      /* Handle menu-item clicks while the dropdown is open */
-      if (menu.classList.contains('show')) {
+      /* Handle menu-item clicks while the dropdown is open.
+       The dashboard page toggles the menu via the `hidden` attribute
+       (not the Bootstrap `show` class), so accept either signal. */
+      if (menu.classList.contains('show') || !menu.hasAttribute('hidden')) {
         const item = e.target.closest('.dropdown-item');
         if (item) {
           e.preventDefault();
