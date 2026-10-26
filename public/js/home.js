@@ -1053,48 +1053,53 @@ function generateRemark(room, status) {
  *  without a page reload. */
 let labState = []; // { room, tone, remark, occ, date, slot }
 
-/** The three campus buildings shown in "High-demand spaces at a glance".
- *  `match` accepts a single building name or a list of building names whose
- *  rooms roll up into that container. */
-const BUILDING_GROUPS = [
-  { label: 'Academic Building II', match: ['ACADEMIC BUILDING II'] },
-  { label: 'CAS Building', match: ['CAS BUILDING'] },
-  { label: 'IT / Engineering Building', match: ['CCS BUILDING', 'CITD BUILDING', 'LSB BUILDING', 'MULTI PURPOSE BUILDING', 'MULTI PORPUSE BUILDING', 'ENGINEERING BUILDING', 'IT BUILDING', 'GREENBUILDING'] }
-];
-
-/** Group rooms into the three building containers and render live status cards. */
-function renderBuildingStatus(rooms) {
+/** Group rooms by live status tone and render up to 3 laboratories per category
+ *  (Occupied, Available, Limited). Re-rendered on every status poll so the
+ *  cards toggle live as booking state changes. */
+function renderStatusGroups(rooms) {
   if (!statusGrid) return;
 
-  const html = BUILDING_GROUPS.map((group) => {
-    const matchList = Array.isArray(group.match) ? group.match : [group.match];
-    const buildingRooms = rooms
-      .filter((room) => matchList.includes(room.building_name))
-      .sort((a, b) => {
-        const rank = (r) => (r.room_type === 'hall' ? 2 : r.room_type === 'laboratory' ? 1 : 0);
-        return rank(b) - rank(a) || String(a.name).localeCompare(String(b.name));
-      });
+  // Compute status tone for every room and bucket by tone
+  const byTone = { occupied: [], available: [], limited: [] };
+  rooms.forEach((room) => {
+    const status = roomStatus(room, P.todayIso(), null);
+    byTone[status.tone].push(room);
+  });
 
-    const cardsHtml = buildingRooms.map((room) =>
-      statusCard(room, P.todayIso(), null)
-    ).join('');
+  const toneOrder = ['occupied', 'available', 'limited'];
+  const toneLabels = {
+    occupied: { label: 'Occupied', dot: 'is-occupied' },
+    available: { label: 'Available', dot: 'is-available' },
+    limited: { label: 'Limited', dot: 'is-limited' }
+  };
 
-    return `
-      <section class="home-building-section">
-        <div class="home-building-title">
-          <span class="home-building-count">${buildingRooms.length}</span>
-          ${P.escapeHtml(group.label)}
+  let html = '';
+  let anyShown = false;
+
+  toneOrder.forEach((tone) => {
+    const roomsForTone = byTone[tone].slice(0, 3); // max 3 labs per status
+    if (roomsForTone.length === 0) return;
+    anyShown = true;
+
+    const info = toneLabels[tone];
+    html += `
+      <div class="home-status-category">
+        <div class="home-status-category-title">
+          <span class="home-status-dot ${info.dot}" aria-hidden="true"></span>
+          ${info.label} <span class="home-status-count">(${roomsForTone.length})</span>
         </div>
-        <div class="home-building-grid">
-          ${cardsHtml || '<div class="home-building-empty">No laboratories in this building.</div>'}
+        <div class="home-status-grid-inner">
+          ${roomsForTone.map((room) => statusCard(room, P.todayIso(), null)).join('')}
         </div>
-      </section>
+      </div>
     `;
-  }).join('');
+  });
 
-  statusGrid.innerHTML = html
-    ? html
-    : '<div class="home-status-loading">No active rooms to show right now.</div>';
+  if (!anyShown) {
+    statusGrid.innerHTML = '<div class="home-status-loading">No active rooms to show right now.</div>';
+  } else {
+    statusGrid.innerHTML = html;
+  }
 
   attachLabActionHandlers();
 }
@@ -1116,7 +1121,7 @@ async function fetchRoomStatuses() {
         slot: null
       };
     });
-    renderBuildingStatus(rooms);
+    renderStatusGroups(rooms);
   } catch {
     statusGrid.innerHTML = '<div class="home-status-loading">Live availability is temporarily unavailable. Open the full timetable to check rooms.</div>';
   }
