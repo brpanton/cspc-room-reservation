@@ -1106,16 +1106,8 @@ function renderNavbar(user, active) {
     navLinks += '<li class="nav-item"><button class="nav-link nav-link-button" type="button" data-bs-toggle="modal" data-bs-target="#about-us-modal">About Us</button></li>';
   }
 
-  // If the page already has its own user-profile-wrapper (e.g. dashboard.html),
-  // skip rendering the legacy profile dropdown to avoid duplicate profile pills.
-  const hasOwnProfileWrapper = document.getElementById('user-profile-wrapper') !== null;
 
-  /* Administration section: only admins see "Add New Admin Account". */
-  const adminSectionLegacy = isAdmin
-    ? `          <div class="profile-menu-heading">Administration</div>
-          <button class="dropdown-item" id="add-admin-menu-item" type="button"><span class="profile-menu-icon">➕</span> + Add New Admin Account</button>
-          <div class="dropdown-divider"></div>`
-    : `          <div class="dropdown-divider"></div>`;
+
 
   const adminSectionNewStyle = isAdmin
     ? `          <div class="dropdown-section">
@@ -1128,30 +1120,8 @@ function renderNavbar(user, active) {
           <hr class="dropdown-divider" />`
     : `          <hr class="dropdown-divider" />`;
 
-  const userArea = user && !hasOwnProfileWrapper
-    ? `
-      <div class="profile-dropdown d-flex align-items-center">
-        <div class="user-chip">
-          <span class="avatar-shell" aria-hidden="true">
-            <span class="avatar-initials" id="navbar-avatar-initials"${avatarUrl ? ' hidden' : ''}>${escapeHtml(initials)}</span>
-            <img class="user-avatar-img" id="navbar-avatar-img" src="${avatarUrl}" alt=""${avatarUrl ? '' : ' hidden'} />
-          </span>
-          <span class="user-chip-copy">
-            <span class="user-chip-name">${escapeHtml(user.full_name)}</span>
-            ${roleBadge(user.role)}
-          </span>
-        </div>
-        <button class="profile-chevron-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Open profile menu">▾</button>
-        <div class="dropdown-menu dropdown-menu-end profile-menu">
-          <div class="profile-menu-heading">Your account</div>
-          <button class="dropdown-item" id="accountSettingsMenuItem" type="button" data-bs-toggle="modal" data-bs-target="#accountSettingsModal"><span class="profile-menu-icon">◎</span> Account Settings</button>
-          <button class="dropdown-item" id="change-password-menu-item" type="button"><span class="profile-menu-icon">🔒</span> Change Password</button>
-${adminSectionLegacy}
-          <button class="dropdown-item profile-logout-item" id="logout-btn" type="button"><span class="profile-menu-icon">↪</span> Log out</button>
-        </div>
-      </div>`
-    : user && hasOwnProfileWrapper
-      ? `\n      <div class="user-profile-wrapper d-inline-flex align-items-center gap-0 position-relative">\n        <button type="button" class="profile-pill" id="profile-pill" aria-haspopup="true" aria-expanded="false">\n          <span class="avatar-circle" id="profile-avatar">${avatarInitial}</span>\n          <span class="profile-name" id="profile-name">${escapeHtml(user.full_name || 'User')}</span>\n          <span class="role-badge" id="profile-role">${String(user.role || 'STUDENT').toUpperCase()}</span>\n          <span class="dropdown-arrow">▼</span>\n        </button>\n        <div class="profile-dropdown-menu" id="profile-dropdown-menu" hidden>\n          <div class="dropdown-section">\n            <div class="dropdown-section-title">Your Account</div>\n            <button type="button" class="dropdown-item" id="menu-account-settings">\n              <span class="item-icon">⚙️</span>\n              <span class="item-label">Account Settings</span>\n            </button>\n            <button type="button" class="dropdown-item" id="menu-change-password">\n              <span class="item-icon">🔒</span>\n              <span class="item-label">Change Password</span>\n            </button>\n          </div>\n${adminSectionNewStyle}\n          <button type="button" class="dropdown-item dropdown-item-danger" id="menu-logout">\n            <span class="item-icon">🚪</span>\n            <span class="item-label">Log Out</span>\n          </button>\n        </div>\n      </div>`
+  const userArea = user
+    ? `\n      <div class="user-profile-wrapper d-inline-flex align-items-center gap-0 position-relative" id="user-profile-wrapper">\n        <button type="button" class="profile-pill" id="profile-pill" aria-haspopup="true" aria-expanded="false">\n          <span class="avatar-circle" id="profile-avatar">${avatarInitial}</span>\n          <span class="profile-name" id="profile-name">${escapeHtml(user.full_name || 'User')}</span>\n          <span class="role-badge" id="profile-role">${String(user.role || 'STUDENT').toUpperCase()}</span>\n          <span class="dropdown-arrow">▼</span>\n        </button>\n        <div class="profile-dropdown-menu" id="profile-dropdown-menu" hidden>\n          <div class="dropdown-section">\n            <div class="dropdown-section-title">Your Account</div>\n            <button type="button" class="dropdown-item" id="menu-account-settings">\n              <span class="item-icon">⚙️</span>\n              <span class="item-label">Account Settings</span>\n            </button>\n            <button type="button" class="dropdown-item" id="menu-change-password">\n              <span class="item-icon">🔒</span>\n              <span class="item-label">Change Password</span>\n            </button>\n          </div>\n${adminSectionNewStyle}\n          <button type="button" class="dropdown-item dropdown-item-danger" id="menu-logout">\n            <span class="item-icon">🚪</span>\n            <span class="item-label">Log Out</span>\n          </button>\n        </div>\n      </div>`
       : isPublicLanding
         ? `
         <button class="btn btn-sm btn-outline-light" id="visitor-login-trigger" type="button" data-bs-toggle="modal" data-bs-target="#visitor-login-modal">Log in</button>
@@ -1205,6 +1175,85 @@ ${adminSectionLegacy}
     setPortalLocale(event.target.value);
     toastInfo('Language preference saved.');
   });
+
+  /* ------------------------------------------- building search (all pages) --- */
+  (function initBuildingSearch() {
+    const searchInput = document.getElementById('building-search');
+    const searchResults = document.getElementById('building-search-results');
+    if (!searchInput || !searchResults) return;
+
+    let debounceTimer = null;
+    let buildings = [];
+
+    async function loadBuildings() {
+      try {
+        const data = await api('/api/buildings');
+        buildings = data.buildings || [];
+      } catch { /* ignore — search will show no results */ }
+    }
+    loadBuildings();
+
+    function showAutocomplete(query) {
+      const q = query.toLowerCase().trim();
+      if (!q) {
+        searchResults.innerHTML = '';
+        searchResults.classList.remove('show');
+        return;
+      }
+      const matches = buildings
+        .filter((b) => (b.building_name || b.name || '').toLowerCase().includes(q))
+        .slice(0, 5);
+      if (matches.length === 0) {
+        searchResults.innerHTML = '<div class="search-dropdown-item text-muted">No matching buildings</div>';
+        searchResults.classList.add('show');
+        return;
+      }
+      searchResults.innerHTML = matches
+        .map((b) => {
+          const name = b.building_name || b.name;
+          const rooms = Number(b.active_rooms ?? b.room_count ?? 0);
+          return `
+            <button class="search-dropdown-item d-flex align-items-center gap-2" type="button"
+                    data-id="${b.id}" data-name="${escapeHtml(name)}">
+              <div class="flex-fill">
+                <div class="search-dropdown-name">${escapeHtml(name)}</div>
+                <div class="search-dropdown-meta">${rooms} active room${rooms !== 1 ? 's' : ''}</div>
+              </div>
+              <span class="search-dropdown-arrow">›</span>
+            </button>`;
+        })
+        .join('');
+      searchResults.classList.add('show');
+    }
+
+    searchInput.addEventListener('input', (e) => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        showAutocomplete(e.target.value);
+      }, 150);
+    });
+
+    searchInput.addEventListener('focus', () => {
+      if (searchInput.value.trim()) showAutocomplete(searchInput.value);
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+        searchResults.classList.remove('show');
+      }
+    });
+
+    searchResults.addEventListener('click', (e) => {
+      const item = e.target.closest('.search-dropdown-item');
+      if (item) {
+        const id = Number(item.getAttribute('data-id'));
+        const name = item.getAttribute('data-name');
+        searchInput.value = name;
+        searchResults.classList.remove('show');
+        window.location.href = `/rooms-status.html?building=${id}`;
+      }
+    });
+  })();
 
   const buildingsModal = document.getElementById('buildings-preview-modal');
   if (buildingsModal) {
