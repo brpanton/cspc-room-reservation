@@ -1329,74 +1329,51 @@ function renderNavbar(user, active) {
     });
   }
 
-  const profileDropdownWrap = document.getElementById('profile-dropdown-menu');
   const accountSettingsModalEl = document.getElementById('accountSettingsModal');
-  if (profileDropdownWrap && window.bootstrap) {
-    const profileDropdown = bootstrap.Dropdown.getOrCreateInstance(document.getElementById('profile-pill'));
+  if (accountSettingsModalEl && window.bootstrap) {
 
-    // Account Settings — only when the modal exists on this page.
-    const accountSettingsMenuItem = document.getElementById('menu-account-settings');
-    if (accountSettingsMenuItem && accountSettingsModalEl) {
-      const accountSettingsModal = new bootstrap.Modal(accountSettingsModalEl);
-      accountSettingsMenuItem.addEventListener('click', (e) => {
-        e.stopPropagation();
-        profileDropdown.hide();
-        accountSettingsModal.show();
-      });
-    }
+    const accountSettingsModal = new bootstrap.Modal(accountSettingsModalEl);
+    const accountSettingsForm = document.getElementById('accountSettingsForm');
+    const saveAccountSettingsBtn = document.getElementById('acct-save-btn');
+    const cancelAccountSettingsBtn = document.getElementById('cancelAccountSettingsBtn');
+    const accountSettingsCloseBtn = accountSettingsModalEl.querySelector('.btn-close');
+    const avatarInput = document.getElementById('profile-avatar-input');
+    const previewImg = document.getElementById('profile-avatar-preview-img');
+    const previewInitials = document.getElementById('profile-avatar-preview-initials');
 
-    // Change Password
-    document.getElementById('change-password-menu-item')?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      profileDropdown.hide();
-      const modalEl = document.getElementById('change-password-modal');
-      if (modalEl) {
-        const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
-        modal.show();
+    /* ── Helper: fully dismiss modal and clean up backdrop/body ── */
+    const dismissAccountSettingsModal = () => {
+      accountSettingsModal.hide();
+      document.body.classList.remove('modal-open');
+      document.body.style.overflow = '';
+      document.querySelectorAll('.modal-backdrop').forEach((el) => el.remove());
+    };
+
+    /* ── Helper: resolve the current user object ── */
+    const getCurrentUser = async () => {
+      if (sessionCache && sessionCache.user) return sessionCache.user;
+      try {
+        const session = await api('/api/session');
+        return session.user || null;
+      } catch {
+        return null;
       }
-    });
-
-    // Add New Admin Account
-    document.getElementById('add-admin-menu-item')?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      profileDropdown.hide();
-      const modalEl = document.getElementById('admin-modal');
-      if (modalEl) {
-        const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
-        modal.show();
-      }
-    });
-
-    if (accountSettingsModalEl) {
-      const accountSettingsModal = new bootstrap.Modal(accountSettingsModalEl);
-      const accountSettingsForm = document.getElementById('accountSettingsForm');
-      const saveAccountSettingsBtn = document.getElementById('acct-save-btn');
-      const cancelAccountSettingsBtn = document.getElementById('cancelAccountSettingsBtn');
-      const accountSettingsCloseBtn = accountSettingsModalEl.querySelector('.btn-close');
-      const avatarInput = document.getElementById('profile-avatar-input');
-      const previewImg = document.getElementById('profile-avatar-preview-img');
-      const previewInitials = document.getElementById('profile-avatar-preview-initials');
-
-      /* ── Helper: fully dismiss modal and clean up backdrop/body ── */
-      const dismissAccountSettingsModal = () => {
-        accountSettingsModal.hide();
-        document.body.classList.remove('modal-open');
-        document.body.style.overflow = '';
-        document.querySelectorAll('.modal-backdrop').forEach((el) => el.remove());
-      };
+    };
 
     if (accountSettingsForm && saveAccountSettingsBtn) {
-      accountSettingsModalEl.addEventListener('show.bs.modal', () => {
-        document.getElementById('acct-full-name').value = user.full_name || '';
-        document.getElementById('acct-student-id').value = user.school_id || '';
-        document.getElementById('acct-email').value = user.email || '';
-        document.getElementById('acct-contact').value = user.contact_number || '';
-        const currentUrl = user && user.avatar_url;
+      accountSettingsModalEl.addEventListener('show.bs.modal', async () => {
+        const u = await getCurrentUser();
+        if (!u) return;
+        document.getElementById('acct-full-name').value = u.full_name || '';
+        document.getElementById('acct-student-id').value = u.school_id || '';
+        document.getElementById('acct-email').value = u.email || '';
+        document.getElementById('acct-contact').value = u.contact_number || '';
+        const currentUrl = u.avatar_url;
         if (previewImg && previewInitials) {
           previewImg.src = currentUrl || '';
           previewImg.hidden = !currentUrl;
           previewInitials.hidden = Boolean(currentUrl);
-          previewInitials.textContent = String(user.full_name || '?')
+          previewInitials.textContent = String(u.full_name || '?')
             .trim().split(/\s+/).slice(0, 2).map((p) => p.charAt(0)).join('').toUpperCase() || 'MA';
         }
       });
@@ -1422,8 +1399,9 @@ function renderNavbar(user, active) {
         saveAccountSettingsBtn.disabled = true;
         saveAccountSettingsBtn.textContent = 'Saving…';
         try {
+          const u = await getCurrentUser();
           // Upload avatar first if a new file was selected
-          let avatarUrl = user && user.avatar_url;
+          let avatarUrl = u && u.avatar_url;
           if (avatarInput?.files?.[0]) {
             const formData = new FormData();
             formData.append('avatar', avatarInput.files[0]);
@@ -1441,7 +1419,6 @@ function renderNavbar(user, active) {
           dismissAccountSettingsModal();
           toastOk(result.message || 'Profile updated.');
           if (result.user) {
-            Object.assign(user, result.user);
             if (sessionCache && sessionCache.user) Object.assign(sessionCache.user, result.user);
           }
           // Update navbar avatar badge (profile pill uses #profile-avatar initials span)
@@ -1463,35 +1440,26 @@ function renderNavbar(user, active) {
       saveAccountSettingsBtn.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopImmediatePropagation();
-        console.log('[Account Settings Modal] Save changes clicked');
 
         const emailInput = document.getElementById('acct-email');
-        let emailValid = true;
-
         if (emailInput && emailInput.value.trim() && !emailInput.value.trim().endsWith('@my.cspc.edu.ph')) {
-          console.warn('[Account Settings Modal] Invalid email domain:', emailInput.value.trim());
           toastError('Please use your institutional email (@my.cspc.edu.ph).');
           emailInput.focus();
-          emailValid = false;
+          return;
         }
 
-        if (!emailValid) return;
-
-        console.log('[Account Settings Modal] Submitting account settings form');
         accountSettingsForm.requestSubmit();
       });
     }
 
     if (cancelAccountSettingsBtn) {
       cancelAccountSettingsBtn.addEventListener('click', (event) => {
-        console.log('[Account Settings Modal] Cancel clicked');
         dismissAccountSettingsModal();
       });
     }
 
     if (accountSettingsCloseBtn) {
       accountSettingsCloseBtn.addEventListener('click', (event) => {
-        console.log('[Account Settings Modal] Close X clicked');
         dismissAccountSettingsModal();
       });
     }
@@ -1499,14 +1467,14 @@ function renderNavbar(user, active) {
     /* data-bs-dismiss buttons inside Account Settings modal ── */
     accountSettingsModalEl.querySelectorAll('[data-bs-dismiss="modal"]').forEach((btn) => {
       btn.addEventListener('click', (event) => {
-        console.log('[Account Settings Modal] Dismiss clicked');
         dismissAccountSettingsModal();
       });
     });
 
-    accountSettingsModalEl.addEventListener('hidden.bs.modal', () => {
+    accountSettingsModalEl.addEventListener('hidden.bs.modal', async () => {
       if (avatarInput) avatarInput.value = '';
-      const currentUrl = user && user.avatar_url;
+      const u = await getCurrentUser();
+      const currentUrl = u && u.avatar_url;
       if (previewImg) {
         previewImg.src = currentUrl || '';
         previewImg.hidden = !currentUrl;
@@ -1515,7 +1483,6 @@ function renderNavbar(user, active) {
         previewInitials.hidden = Boolean(currentUrl);
       }
     });
-    }
 
   }
 
@@ -1948,3 +1915,4 @@ window.Portal = {
   // Run once immediately on load.
   removeStuckBackdrops();
 })();
+
