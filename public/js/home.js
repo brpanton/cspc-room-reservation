@@ -1,4 +1,4 @@
-﻿/* Public homepage: shared navigation and live campus building highlights. */
+/* Public homepage: shared navigation and live campus building highlights. */
 'use strict';
 
 (async function () {
@@ -22,6 +22,26 @@
   const session = await P.getSession();
   P.renderNavbar(session.user, 'home');
 
+  // Dynamic Quick Check banner text based on auth state
+  const quickCheckTag = document.getElementById('quickCheckTag');
+  const quickCheckHeading = document.getElementById('quickCheckHeading');
+  const quickCheckSubtext = document.getElementById('quickCheckSubtext');
+
+  function applyQuickCheckText(authenticated) {
+    if (!quickCheckTag || !quickCheckHeading || !quickCheckSubtext) return;
+    if (authenticated) {
+      quickCheckTag.textContent = 'LIVE AVAILABILITY · REAL-TIME SEARCH';
+      quickCheckHeading.textContent = 'Find & Reserve Your Laboratory';
+      quickCheckSubtext.textContent = 'Pick a date, time slot and building to check live availability and request a reservation.';
+    } else {
+      quickCheckTag.textContent = 'Quick check · no login';
+      quickCheckHeading.textContent = "See what's free before you sign in";
+      quickCheckSubtext.textContent = 'Pick a date, time slot and building to preview live availability across campus.';
+    }
+  }
+
+  applyQuickCheckText(session.authenticated);
+
   // Unhide the user-profile-wrapper so the profile pill shows the logged-in user
   const profileWrapper = document.getElementById('user-profile-wrapper');
   if (session.authenticated && profileWrapper) {
@@ -33,7 +53,7 @@
     primaryAction.removeAttribute('data-bs-toggle');
     primaryAction.removeAttribute('data-bs-target');
     primaryAction.classList.remove('btn');
-    primaryAction.outerHTML = `<a class="btn btn-cspc btn-lg" id="home-primary-action" href="${session.user.role === 'admin' ? '/admin-dashboard.html' : '/dashboard.html'}">${session.user.role === 'admin' ? 'Open admin dashboard â†’' : 'Open your dashboard â†’'}</a>`;
+    primaryAction.outerHTML = `<a class="btn btn-cspc btn-lg" id="home-primary-action" href="${session.user.role === 'admin' ? '/admin-dashboard.html' : '/dashboard.html'}">${session.user.role === 'admin' ? 'Open admin dashboard →' : 'Open your dashboard →'}</a>`;
   }
 
   const loginModalEl = document.getElementById('visitor-login-modal');
@@ -52,7 +72,7 @@
     const modeChanged = mode !== loginMode;
     loginMode = mode;
     // The User/Admin tabs share one form, so clear typed credentials when
-    // switching roles â€” keeps user login details out of the admin login.
+    // switching roles — keeps user login details out of the admin login.
     if (modeChanged) {
       const passwordInput = document.getElementById('visitor-login-password');
       [loginIdInput, passwordInput].filter(Boolean).forEach((input) => {
@@ -71,7 +91,7 @@
     loginIdInput.setAttribute('inputmode', 'email');
     loginSubmit.textContent = loginMode === 'admin' ? 'Login' : 'Log in';
     loginAlert.classList.add('d-none');
-    // Admins are provisioned / enrolled â€” never show self-registration.
+    // Admins are provisioned / enrolled — never show self-registration.
     if (createAccountRow) createAccountRow.classList.toggle('d-none', loginMode === 'admin');
   }
 
@@ -87,7 +107,7 @@
 
   applyLoginMode('user');
 
-  // One-click Google SSO handoff â€” the server owns the OAuth details: it
+  // One-click Google SSO handoff — the server owns the OAuth details: it
   // builds the consent-screen URL (with a CSRF state nonce) and verifies the
   // callback at /api/auth/google[/callback]. Until GOOGLE_CLIENT_ID/SECRET
   // are set in .env the config endpoint reports { configured: false }, so the
@@ -226,7 +246,7 @@
   }
 
   forgotLink?.addEventListener('click', () => {
-    // Open the forgot view with a completely blank recovery email field â€”
+    // Open the forgot view with a completely blank recovery email field —
     // never pre-fill it from the login input. Capture the active login tab
     // (User vs Admin) so the reset is scoped to that account kind.
     forgotEmail.value = '';
@@ -442,7 +462,7 @@
       });
       adminRegisterModal.hide();
       P.toastOk(result.message || 'Administrator account created.');
-      // No session yet â€” send them straight back to Log in (Admin segment).
+      // No session yet — send them straight back to Log in (Admin segment).
       applyLoginMode('admin');
       window.setTimeout(() => loginModal?.show(), 450);
     } catch (err) {
@@ -559,10 +579,10 @@
     buildingHost.innerHTML = [1, 2, 3].map((n) => `
         <div class="col-md-4 home-building-col">
           <article class="home-building-card building-tone-${n} is-loading" aria-busy="true">
-            <div class="home-building-card-top"><span class="home-building-number">${String(n).padStart(2, '0')}</span><span class="home-building-mark" aria-hidden="true">âŒ‚</span></div>
-            <h3>Loading popular spaceâ€¦</h3>
-            <p>Counting reservationsâ€¦</p>
-            <div class="home-building-card-footer"><span>â€” active rooms</span><span aria-hidden="true">â†—</span></div>
+            <div class="home-building-card-top"><span class="home-building-number">${String(n).padStart(2, '0')}</span><span class="home-building-mark" aria-hidden="true">⌂</span></div>
+            <h3>Loading popular space…</h3>
+            <p>Counting reservations…</p>
+            <div class="home-building-card-footer"><span>— active rooms</span><span aria-hidden="true">↗</span></div>
           </article>
         </div>`).join('');
 
@@ -587,10 +607,10 @@
           return `
         <div class="col-md-4 home-building-col">
           <article class="home-building-card" ${cardStyle}>
-            <div class="home-building-card-top"><span class="home-building-number">${String(index + 1).padStart(2, '0')}</span><span class="home-building-mark" aria-hidden="true">âŒ‚</span></div>
+            <div class="home-building-card-top"><span class="home-building-number">${String(index + 1).padStart(2, '0')}</span><span class="home-building-mark" aria-hidden="true">⌂</span></div>
             <h3>${P.escapeHtml(name)}</h3>
             <p>${P.escapeHtml(sub)}</p>
-            <div class="home-building-card-footer"><span>${P.escapeHtml(roomsLabel)}${resCount > 0 ? ` Â· ${resCount} bookings` : ''}</span><a href="/rooms-status.html" aria-label="View room status">â†—</a></div>
+            <div class="home-building-card-footer"><span>${P.escapeHtml(roomsLabel)}${resCount > 0 ? ` · ${resCount} bookings` : ''}</span><a href="/rooms-status.html" aria-label="View room status">↗</a></div>
           </article>
         </div>`;
         }).join('')
@@ -670,7 +690,7 @@
                 <div class="search-dropdown-name">${P.escapeHtml(name)}</div>
                 <div class="search-dropdown-meta">${rooms} active room${rooms !== 1 ? 's' : ''}</div>
               </div>
-              <span class="search-dropdown-arrow">â€º</span>
+              <span class="search-dropdown-arrow">›</span>
             </button>`;
         })
         .join('');
@@ -723,15 +743,15 @@
     const bdEquipmentGrid = document.getElementById('bd-equipment-grid');
 
     if (bdName) bdName.textContent = buildingName;
-    if (bdCode) bdCode.textContent = 'Loadingâ€¦';
-    if (bdLocation) bdLocation.textContent = 'Loadingâ€¦';
-    if (bdHours) bdHours.textContent = 'Loadingâ€¦';
-    if (bdDescription) bdDescription.textContent = 'Loadingâ€¦';
-    if (bdActiveRooms) bdActiveRooms.textContent = 'â€“';
-    if (bdTotalRooms) bdTotalRooms.textContent = 'â€“';
-    if (bdEquipmentCount) bdEquipmentCount.textContent = 'â€“';
-    if (bdRoomsBody) bdRoomsBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted-sm py-3">Loading roomsâ€¦</td></tr>';
-    if (bdBookingsBody) bdBookingsBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted-sm py-3">Loading bookingsâ€¦</td></tr>';
+    if (bdCode) bdCode.textContent = 'Loading…';
+    if (bdLocation) bdLocation.textContent = 'Loading…';
+    if (bdHours) bdHours.textContent = 'Loading…';
+    if (bdDescription) bdDescription.textContent = 'Loading…';
+    if (bdActiveRooms) bdActiveRooms.textContent = '–';
+    if (bdTotalRooms) bdTotalRooms.textContent = '–';
+    if (bdEquipmentCount) bdEquipmentCount.textContent = '–';
+    if (bdRoomsBody) bdRoomsBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted-sm py-3">Loading rooms…</td></tr>';
+    if (bdBookingsBody) bdBookingsBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted-sm py-3">Loading bookings…</td></tr>';
 
     const buildingDetailModalEl = document.getElementById('building-detail-modal');
     if (buildingDetailModalEl) {
@@ -772,8 +792,8 @@
                 <td>${P.escapeHtml(r.name)}</td>
                 <td><span class="room-type-badge">${P.escapeHtml(r.room_type)}</span></td>
                 <td>${r.capacity}</td>
-                <td>${r.floor || 'â€“'}</td>
-                <td><span class="room-equip">${equip.join(', ') || 'â€“'}</span></td>
+                <td>${r.floor || '–'}</td>
+                <td><span class="room-equip">${equip.join(', ') || '–'}</span></td>
                 <td><span class="room-status ${statusClass}">${status}</span></td>
               </tr>`;
           }).join('');
@@ -784,9 +804,9 @@
 
       if (bdEquipmentGrid) {
         const eqItems = [];
-        if (equipment.projector > 0) eqItems.push('<div class="building-equipment-item"><span class="building-equipment-icon">ðŸ“½ï¸</span><span>Projector (' + equipment.projector + ' rooms)</span></div>');
-        if (equipment.aircon > 0) eqItems.push('<div class="building-equipment-item"><span class="building-equipment-icon">â„ï¸</span><span>Air Conditioning (' + equipment.aircon + ' rooms)</span></div>');
-        if (equipment.sound > 0) eqItems.push('<div class="building-equipment-item"><span class="building-equipment-icon">ðŸ”Š</span><span>Sound System (' + equipment.sound + ' rooms)</span></div>');
+        if (equipment.projector > 0) eqItems.push('<div class="building-equipment-item"><span class="building-equipment-icon">📽️</span><span>Projector (' + equipment.projector + ' rooms)</span></div>');
+        if (equipment.aircon > 0) eqItems.push('<div class="building-equipment-item"><span class="building-equipment-icon">❄️</span><span>Air Conditioning (' + equipment.aircon + ' rooms)</span></div>');
+        if (equipment.sound > 0) eqItems.push('<div class="building-equipment-item"><span class="building-equipment-icon">🔊</span><span>Sound System (' + equipment.sound + ' rooms)</span></div>');
         bdEquipmentGrid.innerHTML = eqItems.length ? eqItems.join('') : '<div class="text-muted-sm">No specific equipment listed.</div>';
       }
 
@@ -797,7 +817,7 @@
             return `
               <tr>
                 <td>${P.escapeHtml(b.room_name)}</td>
-                <td>${P.escapeHtml(b.start_time)} â€“ ${P.escapeHtml(b.end_time)}</td>
+                <td>${P.escapeHtml(b.start_time)} – ${P.escapeHtml(b.end_time)}</td>
                 <td><span class="booking-status ${statusClass}">${b.status}</span></td>
                 <td>${P.escapeHtml(b.requested_by)}</td>
               </tr>`;
@@ -809,9 +829,9 @@
 
     } catch (err) {
       if (bdName) bdName.textContent = buildingName;
-      if (bdCode) bdCode.textContent = 'â€“';
-      if (bdLocation) bdLocation.textContent = 'â€“';
-      if (bdHours) bdHours.textContent = 'â€“';
+      if (bdCode) bdCode.textContent = '–';
+      if (bdLocation) bdLocation.textContent = '–';
+      if (bdHours) bdHours.textContent = '–';
       if (bdDescription) bdDescription.textContent = 'Could not load building details.';
       if (bdRoomsBody) bdRoomsBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-3">Failed to load rooms.</td></tr>';
       if (bdBookingsBody) bdBookingsBody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-3">Failed to load bookings.</td></tr>';
@@ -932,7 +952,7 @@
     if (slot) {
       const clash = bookings.find((b) => overlaps(slot, b));
       return clash
-        ? { tone: 'occupied', label: 'Booked', detail: `${P.formatTime(clash.start_time)} â€“ ${P.formatTime(clash.end_time)}` }
+        ? { tone: 'occupied', label: 'Booked', detail: `${P.formatTime(clash.start_time)} – ${P.formatTime(clash.end_time)}` }
         : { tone: 'available', label: 'Free', detail: 'Open in this slot' };
     }
     if (dateValue === P.todayIso()) {
@@ -957,9 +977,9 @@
 
 /* Equipment icon labels mapped to room boolean fields. */
 const EQUIPMENT_ICONS = [
-  { key: 'has_projector', label: 'Projector', icon: 'ðŸ“½ï¸' },
-  { key: 'has_aircon',      label: 'AirCon',      icon: 'â„ï¸' },
-  { key: 'has_sound',       label: 'Sound System',icon: 'ðŸ”Š' }
+  { key: 'has_projector', label: 'Projector', icon: '📽️' },
+  { key: 'has_aircon',      label: 'AirCon',      icon: '❄️' },
+  { key: 'has_sound',       label: 'Sound System',icon: '🔊' }
 ];
 
 /** Occupancy % for today: minutes booked / minutes in operating day (7am-7pm = 720 min). */
@@ -1021,7 +1041,7 @@ function generateRemark(room, status) {
     const endMinDisplay = (endMin % 60).toString().padStart(2, "0");
     const ampm = endHr >= 12 ? "PM" : "AM";
     const displayHr = endHr % 12 || 12;
-    return `Class in Session (${current.requested_by || "CS 101"}) — until ${displayHr}:${endMinDisplay} ${ampm}`;
+    return `Class in Session (${current.requested_by || "CS 101"}) � until ${displayHr}:${endMinDisplay} ${ampm}`;
   }
   return "Fully Booked until 5:00 PM";
 }
@@ -1142,7 +1162,7 @@ async function refreshLabStatus() {
   if (heroCount) {
     const openRooms = (labState || []).filter((s) => s.tone === 'available');
     const openCount = openRooms.length;
-    heroCount.textContent = openCount > 0 ? `${openCount} Room${openCount === 1 ? '' : 's'} Available Now` : 'Checking Live Availability…';
+    heroCount.textContent = openCount > 0 ? `${openCount} Room${openCount === 1 ? '' : 's'} Available Now` : 'Checking Live Availability�';
   }
 }
 
@@ -1183,14 +1203,14 @@ function statusCard(room, dateValue, slot, remark) {
   const type = P.ROOM_TYPE_LABELS[room.room_type] || room.room_type || "Laboratory";
   const roomCode = `L-${String(room.id).padStart(3, "0")}`;
   const meta = [room.building_name, room.capacity ? `Seats ${room.capacity}` : ""]
-    .filter(Boolean).map(P.escapeHtml).join(" · ");
+    .filter(Boolean).map(P.escapeHtml).join(" � ");
   const occ = occupancyPct(room);
   const equip = equipmentHtml(room);
   const buildingImg = room.image_url
     ? `<img class="home-lab-card-photo" src="${P.escapeHtml(room.image_url)}" alt="${P.escapeHtml(room.building_name)} building" loading="lazy">`
-    : `<div class="home-lab-card-photo-placeholder"><span class="home-lab-building-icon">🏛️</span></div>`;
+    : `<div class="home-lab-card-photo-placeholder"><span class="home-lab-building-icon">???</span></div>`;
   const tone = status.tone;
-  const statusIcon = tone === "available" ? "🟢" : tone === "limited" ? "🟡" : "🔴";
+  const statusIcon = tone === "available" ? "??" : tone === "limited" ? "??" : "??";
   const statusText = tone === "available" ? "Available" : tone === "limited" ? "Limited" : "Occupied";
   const actionText = tone === "available" ? "Book Room" : "View Schedule";
   const btnClass = tone === "available" ? "btn-cspc" : "btn-outline-secondary";
@@ -1306,7 +1326,7 @@ function statusCard(room, dateValue, slot, remark) {
         labBookingAlert.classList.remove('d-none');
         return;
       }
-      P.busy(labBookingSubmit, true, 'Requesting…');
+      P.busy(labBookingSubmit, true, 'Requesting�');
       try {
         await P.api('/api/reservations', {
           method: 'POST',
@@ -1352,3 +1372,4 @@ function statusCard(room, dateValue, slot, remark) {
   fetchRoomStatuses();
   startStatusRefresh();
 })();
+
