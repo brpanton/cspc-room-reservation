@@ -1329,6 +1329,73 @@ function renderNavbar(user, active) {
     });
   }
 
+  /* ------------------------------------------- inject account settings modal (pages that lack it) --- */
+  (function injectAccountSettingsModal() {
+    const MODAL_ID = 'accountSettingsModal';
+    if (document.getElementById(MODAL_ID)) return;
+    const modalHtml = `<!-- Account Settings Modal (injected by app.js when a page lacks it) -->
+<div class="modal fade profile-modal" id="${MODAL_ID}" tabindex="-1" aria-labelledby="accountSettingsTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <span class="profile-modal-kicker">Your Account</span>
+          <h5 class="modal-title fw-semibold" id="accountSettingsTitle">Account Settings</h5>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="accountSettingsForm" novalidate>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label required">Full Name</label>
+              <input type="text" class="form-control" id="acct-full-name" name="full_name" placeholder="e.g. Juan Dela Cruz" required />
+              <div class="invalid-feedback">Please enter your full name.</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label required">Student / Employee ID</label>
+              <input type="text" class="form-control" id="acct-student-id" name="student_id" placeholder="e.g. 2021-00123" required />
+              <div class="invalid-feedback">Please enter your ID number.</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label required">Email Address</label>
+              <input type="email" class="form-control" id="acct-email" name="email" placeholder="e.g. name@cspc.edu.ph" required />
+              <div class="invalid-feedback">Please enter a valid email address.</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Department</label>
+              <input type="text" class="form-control" id="acct-department" name="department" placeholder="e.g. Computer Studies" />
+            </div>
+            <div class="col-12">
+              <label class="form-label">Contact Number</label>
+              <input type="tel" class="form-control" id="acct-contact" name="contact_number" placeholder="e.g. +63 9xx xxx xxxx" />
+            </div>
+            <!-- Profile picture upload -->
+            <div class="col-12">
+              <label class="form-label">Profile Picture</label>
+              <div class="avatar-upload" style="display:flex;align-items:center;gap:1rem;">
+                <div class="avatar-preview-wrapper" style="flex:0 0 auto;">
+                  <img class="avatar-preview-img" id="profile-avatar-preview-img" src="" alt="Profile preview" width="80" height="80" style="border-radius:50%;object-fit:cover;background:#eee;" hidden />
+                  <span class="avatar-preview-initials" id="profile-avatar-preview-initials" style="font-size:1.75rem;font-weight:700;color:#666;display:inline-flex;align-items:center;justify-content:center;width:80px;height:80px;border-radius:50%;background:#eee;">?</span>
+                  <button type="button" class="avatar-upload-btn" style="margin-top:0.5rem;" aria-label="Change profile photo" title="Change profile photo">📷</button>
+                  <input type="file" id="profile-avatar-input" class="avatar-upload-input d-none" accept="image/*" />
+                </div>
+                <p class="form-text mb-0" style="margin-left:0.5rem;">Upload a JPG or PNG (max 2 MB).</p>
+              </div>
+            </div>
+          </div>
+          <div class="mt-4 text-end">
+            <button type="button" class="btn btn-outline-secondary" id="cancelAccountSettingsBtn" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-cspc" id="acct-save-btn">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>`;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+  })();
+
   const accountSettingsModalEl = document.getElementById('accountSettingsModal');
   if (accountSettingsModalEl && window.bootstrap) {
 
