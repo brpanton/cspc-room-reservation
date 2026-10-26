@@ -1039,7 +1039,7 @@ let labState = []; // { room, tone, remark, occ, date, slot }
 const BUILDING_GROUPS = [
   { label: 'Academic Building II', match: ['ACADEMIC BUILDING II'] },
   { label: 'CAS Building', match: ['CAS BUILDING'] },
-  { label: 'IT / Engineering Building', match: ['CCS BUILDING', 'CITD BUILDING', 'LSB BUILDING', 'MULTI PURPOSE BUILDING', 'MULTI PORPUSE BUILDING', 'ENGINEERING BUILDING', 'IT BUILDING'] }
+  { label: 'IT / Engineering Building', match: ['CCS BUILDING', 'CITD BUILDING', 'LSB BUILDING', 'MULTI PURPOSE BUILDING', 'MULTI PORPUSE BUILDING', 'ENGINEERING BUILDING', 'IT BUILDING', 'GREENBUILDING'] }
 ];
 
 /** Group rooms into the three building containers and render live status cards. */
