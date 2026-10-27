@@ -67,7 +67,7 @@ function safeRelease(conn) {
 }
 
 async function findConflict(conn, { roomId, date, startTime, endTime, excludeId = null }) {
-  const params = [roomId, date, endTime, startTime, ...BLOCKING_STATUSES];
+  const params = [roomId, date, startTime, endTime, ...BLOCKING_STATUSES];
   let sql = `
     SELECT res.id, res.start_time, res.end_time, res.status, u.full_name AS requested_by
     FROM reservations res

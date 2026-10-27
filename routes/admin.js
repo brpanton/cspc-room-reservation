@@ -198,7 +198,7 @@ router.get('/rooms', async (req, res, next) => {
     const params = [];
     let where = 'WHERE 1 = 1';
     if (req.query.building_id) {
-      where += ' AND r.building_id = ?';
+      where += ` AND r.building_id = $${params.length + 1}`;
       params.push(Number(req.query.building_id));
     }
     if (req.query.include_inactive !== '1') where += ' AND r.is_active = 1';
