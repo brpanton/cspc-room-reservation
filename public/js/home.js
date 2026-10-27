@@ -1152,7 +1152,19 @@
 
   /* --------------------------------- grouped availability rendering --- */
 
-  /** Group rooms hierarchically: building -> floor -> rooms[] */
+  /** Sort key for floor labels like "1st Floor", "2nd Floor", "10th Floor".
+   *  Numeric floors sort by number; non-numeric labels sort after, alphabetically. */
+  function floorSortKey(floorLabel) {
+    const label = String(floorLabel || '').trim();
+    const match = label.match(/(\d+)/);
+    const num = match ? parseInt(match[1], 10) : null;
+    if (num !== null) return [0, num, ''];
+    return [1, 0, label.toLowerCase()];
+  }
+
+  /** Group rooms hierarchically: building -> floor -> rooms[].
+   *  Returns a sorted array of [buildingName, sortedFloorMap] pairs.
+   *  Buildings are sorted alphabetically; floors numerically; rooms by name. */
   function groupRoomsByBuildingAndFloor(rooms) {
     const byBuilding = new Map();
     rooms.forEach((room) => {
@@ -1163,7 +1175,31 @@
       if (!byFloor.has(floor)) byFloor.set(floor, []);
       byFloor.get(floor).push(room);
     });
-    return byBuilding;
+
+    // Sort buildings alphabetically by name
+    const sortedBuildings = [...byBuilding.entries()].sort((a, b) =>
+      String(a[0]).localeCompare(String(b[0]))
+    );
+
+    // Sort floors numerically within each building; sort rooms by name within each floor
+    return sortedBuildings.map(([bName, floorMap]) => {
+      const sortedFloors = [...floorMap.entries()].sort((a, b) => {
+        const ka = floorSortKey(a[0]);
+        const kb = floorSortKey(b[0]);
+        if (ka[0] !== kb[0]) return ka[0] - kb[0];
+        if (ka[1] !== kb[1]) return ka[1] - kb[1];
+        return ka[2].localeCompare(kb[2]);
+      });
+      const sortedFloorMap = new Map(
+        sortedFloors.map(([fName, fRooms]) => {
+          const sortedRooms = [...fRooms].sort((a, b) =>
+            String(a.name || '').localeCompare(String(b.name || ''))
+          );
+          return [fName, sortedRooms];
+        })
+      );
+      return [bName, sortedFloorMap];
+    });
   }
 
   /** Render one floor sub-section header within a building group. */
