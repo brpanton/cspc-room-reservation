@@ -78,6 +78,17 @@
   document.getElementById('start_time').value = '08:00';
   document.getElementById('end_time').value = '10:00';
 
+  /* ------------------------------------------- pre-fill from query params --- */
+  const urlParams = new URLSearchParams(window.location.search);
+  const qDate = urlParams.get('date');
+  const qBuildingId = urlParams.get('building_id');
+  const qRoomId = urlParams.get('room_id');
+  if (qDate) {
+    dateInput.value = qDate;
+  }
+  window.__rfqBuildingId = qBuildingId || null;
+  window.__rfqRoomId = qRoomId || null;
+
   /* ------------------------------------------------------------ buildings --- */
 
   try {
@@ -88,6 +99,12 @@
         `<option value="${b.id}">${escapeHtml(b.name)} (${b.room_count} rooms)</option>`
       ).join('');
     updateBuildingBackground();
+
+    // Auto-select pre-filled building from query params
+    if (window.__rfqBuildingId) {
+      buildingSel.value = String(window.__rfqBuildingId);
+      loadRooms(window.__rfqBuildingId, window.__rfqRoomId);
+    }
   } catch (err) {
     buildingSel.innerHTML = '<option value="">Could not load buildings</option>';
     toastError(`Could not load buildings: ${err.message}`);

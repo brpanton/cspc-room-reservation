@@ -911,6 +911,9 @@
   const searchBuilding = document.getElementById('home-search-building');
   const searchResult = document.getElementById('home-search-result');
   const searchSubmit = document.getElementById('home-search-submit');
+  const availabilityView = document.getElementById('home-availability-view');
+  const availabilityHeader = document.getElementById('home-availability-header');
+  const availabilityGrid = document.getElementById('home-availability-grid');
 
   if (searchDate) {
     searchDate.value = P.todayIso();
@@ -973,6 +976,124 @@
     }
     if (!bookings.length) return { tone: 'available', label: 'Available', detail: 'Free all day' };
     return { tone: 'limited', label: 'Limited', detail: `${bookings.length} booking${bookings.length > 1 ? 's' : ''} today` };
+  }
+
+  /* ------------------------------------------- availability detail view -- */
+
+  /** Compute a room's status for a specific selected time slot. */
+  function roomSlotStatus(room, slot) {
+    const bookings = room.bookings || [];
+    if (!slot) {
+      if (!bookings.length) return { tone: 'available', label: 'Available', booked: [], available: [] };
+      const booked = bookings.map((b) => ({
+        start: P.formatTime(b.start_time),
+        end: P.formatTime(b.end_time),
+        status: b.status,
+      }));
+      return { tone: 'limited', label: 'Limited / Reserved', booked, available: [] };
+    }
+    const clash = bookings.find((b) => overlaps(slot, b));
+    if (clash) {
+      return {
+        tone: 'occupied',
+        label: 'Occupied',
+        booked: [{ start: P.formatTime(clash.start_time), end: P.formatTime(clash.end_time), status: clash.status }],
+        available: [],
+      };
+    }
+    return {
+      tone: 'available',
+      label: 'Available',
+      booked: [],
+      available: [{ start: slot.label.split('-')[0], end: slot.label.split('-')[1] }],
+    };
+  }
+
+  /** Format "HH:MM" -> "h:MM AM/PM". */
+  function fmtTimeShort(hhmm) {
+    const [h, m] = String(hhmm || '').split(':').map(Number);
+    if (h == null || m == null) return hhmm;
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const displayH = h % 12 || 12;
+    return `${displayH}:${String(m).padStart(2, '0')} ${ampm}`;
+  }
+
+  /** Render one room card for the availability detail view. */
+  function renderRoomCard(room, date, slot, buildingName) {
+    const status = roomSlotStatus(room, slot);
+    const badgeColor = status.tone === 'available' ? 'bg-success' : status.tone === 'occupied' ? 'bg-danger' : 'bg-warning';
+
+    const bookedHtml = status.booked.length
+      ? status.booked.map((b) =>
+          `<div class=\"avail-slot\"><span class=\"avail-time text-danger\">${escapeHtml(b.start)} – ${escapeHtml(b.end)}</span> <span class=\"avail-status small text-danger\">${escapeHtml(b.status)}</span></div>`
+        ).join('')
+      : '<div class=\"avail-slot text-muted-sm\"><span>No bookings on this date</span></div>';
+
+    const availHtml = status.available.length
+      ? `<div class=\"avail-slot\"><span class=\"avail-time text-success\">${fmtTimeShort(status.available[0].start)} – ${fmtTimeShort(status.available[0].end)}</span> <span class=\"avail-status small text-success\">Open for this slot</span></div>`
+      : '';
+
+    const reserveUrl = `/reservation-form.html?date=${encodeURIComponent(date)}&building_id=${encodeURIComponent(room.building_id)}&room_id=${encodeURIComponent(room.id)}`;
+
+    const amenities = [];
+    if (room.capacity) amenities.push(`Seats ${room.capacity}`);
+    if (room.has_projector) amenities.push('Projector');
+    if (room.has_aircon) amenities.push('Aircon');
+    if (room.has_sound) amenities.push('Sound');
+
+    return `
+      <div class="col-md-6 col-xl-4">
+        <div class="card room-card availability-room-card h-100">
+          ${room.image_url ? `<img class="room-card-img" src="${P.escapeHtml(room.image_url)}" alt="${P.escapeHtml(room.name)}" loading="lazy" />` : ''}
+          <div class="card-body d-flex flex-column">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div>
+                <h5 class="card-title mb-0">${P.escapeHtml(room.name)}</h5>
+                <div class="text-muted-small">${P.escapeHtml(room.building_name)}${room.floor ? ` · ${escapeHtml(room.floor)}` : ''}</div>
+              </div>
+              <span class="badge rounded-pill ${badgeColor} status-badge">${escapeHtml(status.label)}</span>
+            </div>
+            <div class="mt-2 mb-3 small">
+              ${amenities.map((a) => `<span class="amenity-pill">${escapeHtml(a)}</span>`).join('')}
+            </div>
+            <div class="mt-auto">
+              <div class="avail-hours mb-2">
+                <div class="d-flex justify-content-between align-items-start mb-1">
+                  <span class="text-muted-small me-2">Booked:</span>
+                  <span class="booked-hours">${bookedHtml}</span>
+                </div>
+                ${availHtml ? `<div class="d-flex justify-content-between align-items-start"><span class="text-muted-small me-2">Available:</span> <span class="available-hours">${availHtml}</span></div>` : ''}
+              </div>
+              <a href="${reserveUrl}" class="btn btn-cspc btn-sm w-auto mt-3">Reserve Room</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  /** Render the header for the availability detail view. */
+  function renderAvailabilityHeader(date, slotLabel, buildingName) {
+    const when = slotLabel ? `Time Slot: ${P.escapeHtml(slotLabel)}` : 'Time Slot: All day';
+    return `
+      <div class="card bg-dark/20 border-secondary/30 rounded-3 mb-4">
+        <div class="card-body py-3">
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div>
+              <span class="availability-meta text-muted-small d-block">Date</span>
+              <h6 class="mb-0 text-light">${P.escapeHtml(P.formatDate(date))}</h6>
+            </div>
+            <div>
+              <span class="availability-meta text-muted-small d-block">${when}</span>
+            </div>
+            <div class="text-end">
+              <span class="availability-meta text-muted-small d-block">Building</span>
+              <h6 class="mb-0 text-light">${P.escapeHtml(buildingName || 'All buildings')}</h6>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   /* ------------------------------------- real-time status indicators --- */
@@ -1328,6 +1449,21 @@ function statusCard(room, dateValue, slot, remark) {
           `<div class="home-search-chips">${chips}${extra}</div>`;
       }
       searchResult.hidden = false;
+      // Render the structured live availability view
+      if (availabilityView && availabilityHeader && availabilityGrid) {
+        const buildingLabel = buildingName || 'All buildings';
+        availabilityHeader.innerHTML = renderAvailabilityHeader(date, slot ? slot.label : null, buildingLabel);
+
+        const roomsToShow = matches.length ? matches : rooms;
+        if (!roomsToShow.length) {
+          availabilityGrid.innerHTML = '<div class="col-12"><div class="card room-filter-empty"><div class="card-body text-center text-muted-sm py-4">No rooms found for this selection.</div></div></div>';
+        } else {
+          availabilityGrid.innerHTML = roomsToShow.map((room) => renderRoomCard(room, date, slot, buildingLabel)).join('');
+        }
+        availabilityView.hidden = false;
+        availabilityView.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
       // Also refresh the live status grid with the same filters
       fetchRoomStatuses();
     } catch (err) {

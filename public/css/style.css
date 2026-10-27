@@ -4972,6 +4972,24 @@ body[data-login-page="admin"] .admin-page-support {
   background: linear-gradient(145deg, rgba(15, 23, 42, 0.76), rgba(15, 23, 29, 0.72));
 }
 
+/* ------------------------------------- availability detail view --- */
+.home-availability-view {
+  margin-top: 1rem;
+}
+.home-availability-view[hidden] { display: none; }
+
+.availability-meta { font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase; }
+
+.availability-room-card .card-body { display: flex; flex-direction: column; }
+.availability-room-card .avail-hours { font-size: 0.82rem; }
+.availability-room-card .avail-slot { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.35rem; }
+.availability-room-card .avail-time { font-weight: 700; }
+.availability-room-card .avail-status { text-transform: uppercase; font-size: 0.68rem; letter-spacing: 0.04em; }
+.availability-room-card .booked-hours { display: flex; flex-direction: column; gap: 0.2rem; }
+.availability-room-card .available-hours { font-weight: 600; }
+
+.availability-room-card .btn-cspc { font-size: 0.85rem; padding: 0.5rem 1rem; }
+
 /* Per-building photo backdrops (Rooms Status / Reservation form): keep the
    overlay even lighter so the chosen building is the star of the page. */
 body.building-photo-background::before {
