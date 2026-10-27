@@ -1150,6 +1150,74 @@
     `;
   }
 
+  /* --------------------------------- grouped availability rendering --- */
+
+  /** Group rooms hierarchically: building -> floor -> rooms[] */
+  function groupRoomsByBuildingAndFloor(rooms) {
+    const byBuilding = new Map();
+    rooms.forEach((room) => {
+      const bName = room.building_name || 'Unknown Building';
+      if (!byBuilding.has(bName)) byBuilding.set(bName, new Map());
+      const byFloor = byBuilding.get(bName);
+      const floor = room.floor || 'Unassigned';
+      if (!byFloor.has(floor)) byFloor.set(floor, []);
+      byFloor.get(floor).push(room);
+    });
+    return byBuilding;
+  }
+
+  /** Render one floor sub-section header within a building group. */
+  function renderFloorHeader(floorName, roomCount) {
+    return `
+      <div class="col-12">
+        <div class="home-avail-floor-section mb-2">
+          <div class="home-avail-floor-header d-flex align-items-center justify-content-between">
+            <span class="home-avail-floor-label">Floor ${escapeHtml(floorName)}</span>
+            <span class="home-avail-floor-count text-muted-small">${roomCount} room${roomCount !== 1 ? 's' : ''}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  /** Render one complete building section: building header + floor sub-sections + room cards. */
+  function renderBuildingSection(buildingName, floorMap, date, slot) {
+    let html = '';
+    const totalRooms = Array.from(floorMap.values()).reduce((sum, rooms) => sum + rooms.length, 0);
+
+    // Building header
+    html += `
+      <div class="col-12">
+        <div class="home-avail-building-section mb-3">
+          <div class="home-avail-building-header d-flex align-items-center justify-content-between">
+            <span class="home-avail-building-name">${escapeHtml(buildingName)}</span>
+            <span class="home-avail-building-count badge bg-secondary">${totalRooms} room${totalRooms !== 1 ? 's' : ''}</span>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Floor sub-sections + room cards
+    for (const [floorName, floorRooms] of floorMap) {
+      html += renderFloorHeader(floorName, floorRooms.length);
+      html += floorRooms.map((room) => renderRoomCard(room, date, slot, buildingName)).join('');
+    }
+    return html;
+  }
+
+  /** Render availability results grouped by building then floor. */
+  function renderAvailabilityGrouped(rooms, date, slot) {
+    if (!rooms.length) {
+      return '<div class="col-12"><div class="card room-filter-empty"><div class="card-body text-center text-muted-sm py-4">No rooms found for this selection.</div></div></div>';
+    }
+    const grouped = groupRoomsByBuildingAndFloor(rooms);
+    let html = '';
+    for (const [buildingName, floorMap] of grouped) {
+      html += renderBuildingSection(buildingName, floorMap, date, slot);
+    }
+    return html;
+  }
+
   /** Render the header for the availability detail view. */
   function renderAvailabilityHeader(date, slotLabel, buildingName) {
     const when = slotLabel ? `Time Slot: ${P.escapeHtml(slotLabel)}` : 'Time Slot: All day';
@@ -1543,11 +1611,7 @@ function statusCard(room, dateValue, slot, remark) {
         availabilityHeader.innerHTML = renderAvailabilityHeader(date, slot ? slot.label : null, buildingName);
 
         const roomsToShow = rooms.length ? rooms : [];
-        if (!roomsToShow.length) {
-          availabilityGrid.innerHTML = '<div class="col-12"><div class="card room-filter-empty"><div class="card-body text-center text-muted-sm py-4">No rooms found for this selection.</div></div></div>';
-        } else {
-          availabilityGrid.innerHTML = roomsToShow.map((room) => renderRoomCard(room, date, slot, buildingName)).join('');
-        }
+        availabilityGrid.innerHTML = renderAvailabilityGrouped(roomsToShow, date, slot);
         availabilityView.hidden = false;
         availabilityView.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }

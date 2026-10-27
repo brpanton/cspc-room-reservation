@@ -6193,3 +6193,62 @@ body, body.modal-open {
 @media (max-width: 575.98px) {
   .home-status-grid { grid-template-columns: 1fr; }
 }
+
+/* ================================================================
+   Availability section headers — organized by building then floor
+   ================================================================ */
+
+.home-avail-building-section {
+  border-top: 1px solid var(--glass-border-strong);
+  padding-top: 0.75rem;
+  margin-top: 1rem;
+}
+
+.home-avail-building-section:first-child {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.home-avail-building-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+}
+
+.home-avail-building-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.02em;
+}
+
+.home-avail-building-count {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.home-avail-floor-section {
+  margin-top: 0.5rem;
+}
+
+.home-avail-floor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 0.75rem;
+}
+
+.home-avail-floor-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #bfdbfe;
+}
+
+.home-avail-floor-count {
+  font-size: 0.72rem;
+  color: var(--cspc-muted);
+}
