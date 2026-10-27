@@ -15,6 +15,12 @@
   const user = await requireRole();
   if (!user) return;
 
+  /* Admins belong on the admin dashboard, not the user dashboard. */
+  if (user.role === 'admin') {
+    window.location.replace('/admin-dashboard.html');
+    return;
+  }
+
   /* Navbar (Home | Dashboard | Room Status | About Us) is rendered by app.js.
      Hide any admin / management entries for students. */
   renderNavbar(user, 'dashboard');
