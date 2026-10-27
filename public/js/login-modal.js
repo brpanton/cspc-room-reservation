@@ -197,7 +197,7 @@
       else payload.school_id = identifier;
 
       const result = await postJson('/api/auth/login', payload);
-      if (P.toastOk) P.toastOk(result.message || 'Welcome back!');
+      if (P.toastOk) P.toastOk(result.message || 'Hi!');
       const go = P.redirectTo || ((url) => window.location.assign(url));
       setTimeout(() => go(result.redirect || '/dashboard.html'), 500);
     } catch (err) {

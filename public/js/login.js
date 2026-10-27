@@ -238,7 +238,7 @@
         throw Object.assign(new Error('Access denied. Administrator privileges are required.'), { status: 403 });
       }
 
-      toastOk(data.message || 'Welcome back!');
+      toastOk(data.message || 'Hi!');
       setTimeout(() => P.redirectTo(data.redirect || '/dashboard.html'), 500);
     } catch (err) {
       showAlert(err.message);

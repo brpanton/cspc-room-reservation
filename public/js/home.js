@@ -149,7 +149,7 @@
     try {
       const payload = { email, password, login_type: loginMode };
       const result = await P.api('/api/auth/login', { method: 'POST', body: payload });
-      P.toastOk(result.message || 'Welcome back!');
+      P.toastOk(result.message || 'Hi!');
       window.location.assign(result.redirect || '/dashboard.html');
     } catch (err) {
       showAlert(loginAlert, err.message);

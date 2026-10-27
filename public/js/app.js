@@ -152,10 +152,8 @@ function translatedUiValue(source) {
   if (portalLocale !== 'fil-PH') return source;
   const normalized = String(source).trim().replace(/\s+/g, ' ');
   if (Object.prototype.hasOwnProperty.call(FILIPINO_UI, normalized)) return FILIPINO_UI[normalized];
-  let match = normalized.match(/^Welcome, (.+)!$/);
-  if (match) return `Maligayang pagdating, ${match[1]}!`;
-  match = normalized.match(/^Welcome back, (.+)!$/);
-  if (match) return `Maligayang pagbabalik, ${match[1]}!`;
+  match = normalized.match(/^Hi!$/);
+  if (match) return `Hi!`;
   match = normalized.match(/^Could not load ([^:]+):\s*(.+)$/);
   if (match) return `Hindi ma-load ang ${FILIPINO_UI[match[1]] || match[1]}: ${match[2]}`;
   match = normalized.match(/^Could not check availability: (.+)$/);
