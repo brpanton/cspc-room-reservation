@@ -1,0 +1,1 @@
+﻿"C:\Program Files\Google\Chrome\Application\chrome.exe" --headless=new --remote-debugging-port=9222 --user-data-dir="C:\Users\Zandra Panton\AppData\Local\Temp\chrome-test-profile" --no-first-run --no-default-browser-check --disable-gpu --no-sandbox
