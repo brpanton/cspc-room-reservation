@@ -79,7 +79,7 @@ async function findConflict(conn, { roomId, date, startTime, endTime, excludeId 
       AND res.status IN ($5, $6)`;
 
   if (excludeId) {
-    sql += ` AND res.id <> ${params.length + 1}`;
+    sql += ` AND res.id <> $${params.length + 1}`;
     params.push(excludeId);
   }
   sql += ' LIMIT 1 FOR UPDATE';
