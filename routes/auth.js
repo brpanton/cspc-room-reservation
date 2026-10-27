@@ -286,7 +286,9 @@ router.post('/login', async (req, res, next) => {
 
     const requiresPasswordChange = user.role === 'admin' && user.must_change_password;
 
-    const greeting = 'Hi!';
+    const fullName = String(user.full_name || '').trim();
+    const firstName = fullName.split(/\s+/)[0] || 'there';
+    const greeting = `Hi, ${firstName}!`;
     res.json({
       message: requiresPasswordChange
         ? `${greeting} Please set a new password to continue.`
