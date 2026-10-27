@@ -27,9 +27,9 @@
           </div>
           <div class="col-sm-4">
             <label class="form-label" for="building_id">Building</label>
-            <select class="form-select" id="building_id">
-              <option value="">All buildings</option>
-            </select>
+            <input type="search" class="form-control" id="building_id"
+                   placeholder="Search or select a building…" list="building-list" />
+            <datalist id="building-list"></datalist>
           </div>
           <div class="col-sm-3">
             <label class="form-label" for="room_type">Space type</label>

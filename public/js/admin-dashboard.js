@@ -465,6 +465,15 @@
       buildings = data.buildings || [];
       renderBuildings();
       if (roomForm && roomForm.building_id) populateRoomBuildingOptions();
+      // Populate admin availability building datalist
+      const adminDatalist = document.getElementById('admin-building-list');
+      if (adminDatalist) {
+        adminDatalist.innerHTML =
+          buildings.map((b) => `<option value="${escapeHtml(b.name)}" data-id="${b.id}"></option>`).join('');
+      }
+      window.__adminBuildingIdByName = new Map(
+        buildings.map((b) => [String(b.name).trim(), Number(b.id)])
+      );
     } catch (err) {
       buildingsBody.innerHTML = emptyRow(5, `Could not load buildings: ${err.message}`);
     }
@@ -1143,6 +1152,81 @@
     loadAdmins();
     loadSupportTickets();
   });
+
+  /* ------------------------------------------- admin availability quick check --- */
+
+  const adminAvailForm = document.getElementById('admin-availability-form');
+  const adminAvailDate = document.getElementById('admin-avail-date');
+  const adminAvailTime = document.getElementById('admin-avail-time');
+  const adminAvailBuilding = document.getElementById('admin-avail-building');
+  const adminAvailCheck = document.getElementById('admin-avail-check');
+  const adminAvailResult = document.getElementById('admin-avail-result');
+
+  if (adminAvailDate) {
+    adminAvailDate.value = P.todayIso();
+  }
+
+  function adminParseSlot(value) {
+    const match = /^(\d{2}:\d{2})-(\d{2}:\d{2})$/.exec(String(value || ''));
+    if (!match) return null;
+    const [h, m] = match[1].split(':').map(Number);
+    const [eh, em] = match[2].split(':').map(Number);
+    return { start: h * 60 + (m || 0), end: eh * 60 + (em || 0), label: value };
+  }
+
+  function adminOverlaps(slot, booking) {
+    const bs = (booking.start_time || '').split(':').map(Number);
+    const be = (booking.end_time || '').split(':').map(Number);
+    const bStart = bs[0] * 60 + (bs[1] || 0);
+    const bEnd = be[0] * 60 + (be[1] || 0);
+    return bStart < slot.end && bEnd > slot.start;
+  }
+
+  if (adminAvailForm) {
+    adminAvailForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!adminAvailResult) return;
+
+      const slot = adminParseSlot(adminAvailTime?.value);
+      const date = adminAvailDate?.value || P.todayIso();
+      const params = new URLSearchParams({ date });
+      const buildingName = adminAvailBuilding?.value?.trim();
+      if (buildingName && window.__adminBuildingIdByName) {
+        const bid = window.__adminBuildingIdByName.get(buildingName);
+        if (bid) params.set('building_id', bid);
+      }
+
+      busy(adminAvailCheck, true, 'Checking...');
+      adminAvailResult.hidden = true;
+
+      try {
+        const data = await api(`/api/availability?${params.toString()}`);
+        const rooms = data.rooms || [];
+        const matches = rooms.filter((room) => {
+          const bookings = room.bookings || [];
+          return slot ? !bookings.some((b) => adminOverlaps(slot, b)) : bookings.length === 0;
+        });
+        const when = slot ? `for <strong>${escapeHtml(slot.label)}</strong>` : 'all day';
+
+        if (!rooms.length) {
+          adminAvailResult.innerHTML = 'No active rooms are listed for that building yet.';
+        } else if (!matches.length) {
+          adminAvailResult.innerHTML = `No rooms are open ${when} on ${escapeHtml(P.formatDate(date))}.`;
+        } else {
+          adminAvailResult.innerHTML =
+            `<strong>${matches.length} of ${rooms.length} rooms available</strong> ${when} on <strong>${escapeHtml(P.formatDate(date))}</strong>.`;
+        }
+        adminAvailResult.className = 'mt-2 text-small text-info';
+        adminAvailResult.hidden = false;
+      } catch (err) {
+        adminAvailResult.innerHTML = `Could not check availability: ${escapeHtml(err.message)}`;
+        adminAvailResult.className = 'mt-2 text-small text-danger';
+        adminAvailResult.hidden = false;
+      } finally {
+        busy(adminAvailCheck, false);
+      }
+    });
+  }
 
   await Promise.all([loadStats(), loadOverviewCounters(), loadReservations(), loadBuildings(), loadRooms(), loadUsers(), loadAdmins(), loadSupportTickets()]);
 })();

@@ -916,10 +916,14 @@
     searchDate.value = P.todayIso();
     searchDate.min = P.todayIso();
   }
-  if (searchBuilding) {
-    searchBuilding.innerHTML =
-      '<option value="">All buildings</option>' +
-      buildings.map((b) => `<option value="${b.id}">${P.escapeHtml(b.name)}</option>`).join('');
+  const buildingDatalist = document.getElementById('home-building-list');
+  if (searchBuilding && buildingDatalist) {
+    buildingDatalist.innerHTML =
+      buildings.map((b) => `<option value="${P.escapeHtml(b.name)}" data-id="${b.id}"></option>`).join('');
+    // Keep a lookup map: building name -> id for form submission
+    window.__buildingIdByName = new Map(
+      (buildings || []).map((b) => [String(b.name).trim(), Number(b.id)])
+    );
   }
 
   /** Shared helpers for reading availability records (times are "HH:MM:SS"). */
@@ -1295,7 +1299,11 @@ function statusCard(room, dateValue, slot, remark) {
     const slot = parseSlot(searchTime?.value);
     const date = searchDate?.value || P.todayIso();
     const params = new URLSearchParams({ date });
-    if (searchBuilding?.value) params.set('building_id', searchBuilding.value);
+    const buildingName = searchBuilding?.value?.trim();
+    if (buildingName && window.__buildingIdByName) {
+      const bid = window.__buildingIdByName.get(buildingName);
+      if (bid) params.set('building_id', bid);
+    }
 
     P.busy(searchSubmit, true, 'Checking...');
     try {

@@ -57,9 +57,9 @@
         </div>
         <div class="home-search-field">
           <label for="home-search-building">Building</label>
-          <select class="form-select" id="home-search-building">
-            <option value="">All buildings</option>
-          </select>
+          <input type="search" class="form-control" id="home-search-building"
+                 placeholder="Search or select a building…" list="home-building-list" />
+          <datalist id="home-building-list"></datalist>
         </div>
         <button class="btn btn-cspc home-search-submit" id="home-search-submit" type="submit">
           <span aria-hidden="true">⌕</span> Check availability

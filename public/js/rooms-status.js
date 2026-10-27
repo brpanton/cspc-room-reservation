@@ -34,7 +34,7 @@
   };
 
   function updateBuildingBackground() {
-    const selectedName = buildingSel.selectedOptions[0]?.textContent.trim().toLocaleUpperCase();
+    const selectedName = buildingSel.value?.trim().toLocaleUpperCase();
     const image = buildingSel.value ? BUILDING_BACKGROUNDS[selectedName] : null;
 
     if (image) {
@@ -54,11 +54,16 @@
 
   try {
     const data = await api('/api/buildings');
-    buildingSel.innerHTML =
-      '<option value="">All buildings</option>' +
-      (data.buildings || []).map((b) =>
-        `<option value="${b.id}">${escapeHtml(b.name)}</option>`
-      ).join('');
+    const buildingDatalist = document.getElementById('building-list');
+    if (buildingDatalist) {
+      buildingDatalist.innerHTML =
+        (data.buildings || []).map((b) => `<option value="${escapeHtml(b.name)}" data-id="${b.id}"></option>`).join('');
+    }
+    window.__buildingIdByName = new Map(
+      (data.buildings || []).map((b) => [String(b.name).trim(), Number(b.id)])
+    );
+    // Keep buildingSel reference for backward compatibility (used as input value)
+    buildingSel.innerHTML = '';
     updateBuildingBackground();
   } catch (err) {
     toastError(`Could not load buildings: ${err.message}`);
@@ -77,15 +82,15 @@
 
     const slots = booked.length
       ? `<ul class="slot-list mt-3">${booked.map((b) => `
-          <li class="${b.status === 'Approved' ? 'slot-approved' : ''}">
+          <li class="${b.status === 'Approved' ? 'slot-approved' : ''} slot-blue">
             <span>${escapeHtml(formatTime(b.start_time))} - ${escapeHtml(formatTime(b.end_time))}</span>
             ${statusBadge(b.status)}
           </li>`).join('')}</ul>`
-      : '<p class="text-success fw-semibold mb-0 mt-3">Free the whole day</p>';
+      : '<p class="text-info fw-semibold mb-0 mt-3">Free the whole day</p>';
 
     return `
       <div class="col-md-6 col-xl-4">
-        <div class="card room-card ${booked.length ? 'is-busy' : ''}">
+        <div class="card room-card ${booked.length ? 'is-busy' : (room.is_free_all_day ? 'is-free' : '')}">
           ${room.image_url ? `<img class="room-card-img" src="${escapeHtml(room.image_url)}" alt="${escapeHtml(room.name)}" loading="lazy" />` : ''}
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-start">
@@ -109,13 +114,17 @@
   async function load() {
     const date = dateInput.value || todayIso();
     const params = new URLSearchParams({ date });
-    if (buildingSel.value) params.set('building_id', buildingSel.value);
+    const buildingName = buildingSel.value?.trim();
+    if (buildingName && window.__buildingIdByName) {
+      const bid = window.__buildingIdByName.get(buildingName);
+      if (bid) params.set('building_id', bid);
+    }
 
     grid.innerHTML = '<div class="col-12"><p class="text-muted-sm">Loading rooms...</p></div>';
     try {
       const data = await api(`/api/availability?${params.toString()}`);
       const selectedBuildingId = buildingSel.value;
-      const selectedBuildingName = buildingSel.selectedOptions[0]?.textContent.trim() || '';
+      const selectedBuildingName = buildingSel.value?.trim() || '';
       const wantedType = (typeSel?.value || '').toLowerCase();
       const rooms = (data.rooms || []).filter((room) => {
         if (wantedType && String(room.room_type || '').toLowerCase() !== wantedType) return false;
@@ -154,7 +163,7 @@
   });
   dateInput.addEventListener('change', load);
   typeSel?.addEventListener('change', load);
-  buildingSel.addEventListener('change', () => {
+  buildingSel.addEventListener('input', () => {
     updateBuildingBackground();
     load();
   });

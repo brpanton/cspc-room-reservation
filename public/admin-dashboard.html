@@ -253,6 +253,35 @@
               <button class="btn btn-sm btn-cspc" id="new-room-btn" type="button">Add room</button>
             </div>
           </div>
+            <!-- Admin availability quick check -->
+            <div class="card-body bg-dark/30 border-secondary/20 rounded-3 p-3 mb-3">
+              <form id="admin-availability-form" class="row g-3 align-items-end" novalidate>
+                <div class="col-auto">
+                  <label class="form-label small mb-0">Date</label>
+                  <input type="date" class="form-control form-control-sm" id="admin-avail-date" />
+                </div>
+                <div class="col-auto">
+                  <label class="form-label small mb-0">Time slot</label>
+                  <select class="form-select form-select-sm" id="admin-avail-time">
+                    <option value="">Any time</option>
+                    <option value="07:00-10:00">Morning · 7:00–10:00 AM</option>
+                    <option value="10:00-13:00">Midday · 10:00 AM–1:00 PM</option>
+                    <option value="13:00-16:00">Afternoon · 1:00–4:00 PM</option>
+                    <option value="16:00-19:00">Evening · 4:00–7:00 PM</option>
+                  </select>
+                </div>
+                <div class="col-auto">
+                  <label class="form-label small mb-0">Building</label>
+                  <input type="search" class="form-control form-control-sm" id="admin-avail-building"
+                         placeholder="Search or select a building…" list="admin-building-list" />
+                  <datalist id="admin-building-list"></datalist>
+                </div>
+                <div class="col-auto">
+                  <button class="btn btn-cspc btn-sm" id="admin-avail-check" type="submit">Check availability</button>
+                </div>
+              </form>
+              <div id="admin-avail-result" class="mt-2 text-small" hidden></div>
+            </div>
           <div class="table-responsive">
             <table class="table table-portal table-hover mb-0">
               <thead>

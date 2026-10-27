@@ -4937,6 +4937,18 @@ body[data-login-page="admin"] .admin-page-support {
 
 .room-card.is-busy { border-color: rgba(251, 146, 60, 0.34); }
 
+/* Free all day rooms - blue glow to blend with UI */
+.room-card.is-free { border-color: rgba(96, 165, 250, 0.45); box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.25); }
+.room-card.is-free:hover { border-color: rgba(96, 165, 250, 0.65); box-shadow: 0 0 20px rgba(96, 165, 250, 0.35); }
+
+/* Blue booking slots */
+.slot-list li.slot-blue { border-left-color: rgba(96, 165, 250, 0.9); background: rgba(96, 165, 250, 0.08); }
+.slot-list li.slot-blue .badge { background: rgba(96, 165, 250, 0.15); color: #bfdbfe; border: 1px solid rgba(96, 165, 250, 0.35); }
+
+/* Search result chips - blue theme */
+.home-search-chip { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.75rem; border-radius: 999px; background: rgba(96, 165, 250, 0.12); border: 1px solid rgba(96, 165, 250, 0.3); color: #bfdbfe; font-size: 0.78rem; font-weight: 600; margin: 0 0.4rem 0.4rem 0; }
+.home-search-result[hidden] { display: none; }
+
 /* Room photo (optional) shown as a banner across the top of the card. */
 .room-card { overflow: hidden; }
 
