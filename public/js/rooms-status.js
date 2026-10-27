@@ -77,15 +77,15 @@
 
     const slots = booked.length
       ? `<ul class="slot-list mt-3">${booked.map((b) => `
-          <li class="${b.status === 'Approved' ? 'slot-approved' : ''}">
+          <li class="${b.status === 'Approved' ? 'slot-approved slot-blue' : ''}">
             <span>${escapeHtml(formatTime(b.start_time))} - ${escapeHtml(formatTime(b.end_time))}</span>
             ${statusBadge(b.status)}
           </li>`).join('')}</ul>`
-      : '<p class="text-success fw-semibold mb-0 mt-3">Free the whole day</p>';
+      : '<p class="text-primary fw-semibold mb-0 mt-3">Free the whole day</p>';
 
     return `
       <div class="col-md-6 col-xl-4">
-        <div class="card room-card ${booked.length ? 'is-busy' : ''}">
+        <div class="card room-card ${booked.length ? 'is-busy' : 'is-free'}">
           ${room.image_url ? `<img class="room-card-img" src="${escapeHtml(room.image_url)}" alt="${escapeHtml(room.name)}" loading="lazy" />` : ''}
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-start">
