@@ -841,6 +841,7 @@
 
   /* -------------------------------------- buildings expand / collapse --- */
   const buildingsToggleLabel = document.getElementById('home-buildings-toggle-label');
+  const buildingsToggle = document.getElementById('home-buildings-toggle');
   const COLLAPSED_BUILDINGS = 3; // one tidy row on desktop, first three on mobile
 
   function buildingColumns() {
