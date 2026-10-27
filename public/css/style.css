@@ -4935,7 +4935,8 @@ body[data-login-page="admin"] .admin-page-support {
   box-shadow: 0 22px 44px -22px rgba(0, 0, 0, 0.95), var(--sheen);
 }
 
-.room-card.is-busy { border-color: rgba(251, 146, 60, 0.34); }
+.room-card.is-busy { border-color: rgba(59, 130, 246, 0.34); }
+.room-card.is-free { border-color: rgba(59, 130, 246, 0.25); }
 
 /* Room photo (optional) shown as a banner across the top of the card. */
 .room-card { overflow: hidden; }
@@ -4983,7 +4984,7 @@ body.building-photo-background::after {
 .slot-list li {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--glass-border);
-  border-left: 3px solid rgba(251, 146, 60, 0.75);
+  border-left: 3px solid rgba(59, 130, 246, 0.75);
   border-radius: 10px;
   padding: 0.38rem 0.6rem;
   margin-bottom: 0.4rem;
@@ -4994,9 +4995,15 @@ body.building-photo-background::after {
   color: var(--cspc-ink);
 }
 
-.slot-list li.slot-approved {
-  border-left-color: rgba(34, 197, 94, 0.8);
-  background: rgba(34, 197, 94, 0.07);
+.slot-list li.slot-approved.slot-blue,
+.slot-list li.slot-blue {
+  border-left-color: rgba(59, 130, 246, 0.85);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.slot-list li.slot-approved:not(.slot-blue) {
+  border-left-color: rgba(59, 130, 246, 0.85);
+  background: rgba(59, 130, 246, 0.08);
 }
 
 .amenity-pill {
