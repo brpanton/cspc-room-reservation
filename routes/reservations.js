@@ -298,14 +298,14 @@ router.get('/stats', async (req, res, next) => {
 
     res.json({
       totals: {
-        total: Number(totals.total || 0),
-        pending: Number(totals.pending || 0),
-        approved: Number(totals.approved || 0),
-        rejected: Number(totals.rejected || 0),
-        cancelled: Number(totals.cancelled || 0)
+        total: inventory.total || 0,
+        pending: inventory.pending || 0,
+        approved: inventory.approved || 0,
+        rejected: inventory.rejected || 0,
+        cancelled: inventory.cancelled || 0
       },
-      today: Number(today.today_count || 0),
-      upcoming: Number(upcoming.upcoming_count || 0),
+      today: today.rows[0]?.today_count || 0,
+      upcoming: upcoming.rows[0]?.upcoming_count || 0,
       inventory
     });
   } catch (err) {
@@ -333,8 +333,9 @@ router.get('/:id', async (req, res, next) => {
 // --------------------------------------------------------- approve/reject ---
 router.patch('/:id/decision', requireStaff, async (req, res, next) => {
   if (!requireSession(req, res)) return;
+  let conn;
   try {
-    const conn = await pool.connect();
+    conn = await pool.connect();
     requireFields(req.body, ['status']);
     const status = oneOf(req.body.status, ['Approved', 'Rejected'], 'status');
     const remarks = req.body.remarks ? String(req.body.remarks).trim().slice(0, 255) : null;

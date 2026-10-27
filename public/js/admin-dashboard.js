@@ -203,15 +203,16 @@
   async function loadStats() {
     try {
       const data = await api('/api/reservations/stats');
-      document.getElementById('stat-total').textContent = data.totals.total;
-      document.getElementById('stat-pending').textContent = data.totals.pending;
-      document.getElementById('stat-approved').textContent = data.totals.approved;
-      document.getElementById('stat-rejected').textContent = data.totals.rejected;
+      const totals = data.totals || { total: 0, pending: 0, approved: 0, rejected: 0, cancelled: 0 };
+      document.getElementById('stat-total').textContent = totals.total;
+      document.getElementById('stat-pending').textContent = totals.pending;
+      document.getElementById('stat-approved').textContent = totals.approved;
+      document.getElementById('stat-rejected').textContent = totals.rejected;
 
-      renderProgressCard('stat-total', Number(data.totals.total || 0), Math.max(10, Number(data.totals.total || 0)), 'Total');
-      renderProgressCard('stat-pending', Number(data.totals.pending || 0), Math.max(8, Number(data.totals.total || 0)), 'Pending');
-      renderProgressCard('stat-approved', Number(data.totals.approved || 0), Math.max(8, Number(data.totals.total || 0)), 'Approved');
-      renderProgressCard('stat-rejected', Number(data.totals.rejected || 0), Math.max(8, Number(data.totals.total || 0)), 'Rejected');
+      renderProgressCard('stat-total', Number(totals.total || 0), Math.max(10, Number(totals.total || 0)), 'Total');
+      renderProgressCard('stat-pending', Number(totals.pending || 0), Math.max(8, Number(totals.total || 0)), 'Pending');
+      renderProgressCard('stat-approved', Number(totals.approved || 0), Math.max(8, Number(totals.total || 0)), 'Approved');
+      renderProgressCard('stat-rejected', Number(totals.rejected || 0), Math.max(8, Number(totals.total || 0)), 'Rejected');
     } catch (err) {
       toastError(`Could not load statistics: ${err.message}`);
     }
