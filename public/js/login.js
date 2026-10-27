@@ -24,8 +24,8 @@
 
   form.school_id.setAttribute('type', 'email');
   form.school_id.setAttribute('inputmode', 'email');
-  schoolIdLabel.textContent = 'CSPC email address';
-  form.school_id.placeholder = 'Enter your CSPC email address (e.g. name@cspc.edu.ph)';
+  schoolIdLabel.textContent = 'Email address';
+  form.school_id.placeholder = 'Enter your email address (e.g. name@cspc.edu.ph)';
   if (schoolIdHint) schoolIdHint.textContent = 'Use your official @cspc.edu.ph or @my.cspc.edu.ph email address to log in.';
 
   function showAlert(message, type = 'danger') {
@@ -56,8 +56,8 @@
       tab.setAttribute('aria-pressed', String(active));
     });
 
-    schoolIdLabel.textContent = isAdmin ? 'Admin CSPC email address' : 'CSPC email address';
-    form.school_id.placeholder = isAdmin ? 'Enter your CSPC email address (e.g. name@cspc.edu.ph)' : 'Enter your CSPC email address (e.g. name@cspc.edu.ph)';
+    schoolIdLabel.textContent = isAdmin ? 'Admin email address' : 'Email address';
+    form.school_id.placeholder = isAdmin ? 'Enter your email address (e.g. name@cspc.edu.ph)' : 'Enter your email address (e.g. name@cspc.edu.ph)';
     submitBtn.textContent = isAdmin ? 'Login' : 'Log in';
 
     authModeBanner.classList.toggle('admin-mode', isAdmin);
