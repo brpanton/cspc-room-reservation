@@ -146,6 +146,22 @@ body::after {
   background-repeat: no-repeat;
 }
 
+/* Dashboard page: replace the campus photo with a complementary blue gradient
+   that works with the glassy card surfaces. The scrim and glows from ::after
+   still apply, keeping the same look and feel as the rest of the portal. */
+body.dashboard-page::before {
+  background-image:
+    linear-gradient(135deg, #0f172a 0%, #1e293b 35%, #334155 60%, #0f172a 100%);
+  background-size: cover;
+  background-repeat: no-repeat;
+  opacity: 1;
+  filter: none;
+}
+
+body.dashboard-page {
+  background-color: #020617;
+}
+
 ::selection {
   background: rgba(59, 130, 246, 0.42);
   color: #fff;
