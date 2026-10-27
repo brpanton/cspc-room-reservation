@@ -401,7 +401,7 @@ router.patch('/:id/decision', requireStaff, async (req, res, next) => {
     await conn.query('COMMIT');
 
     const { rows: updatedRows } = await pool.query(`${RESERVATION_SELECT} WHERE res.id = $1`, [reservation.id]);
-    const updatedReservation = updatedRows.rows[0] || null;
+    const updatedReservation = updatedRows[0] || null;
     if (!updatedReservation) {
       const err = new Error('Failed to fetch updated reservation.');
       err.status = 500;
