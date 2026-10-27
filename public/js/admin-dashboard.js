@@ -302,6 +302,7 @@
       return `
         <tr data-row-id="${r.id}">
           <td>#${r.id}</td>
+          <td><span class="badge bg-info text-dark">${escapeHtml(r.transaction_code || '-')}</span></td>
           <td>
             <div class="fw-semibold">${escapeHtml(r.requested_by || r.user_name || 'Unknown user')}</div>
             <div class="text-muted-sm">${escapeHtml(r.requester_school_id || r.user_id || '-')}</div>

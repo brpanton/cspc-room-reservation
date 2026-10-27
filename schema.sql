@@ -131,6 +131,7 @@ CREATE TABLE IF NOT EXISTS reservations (
   purpose       TEXT      NOT NULL,
   attendees     INT       NOT NULL DEFAULT 1,
   status        VARCHAR(20)   NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending','Approved','Rejected','Cancelled')),
+  transaction_code  VARCHAR(30) UNIQUE,
   approved_by   INT       DEFAULT NULL,
   remarks       VARCHAR(255) DEFAULT NULL,
   decided_at    TIMESTAMP  DEFAULT NULL,
@@ -140,6 +141,17 @@ CREATE TABLE IF NOT EXISTS reservations (
   CONSTRAINT fk_res_approver FOREIGN KEY (approved_by) REFERENCES users (id) ON DELETE SET NULL,
   CONSTRAINT chk_res_time CHECK (end_time > start_time)
 );
+
+-- Add transaction_code column to existing databases (idempotent)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'reservations' AND column_name = 'transaction_code'
+  ) THEN
+    ALTER TABLE reservations ADD COLUMN transaction_code VARCHAR(30) UNIQUE;
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_res_date ON reservations(res_date);
 CREATE INDEX IF NOT EXISTS idx_res_status ON reservations(status);

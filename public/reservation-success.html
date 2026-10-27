@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reservation Confirmation - CSPC Lab &amp; Room Reservation</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="/css/style.css" rel="stylesheet" />
+  <link rel="icon" type="image/jpeg" href="/img/hornet-logo.jpg" />
+  <style>
+    @media print {
+      .no-print { display: none !important; }
+      .ticket-body { background: #fff !important; }
+      .card { border: 1px solid #000 !important; box-shadow: none !important; }
+      .badge { border: 1px solid #000 !important; }
+    }
+    .ticket-body { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); min-height: 100vh; }
+    .ticket-card { border: 2px solid #1a237e; border-radius: 12px; overflow: hidden; }
+    .ticket-header { background: linear-gradient(135deg, #1a237e 0%, #3f51b5 100%); color: #fff; padding: 1.5rem; }
+    .ticket-body-inner { padding: 1.5rem; }
+    .tx-badge { font-size: 1.25rem; font-weight: 700; letter-spacing: 1px; }
+    .info-row { border-bottom: 1px solid #e9ecef; padding: 0.75rem 0; }
+    .info-row:last-child { border-bottom: none; }
+    .label { color: #6c757d; font-size: 0.875rem; text-transform: uppercase; font-weight: 600; }
+    .value { font-weight: 600; color: #212529; }
+    .status-pending { background: #fff3cd; color: #856404; }
+    .btn-print { background: #1a237e; border: none; }
+    .btn-print:hover { background: #283593; }
+  </style>
+</head>
+<body class="ticket-body">
+  <div id="navbar-placeholder"></div>
+
+  <main class="container py-4">
+    <div class="row justify-content-center">
+      <div class="col-lg-8 col-xl-6">
+        <div class="card ticket-card shadow">
+          <div class="ticket-header text-center">
+            <h2 class="mb-1">CSPC Lab &amp; Room Reservation</h2>
+            <p class="mb-0 opacity-90 small">Computer Studies Department &middot; Ticket Receipt</p>
+          </div>
+
+          <div class="ticket-body-inner">
+            <div class="text-center mb-4">
+              <span class="badge tx-badge bg-primary px-4 py-2 rounded-pill">
+                Transaction: <span id="tx-code">--</span>
+              </span>
+            </div>
+
+            <div class="row g-3 mb-4">
+              <div class="col-6">
+                <div class="info-row">
+                  <div class="label">Reservation ID</div>
+                  <div class="value" id="res-id">--</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="info-row">
+                  <div class="label">Status</div>
+                  <div class="value badge status-pending" id="res-status">Pending</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="info-row">
+                  <div class="label">Building</div>
+                  <div class="value" id="res-building">--</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="info-row">
+                  <div class="label">Room / Lab</div>
+                  <div class="value fw-bold" id="res-room">--</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="info-row">
+                  <div class="label">Date</div>
+                  <div class="value" id="res-date">--</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="info-row">
+                  <div class="label">Time</div>
+                  <div class="value" id="res-time">--</div>
+                </div>
+              </div>
+              <div class="col-12">
+                <div class="info-row">
+                  <div class="label">Requested By</div>
+                  <div class="value" id="res-requester">--</div>
+                </div>
+              </div>
+              <div class="col-12">
+                <div class="info-row">
+                  <div class="label">Purpose of Use</div>
+                  <div class="value" id="res-purpose">--</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="info-row">
+                  <div class="label">Attendees</div>
+                  <div class="value" id="res-attendees">--</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end no-print mt-4">
+              <a href="/dashboard.html" class="btn btn-outline-secondary btn-sm">Back to Dashboard</a>
+              <button class="btn btn-print btn-sm" onclick="window.print()">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 17v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v6M16 11V7a4 4 0 0 0-8-8v4M15 11v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6m8 0H5"/></svg>
+                Print Ticket
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="alert alert-info mt-4 text-center no-print">
+          <small>
+            Your reservation request has been submitted as <strong>Pending</strong>. An administrator will review and approve it.
+            Please keep this transaction code for reference.
+          </small>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="portal-footer mt-5 no-print">
+    CSPC Lab &amp; Room Reservation System &middot; Computer Studies Department
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/app.js"></script>
+  <script>
+    (function () {
+      const params = new URLSearchParams(window.location.search);
+      document.getElementById('tx-code').textContent = params.get('tx') || '--';
+      document.getElementById('res-id').textContent = params.get('id') || '--';
+      document.getElementById('res-building').textContent = params.get('building') || '--';
+      document.getElementById('res-room').textContent = params.get('room') || '--';
+      document.getElementById('res-date').textContent = params.get('date') || '--';
+      document.getElementById('res-time').textContent = (params.get('start') || '--') + ' – ' + (params.get('end') || '--');
+      document.getElementById('res-requester').textContent = params.get('requester') || '--';
+      document.getElementById('res-purpose').textContent = params.get('purpose') || '--';
+      document.getElementById('res-attendees').textContent = params.get('attendees') || '--';
+      document.getElementById('res-status').textContent = params.get('status') || 'Pending';
+    })();
+  </script>
+</body>
+</html>

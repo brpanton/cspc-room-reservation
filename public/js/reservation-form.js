@@ -278,9 +278,23 @@
           equipment
         }
       });
+      const res = data.reservation || {};
+      const params = new URLSearchParams({
+        tx: data.transactionCode || '',
+        id: data.reservationId || '',
+        room: res.room_name || '',
+        building: res.building_name || '',
+        date: res.res_date || '',
+        start: res.start_time || '',
+        end: res.end_time || '',
+        purpose: res.purpose || '',
+        attendees: res.attendees || '',
+        requester: res.requested_by || '',
+        status: res.status || 'Pending'
+      });
       toastOk(data.message || 'Reservation submitted.');
       P.broadcastAvailabilityChange();
-      setTimeout(() => P.redirectTo('/dashboard.html'), 900);
+      setTimeout(() => P.redirectTo('/reservation-success.html?' + params.toString()), 900);
     } catch (err) {
       showAlert(err.message);
       busy(submitBtn, false);

@@ -180,11 +180,20 @@ router.post('/', async (req, res, next) => {
       throw err;
     }
 
+    /* ---- generate transaction code: CSPC-YYYYMMDD-XXXXX ---- */
+    const todayStr = date.replace(/-/g, '');
+    const { rows: countRows } = await conn.query(
+      `SELECT COUNT(*) AS cnt FROM reservations WHERE res_date = $1`,
+      [date]
+    );
+    const seq = String(Number(countRows[0]?.cnt || 0) + 1).padStart(5, '0');
+    const transactionCode = `CSPC-${todayStr}-${seq}`;
+
     const { rows } = await conn.query(
       `INSERT INTO reservations
-         (room_id, user_id, res_date, start_time, end_time, purpose, attendees, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'Pending') RETURNING id`,
-      [roomId, req.session.user.id, date, startTime, endTime, purpose, attendees]
+         (room_id, user_id, res_date, start_time, end_time, purpose, attendees, status, transaction_code)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'Pending', $8) RETURNING id`,
+      [roomId, req.session.user.id, date, startTime, endTime, purpose, attendees, transactionCode]
     );
 
     const reservationId = rows[0]?.id;
@@ -209,9 +218,26 @@ router.post('/', async (req, res, next) => {
 
     await conn.query('COMMIT');
 
+    /* ---- fetch full reservation details for the success/ticket page ---- */
+    const { rows: detailRows } = await pool.query(
+      `SELECT res.id, res.transaction_code, res.res_date, res.start_time, res.end_time,
+              res.purpose, res.attendees, res.status,
+              r.name AS room_name, r.room_type, r.capacity,
+              b.id AS building_id, b.name AS building_name,
+              u.full_name AS requested_by, u.school_id AS requester_school_id
+       FROM reservations res
+       JOIN rooms r ON r.id = res.room_id
+       JOIN buildings b ON b.id = r.building_id
+       JOIN users u ON u.id = res.user_id
+       WHERE res.id = $1`,
+      [reservationId]
+    );
+
     res.status(201).json({
       message: 'Reservation submitted successfully.',
-      reservationId
+      reservationId,
+      transactionCode,
+      reservation: detailRows[0]
     });
   } catch (err) {
     try {
