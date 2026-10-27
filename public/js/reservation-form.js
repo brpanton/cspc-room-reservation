@@ -172,7 +172,7 @@
 
       if (!bookings.length) {
         previewPanel.innerHTML =
-          `<p class="mb-0 text-primary fw-semibold">Fully available on ${escapeHtml(date)}.</p>` +
+          `<p class="mb-0 text-success fw-semibold">Fully available on ${escapeHtml(date)}.</p>` +
           '<p class="text-muted-sm mb-0">No pending or approved bookings for this room.</p>';
         return;
       }
@@ -181,7 +181,7 @@
         `<p class="text-muted-sm">${bookings.length} existing booking(s) on ${escapeHtml(date)}:</p>` +
         '<ul class="slot-list">' +
         bookings.map((b) => `
-          <li class="${b.status === 'Approved' ? 'slot-approved slot-blue' : ''}">
+          <li class="${b.status === 'Approved' ? 'slot-approved' : ''}">
             <span>${escapeHtml(formatTime(b.start_time))} - ${escapeHtml(formatTime(b.end_time))}</span>
             ${statusBadge(b.status)}
           </li>`).join('') +
