@@ -919,14 +919,90 @@
     searchDate.value = P.todayIso();
     searchDate.min = P.todayIso();
   }
-  const buildingDatalist = document.getElementById('home-building-list');
-  if (searchBuilding && buildingDatalist) {
-    buildingDatalist.innerHTML =
-      buildings.map((b) => `<option value="${P.escapeHtml(b.name)}" data-id="${b.id}"></option>`).join('');
+  const buildingDropdown = document.getElementById('home-building-dropdown');
+  const buildingInput = document.getElementById('home-search-building');
+  const buildingIdInput = document.getElementById('home-building-id');
+
+  if (searchBuilding && buildingDropdown && buildingIdInput) {
+    // Populate dropdown options
+    const optionsHtml = [
+      `<div class="home-building-dropdown-option" data-id="" data-name="All buildings">All buildings</div>`,
+      ...buildings.map((b) => `<div class="home-building-dropdown-option" data-id="${b.id}" data-name="${P.escapeHtml(b.name)}">${P.escapeHtml(b.name)}</div>`)
+    ].join('');
+    buildingDropdown.innerHTML = optionsHtml;
+
     // Keep a lookup map: building name -> id for form submission
     window.__buildingIdByName = new Map(
       (buildings || []).map((b) => [String(b.name).trim(), Number(b.id)])
     );
+
+    // --- Custom dropdown interactivity ---
+
+    let isDropdownOpen = false;
+
+    function openDropdown() {
+      buildingDropdown.hidden = false;
+      isDropdownOpen = true;
+    }
+
+    function closeDropdown() {
+      buildingDropdown.hidden = true;
+      isDropdownOpen = false;
+    }
+
+    function filterDropdown(query) {
+      const q = String(query || '').toLowerCase().trim();
+      buildingDropdown.querySelectorAll('.home-building-dropdown-option').forEach((opt) => {
+        const name = opt.dataset.name || '';
+        opt.style.display = name.toLowerCase().includes(q) ? '' : 'none';
+      });
+    }
+
+    // Toggle dropdown on input click/focus
+    buildingInput.addEventListener('click', () => {
+      if (!isDropdownOpen) {
+        filterDropdown('');
+        openDropdown();
+      }
+    });
+    buildingInput.addEventListener('focus', () => {
+      if (!isDropdownOpen) {
+        filterDropdown('');
+        openDropdown();
+      }
+    });
+
+    // Filter as user types (input is readonly but we capture programmatic + paste)
+    buildingInput.addEventListener('input', (e) => {
+      filterDropdown(e.target.value);
+      if (!isDropdownOpen) openDropdown();
+    });
+
+    // Click outside to close
+    document.addEventListener('click', (e) => {
+      if (isDropdownOpen && !buildingDropdown.contains(e.target) && e.target !== buildingInput) {
+        closeDropdown();
+      }
+    });
+
+    // Select option
+    buildingDropdown.addEventListener('click', (e) => {
+      const opt = e.target.closest('.home-building-dropdown-option');
+      if (!opt) return;
+      const id = opt.dataset.id || '';
+      const name = opt.dataset.name || '';
+      buildingInput.value = name;
+      buildingIdInput.value = id;
+      closeDropdown();
+    });
+
+    // Clear selection when input is cleared
+    buildingInput.addEventListener('blur', () => {
+      // If input is empty, clear hidden id too
+      if (!buildingInput.value.trim()) {
+        buildingIdInput.value = '';
+      }
+    });
   }
 
   /** Shared helpers for reading availability records (times are "HH:MM:SS"). */
@@ -1043,7 +1119,7 @@
 
     return `
       <div class="col-md-6 col-xl-4">
-        <div class="card room-card availability-room-card h-100">
+        <div class="card room-card availability-room-card h-100 clickable-room-card" data-room-id="${room.id}" data-reserve-url="${P.escapeHtml(reserveUrl)}">
           ${room.image_url ? `<img class="room-card-img" src="${P.escapeHtml(room.image_url)}" alt="${P.escapeHtml(room.name)}" loading="lazy" />` : ''}
           <div class="card-body d-flex flex-column">
             <div class="d-flex justify-content-between align-items-start mb-2">
@@ -1064,7 +1140,8 @@
                 </div>
                 ${availHtml ? `<div class="d-flex justify-content-between align-items-start"><span class="text-muted-small me-2">Available:</span> <span class="available-hours">${availHtml}</span></div>` : ''}
               </div>
-              <a href="${reserveUrl}" class="btn btn-cspc btn-sm w-auto mt-3">Reserve Room</a>
+              <a href="${P.escapeHtml(reserveUrl)}" class="btn btn-cspc btn-sm w-auto mt-3">Reserve Room</a>
+              <span class="text-muted-small d-block mt-2">Click card or "Reserve Room" to book</span>
             </div>
           </div>
         </div>
@@ -1417,48 +1494,58 @@ function statusCard(room, dateValue, slot, remark) {
     event.preventDefault();
     if (!searchResult) return;
 
-    const slot = parseSlot(searchTime?.value);
-    const date = searchDate?.value || P.todayIso();
-    const params = new URLSearchParams({ date });
-    const buildingName = searchBuilding?.value?.trim();
-    if (buildingName && window.__buildingIdByName) {
-      const bid = window.__buildingIdByName.get(buildingName);
-      if (bid) params.set('building_id', bid);
+    // --- Validate date ---
+    const date = searchDate?.value?.trim();
+    if (!date) {
+      searchResult.hidden = false;
+      searchResult.innerHTML = '<div class="alert alert-danger">Please select a date.</div>';
+      searchDate?.focus();
+      return;
     }
+
+    const slot = parseSlot(searchTime?.value);
+    const buildingId = buildingIdInput?.value?.trim();
+    const buildingName = searchBuilding?.value?.trim() || 'All buildings';
+    const params = new URLSearchParams({ date });
+    if (buildingId) params.set('building_id', buildingId);
 
     P.busy(searchSubmit, true, 'Checking...');
     try {
       const data = await P.api(`/api/availability?${params.toString()}`);
       const rooms = data.rooms || [];
-      const matches = rooms.filter((room) => {
-        const bookings = room.bookings || [];
-        return slot ? !bookings.some((b) => overlaps(slot, b)) : bookings.length === 0;
+
+      // Compute per-room status for the selected slot
+      const roomStatuses = rooms.map((room) => {
+        const status = roomSlotStatus(room, slot);
+        return { room, status };
       });
+
+      const matches = roomStatuses.filter(({ status }) => status.tone === 'available');
+      const occupiedCount = roomStatuses.filter(({ status }) => status.tone === 'occupied').length;
+      const limitedCount = roomStatuses.filter(({ status }) => status.tone === 'limited').length;
+      const availableCount = matches.length;
+
       const when = slot ? `for <strong>${P.escapeHtml(slot.label)}</strong>` : 'all day';
 
-      if (!rooms.length) {
-        searchResult.innerHTML = 'No active rooms are listed for that building yet. Try another building.';
-      } else if (!matches.length) {
-        searchResult.innerHTML = `No rooms are open ${when} on ${P.escapeHtml(P.formatDate(date))}. Try a different time or building.`;
-      } else {
-        const chips = matches.slice(0, 8)
-          .map((room) => `<span class="home-search-chip">${P.escapeHtml(room.name)}</span>`).join('');
-        const extra = matches.length > 8 ? `<span class="home-search-chip">+${matches.length - 8} more</span>` : '';
-        searchResult.innerHTML =
-          `<strong>${matches.length} of ${rooms.length} rooms available</strong> ${when} on <strong>${P.escapeHtml(P.formatDate(date))}</strong>.` +
-          `<div class="home-search-chips">${chips}${extra}</div>`;
-      }
+      // Summary chips
       searchResult.hidden = false;
+      searchResult.innerHTML =
+        `<div class="home-search-summary" role="status" aria-live="polite">` +
+        `<span class="home-search-summary-chip available"><strong>${availableCount}</strong> Available</span>` +
+        `<span class="home-search-summary-chip limited"><strong>${limitedCount}</strong> Limited</span>` +
+        `<span class="home-search-summary-chip occupied"><strong>${occupiedCount}</strong> Occupied</span>` +
+        `</div>` +
+        `<p class="mb-1 text-muted-sm">${rooms.length} total room(s) ${when} on <strong>${P.escapeHtml(P.formatDate(date))}</strong> in <strong>${P.escapeHtml(buildingName)}</strong>.</p>`;
+
       // Render the structured live availability view
       if (availabilityView && availabilityHeader && availabilityGrid) {
-        const buildingLabel = buildingName || 'All buildings';
-        availabilityHeader.innerHTML = renderAvailabilityHeader(date, slot ? slot.label : null, buildingLabel);
+        availabilityHeader.innerHTML = renderAvailabilityHeader(date, slot ? slot.label : null, buildingName);
 
-        const roomsToShow = matches.length ? matches : rooms;
+        const roomsToShow = rooms.length ? rooms : [];
         if (!roomsToShow.length) {
           availabilityGrid.innerHTML = '<div class="col-12"><div class="card room-filter-empty"><div class="card-body text-center text-muted-sm py-4">No rooms found for this selection.</div></div></div>';
         } else {
-          availabilityGrid.innerHTML = roomsToShow.map((room) => renderRoomCard(room, date, slot, buildingLabel)).join('');
+          availabilityGrid.innerHTML = roomsToShow.map((room) => renderRoomCard(room, date, slot, buildingName)).join('');
         }
         availabilityView.hidden = false;
         availabilityView.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1471,6 +1558,16 @@ function statusCard(room, dateValue, slot, remark) {
     } finally {
       P.busy(searchSubmit, false);
     }
+  });
+
+  /* Click anywhere on a room card to open the reservation form pre-filled */
+  document.addEventListener('click', (e) => {
+    const card = e.target.closest('.clickable-room-card');
+    if (!card) return;
+    // Don't navigate if clicking the Reserve Room button itself (it already links)
+    if (e.target.closest('.btn')) return;
+    const url = card.dataset.reserveUrl;
+    if (url) window.location.href = url;
   });
 
   /* Soft cursor-following 3D parallax tilt on the hornet emblem. */
