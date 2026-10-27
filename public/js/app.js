@@ -1097,7 +1097,7 @@ function renderNavbar(user, active) {
     // Top header keeps only Home + Admin + About Us; the left
     // Control Panel sidebar owns all per-role page navigation.
     navLinks += link('/', 'Home', 'home');
-    navLinks += link('/dashboard.html', 'Dashboard', 'dashboard');
+    navLinks += link(isAdmin ? '/admin-dashboard.html' : '/dashboard.html', 'Dashboard', 'dashboard');
     navLinks += link('/rooms-status.html', 'Room Status', 'rooms');
     navLinks += '<li class="nav-item"><button class="nav-link nav-link-button" type="button" id="btn-about-us">About Us</button></li>';
   } else {
@@ -1143,7 +1143,7 @@ function renderNavbar(user, active) {
   host.innerHTML = `
     <nav class="navbar navbar-expand-lg navbar-dark portal-navbar${navLinks ? '' : ' portal-navbar-slim'}">
       <div class="container portal-nav-inner">
-        <a class="navbar-brand navbar-brand-hornet" href="${user ? '/dashboard.html' : '/#overview'}">
+        <a class="navbar-brand navbar-brand-hornet" href="${user && user.role === 'admin' ? '/admin-dashboard.html' : user ? '/dashboard.html' : '/#overview'}">
           <img class="cspc-logo hornet-logo" src="/img/hornet-logo.jpg"
                alt="HORNET logo" />
           <span class="brand-text"><span class="brand-title">Laboratory/Room Reservation</span></span>
