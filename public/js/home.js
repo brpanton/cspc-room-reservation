@@ -93,6 +93,9 @@
     loginAlert.classList.add('d-none');
     // Admins are provisioned / enrolled — never show self-registration.
     if (createAccountRow) createAccountRow.classList.toggle('d-none', loginMode === 'admin');
+    // Hide Google SSO in Admin Login mode — only show for User Login.
+    const ssoBtn = document.getElementById('visitor-sso-google');
+    if (ssoBtn) ssoBtn.classList.toggle('d-none', loginMode === 'admin');
   }
 
   function showAlert(host, message, type = 'danger') {
