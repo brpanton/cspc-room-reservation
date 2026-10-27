@@ -27,15 +27,86 @@ const rootPool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-/** Splits schema.sql into individual statements (strips comments first). */
+/**
+ * Splits schema.sql into individual SQL statements.
+ *
+ * Strips full-line comments (--) first, then splits on `;` only when the
+ * semicolon is NOT inside a single-quoted string literal or a dollar-quoted
+ * string ($$...$$ or $tag$...$tag$). This prevents PL/pgSQL DO blocks and
+ * other procedural code from being broken into pieces.
+ */
 function splitStatements(sql) {
-  return sql
-    .split('\n')
-    .filter((line) => !line.trim().startsWith('--'))
-    .join('\n')
-    .split(';')
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
+  // Remove full-line comments first
+  const lines = sql.split('\n').filter((line) => !line.trim().startsWith('--'));
+  const text = lines.join('\n');
+
+  const parts = [];
+  let current = '';
+  let i = 0;
+
+  while (i < text.length) {
+    const ch = text[i];
+
+    // Dollar-quoted string: $$...$$ or $tag$...$tag$
+    if (ch === '$') {
+      const match = text.slice(i).match(/^\$(\w*)\$/);
+      if (match) {
+        const delimiter = match[0]; // e.g. '$$' or '$tag$'
+        current += delimiter;
+        i += delimiter.length;
+        // Scan to closing delimiter
+        const closeIdx = text.indexOf(delimiter, i);
+        if (closeIdx === -1) {
+          // No closing delimiter found; treat rest as literal
+          current += text.slice(i);
+          i = text.length;
+        } else {
+          current += text.slice(i, closeIdx) + delimiter;
+          i = closeIdx + delimiter.length;
+        }
+        continue;
+      }
+    }
+
+    // Single-quoted string literal: '...' (handles escaped quotes '')
+    if (ch === "'") {
+      current += ch;
+      i++;
+      while (i < text.length) {
+        if (text[i] === "'") {
+          if (i + 1 < text.length && text[i + 1] === "'") {
+            current += "''";
+            i += 2;
+          } else {
+            current += "'";
+            i++;
+            break;
+          }
+        } else {
+          current += text[i];
+          i++;
+        }
+      }
+      continue;
+    }
+
+    // Statement terminator: semicolon outside any string context
+    if (ch === ';') {
+      const trimmed = current.trim();
+      if (trimmed.length > 0) parts.push(trimmed);
+      current = '';
+      i++;
+      continue;
+    }
+
+    current += ch;
+    i++;
+  }
+
+  const last = current.trim();
+  if (last.length > 0) parts.push(last);
+
+  return parts;
 }
 
 async function main() {
