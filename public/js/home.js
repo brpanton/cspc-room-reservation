@@ -519,7 +519,6 @@
   if (query.get('auth') === 'login' || query.get('error') === 'login_required') loginModal?.show();
   if (query.get('auth') === 'register') registerModal?.show();
   if (query.has('logged_out')) P.toastInfo('You have been logged out.');
-  if (query.get('error') === 'admin_required') P.toastError('Administrator access is required.');
   const GOOGLE_ERROR_MESSAGES = {
     google_cancelled: ['Google sign-in was cancelled. You can try again or use your school ID instead.', 'warning'],
     google_not_configured: ['Google sign-in is not configured yet. Please use your school ID and password until the SSO provider is set up.', 'warning'],

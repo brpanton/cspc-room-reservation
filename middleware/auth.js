@@ -40,7 +40,9 @@ function requireAdmin(req, res, next) {
   if (req.path.startsWith('/api/')) {
     return res.status(403).json({ error: 'Administrator access is required.' });
   }
-  return res.redirect('/index.html?error=admin_required');
+  // Silently send non-admin users to their regular dashboard instead of
+  // alarming them with an "admin required" error on the login page.
+  return res.redirect('/dashboard.html');
 }
 
 /** True when the given user may act on the given reservation. */
