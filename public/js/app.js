@@ -1169,10 +1169,20 @@ function renderNavbar(user, active) {
       </div>
     </nav>`;
 
-  document.getElementById('portal-language-select')?.addEventListener('change', (event) => {
-    setPortalLocale(event.target.value);
-    toastInfo('Language preference saved.');
-  });
+  // Apply current locale to newly rendered navbar text
+  localizeTree();
+
+  const langSelect = document.getElementById('portal-language-select');
+  if (langSelect) {
+    langSelect.addEventListener('change', (event) => {
+      try {
+        setPortalLocale(event.target.value);
+        toastInfo('Language preference saved.');
+      } catch (err) {
+        console.error('[Language] Failed to change locale:', err);
+      }
+    });
+  }
 
   /* ------------------------------------------------ About Us modal (all pages) --- */
   (function initAboutUs() {
