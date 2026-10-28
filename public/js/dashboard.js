@@ -891,10 +891,15 @@
   if (viewPendingBtn) {
     viewPendingBtn.addEventListener('click', (e) => {
       e.preventDefault();
-      const statusFilter = document.getElementById('status-filter');
-      if (statusFilter) {
-        statusFilter.value = 'pending';
-        statusFilter.dispatchEvent(new Event('change'));
+      const filterGroup = document.getElementById('status-filters');
+      if (filterGroup) {
+        const pendingBtn = filterGroup.querySelector('button[data-status="Pending"]');
+        if (pendingBtn) {
+          filterGroup.querySelectorAll('button').forEach((b) => b.classList.remove('active'));
+          pendingBtn.classList.add('active');
+          state.status = 'Pending';
+          renderTable(state.items);
+        }
       } else {
         // Filter table rows by pending status
         const rows = document.querySelectorAll('#reservations-body tr');
