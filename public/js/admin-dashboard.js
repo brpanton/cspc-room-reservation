@@ -1,6 +1,21 @@
 /* Admin dashboard: summary stats + reservation approvals + room/user management. */
 'use strict';
 
+/* ============================================================
+   IMMEDIATE stuck-backdrop cleanup
+   Bootstrap modals can leave .modal-backdrop layers that freeze
+   the entire page. Remove them before anything else runs so
+   every button and link is clickable from the first frame.
+   ============================================================ */
+(function unstickModals() {
+  try {
+    document.querySelectorAll('.modal-backdrop').forEach((el) => el.remove());
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = 'auto';
+    document.body.style.paddingRight = '0';
+  } catch { /* ignore */ }
+})();
+
 (async function () {
   const P = window.Portal;
   const {
@@ -364,15 +379,6 @@
         const id = Number(btn.getAttribute('data-id'));
         const reservation = state.items.find((r) => r.id === id);
         if (reservation) openTicketModal(reservation);
-      });
-    });
-      btn.addEventListener('click', () => {
-        const id = Number(btn.getAttribute('data-id'));
-        const reservation = state.items.find((r) => r.id === id);
-        if (!reservation) return;
-        const action = btn.getAttribute('data-action');
-        if (action === 'cancel') return cancelReservation(reservation);
-        openDecision(reservation, action === 'approve' ? 'Approved' : 'Rejected');
       });
     });
   }

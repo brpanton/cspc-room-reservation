@@ -4506,6 +4506,7 @@ body.admin-dashboard-page .portal-navbar {
 body.admin-dashboard-page .portal-navbar .nav-link {
   color: #e2e8f0 !important;
   font-weight: 600 !important;
+  pointer-events: auto !important;
 }
 
 body.admin-dashboard-page .portal-navbar .nav-link.active {
@@ -4516,6 +4517,36 @@ body.admin-dashboard-page .portal-navbar .nav-link.active {
 body.admin-dashboard-page .portal-navbar .nav-link:hover {
   color: #fff !important;
   background: rgba(96, 165, 250, 0.15) !important;
+}
+
+/* Ensure ALL buttons on admin dashboard are clickable */
+body.admin-dashboard-page button,
+body.admin-dashboard-page a,
+body.admin-dashboard-page [role="button"],
+body.admin-dashboard-page .btn {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+/* Ensure admin sidebar buttons are clickable */
+body.admin-dashboard-page .admin-nav-btn {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  z-index: 100 !important;
+  position: relative !important;
+}
+
+/* Ensure modals don't block the page */
+body.admin-dashboard-page .modal-backdrop {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+body.admin-dashboard-page body.modal-open {
+  overflow: auto !important;
+  padding-right: 0 !important;
+  pointer-events: auto !important;
 }
 
 .admin-topbar {
