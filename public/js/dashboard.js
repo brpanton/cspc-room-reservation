@@ -52,12 +52,36 @@
     console.error('[dashboard] Auth check failed:', err);
   }
 
-  /* Navbar (Home | Dashboard | Room Status | About Us) is rendered by app.js.
-     Hide any admin / management entries for students. */
-  if (renderNavbar) {
-    renderNavbar(user, 'dashboard');
+  /* Navbar: always render, even if user is null (guest view) */
+  const host = document.getElementById('navbar-placeholder');
+  const renderNavbarFallback = () => {
+    if (!host || host.innerHTML.trim()) return;
+    host.innerHTML = `
+      <nav class="navbar navbar-expand-lg navbar-dark portal-navbar">
+        <div class="container portal-nav-inner">
+          <a class="navbar-brand navbar-brand-hornet" href="/dashboard.html">
+            <span class="brand-text"><span class="brand-title">CSPC Lab & Room Reservation</span></span>
+          </a>
+          <div class="navbar-account-area portal-nav-utility d-flex align-items-center">
+            <a class="btn btn-sm btn-outline-light" href="/dashboard.html">Dashboard</a>
+            <a class="btn btn-sm btn-outline-light" href="/rooms-status.html">Room Status</a>
+            <a class="btn btn-sm btn-outline-light" href="#about-us-modal" data-bs-toggle="modal">About Us</a>
+          </div>
+        </div>
+      </nav>`;
+  };
+
+  try {
+    if (renderNavbar) {
+      renderNavbar(user, 'dashboard');
+    } else {
+      renderNavbarFallback();
+    }
+  } catch (err) {
+    console.error('[dashboard] renderNavbar failed:', err);
+    renderNavbarFallback();
   }
-  if (user.role !== 'admin' && user.role !== 'custodian') {
+  if (user && user.role !== 'admin' && user.role !== 'custodian') {
     const adminItems = document.querySelectorAll(
       '.profile-menu .dropdown-item#add-admin-menu-item, .portal-nav-link[href="/admin-dashboard.html"], .portal-nav-link[href="/admin-management.html"]'
     );
@@ -840,6 +864,46 @@
         sessionStorage.clear();
         closeModal('modal-logout');
         window.location.replace('/index.html?auth=logged_out');
+      }
+    });
+  }
+
+  /* -------------------------------------------------------------
+     EXPLICIT BUTTON HANDLERS - fallback in case initActions() fails
+     Ensures key buttons are always clickable.
+     ------------------------------------------------------------- */
+  const newResBtn = document.getElementById('new-reservation-link');
+  const viewPendingBtn = document.getElementById('view-pending-link');
+
+  if (newResBtn) {
+    newResBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const modalEl = document.getElementById('modal-add-reservation');
+      if (modalEl) {
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+      } else {
+        window.location.href = '/reservation-form.html';
+      }
+    });
+  }
+
+  if (viewPendingBtn) {
+    viewPendingBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const statusFilter = document.getElementById('status-filter');
+      if (statusFilter) {
+        statusFilter.value = 'pending';
+        statusFilter.dispatchEvent(new Event('change'));
+      } else {
+        // Filter table rows by pending status
+        const rows = document.querySelectorAll('#reservations-body tr');
+        rows.forEach((row) => {
+          const statusCell = row.querySelector('.status-badge, .badge');
+          if (statusCell) {
+            row.style.display = statusCell.textContent.toLowerCase().includes('pending') ? '' : 'none';
+          }
+        });
       }
     });
   }
