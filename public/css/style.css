@@ -6092,13 +6092,14 @@ body, body.modal-open {
 
 .home-building-card:hover {
   transform: translateY(-2px);
-  border-color: rgba(96, 165, 250, 0.42);
   box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.5);
 }
 
-.home-building-card.is-available { border-left-color: rgba(34, 197, 94, 0.85); }
-.home-building-card.is-limited   { border-left-color: rgba(251, 191, 36, 0.85); }
-.home-building-card.is-occupied  { border-left-color: rgba(239, 68, 68, 0.85); }
+.home-building-card.is-available,
+.home-building-card.is-limited,
+.home-building-card.is-occupied {
+  border-left: none;
+}
 
 .home-building-card-photo {
   width: 100%;
