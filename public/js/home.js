@@ -1435,15 +1435,13 @@ function renderStatusGroups(rooms) {
 
     html += `
       <article class="home-building-card is-${tone}" data-building="${P.escapeHtml(buildingName)}" aria-label="${P.escapeHtml(buildingName)}">
-        <span class="card-index">${indexBadge}</span>
         ${imgHtml}
-        <button class="exit-btn" aria-label="Exit ${P.escapeHtml(buildingName)}" title="Exit">🏠</button>
+        <span class="card-index">${indexBadge}</span>
         <div class="home-building-card-content">
           <h3>${P.escapeHtml(buildingName)}</h3>
-          <p class="reservations-booked">${totalBookings} reservation${totalBookings !== 1 ? 's' : ''} booked</p>
+          <p class="reservations-booked">${activeRooms} active room${activeRooms !== 1 ? 's' : ''} - ${totalBookings} booking${totalBookings !== 1 ? 's' : ''}</p>
         </div>
         <div class="home-building-card-footer">
-          <span class="active-rooms">${activeRooms} active room${activeRooms !== 1 ? 's' : ''} · ${totalBookings} booking${totalBookings !== 1 ? 's' : ''}</span>
           <button class="view-btn" aria-label="View ${P.escapeHtml(buildingName)}" title="View building">↗</button>
         </div>
       </article>
