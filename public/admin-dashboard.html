@@ -807,5 +807,111 @@
     render();
   })();
   </script>
+
+  <!-- Reservation Ticket Modal (Admin View) -->
+  <div class="modal fade" id="ticket-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title fw-bold">
+            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true" class="me-2"><path d="M12 2L2 7l10 5 10-5-10-5zm0 9l8 3-8 3-8-3z"/><path fill="none" d="M0 0h24v24H0z"/></svg>
+            Reservation Ticket #<span id="ticket-res-id">--</span>
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <div class="label small text-muted text-uppercase">Transaction Code</div>
+              <div class="fw-bold" id="ticket-tx-code">--</div>
+            </div>
+            <div class="col-md-6">
+              <div class="label small text-muted text-uppercase">Status</div>
+              <span id="ticket-status" class="badge fs-6">--</span>
+            </div>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <div class="label small text-muted text-uppercase">Requested By</div>
+              <div class="fw-bold" id="ticket-requester">--</div>
+            </div>
+            <div class="col-md-3">
+              <div class="label small text-muted text-uppercase">School ID</div>
+              <div class="text-muted" id="ticket-requester-school">--</div>
+            </div>
+            <div class="col-md-3">
+              <div class="label small text-muted text-uppercase">Role</div>
+              <div class="text-muted" id="ticket-requester-role">--</div>
+            </div>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <div class="label small text-muted text-uppercase">Building</div>
+              <div class="fw-bold" id="ticket-building">--</div>
+            </div>
+            <div class="col-md-4">
+              <div class="label small text-muted text-uppercase">Room / Lab</div>
+              <div class="fw-bold" id="ticket-room">--</div>
+            </div>
+            <div class="col-md-4">
+              <div class="label small text-muted text-uppercase">Room Type</div>
+              <div class="text-muted" id="ticket-room-type">--</div>
+            </div>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <div class="label small text-muted text-uppercase">Date</div>
+              <div class="fw-bold" id="ticket-date">--</div>
+            </div>
+            <div class="col-md-4">
+              <div class="label small text-muted text-uppercase">Start Time</div>
+              <div class="fw-bold" id="ticket-start-time">--</div>
+            </div>
+            <div class="col-md-4">
+              <div class="label small text-muted text-uppercase">End Time</div>
+              <div class="fw-bold" id="ticket-end-time">--</div>
+            </div>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <div class="label small text-muted text-uppercase">Attendees</div>
+              <div class="fw-bold" id="ticket-attendees">--</div>
+            </div>
+            <div class="col-md-4">
+              <div class="label small text-muted text-uppercase">Submitted</div>
+              <div class="text-muted small" id="ticket-submitted">--</div>
+            </div>
+            <div class="col-md-4">
+              <div class="label small text-muted text-uppercase">Decided</div>
+              <div class="text-muted small" id="ticket-decided">--</div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <div class="label small text-muted text-uppercase">Purpose of Use</div>
+            <div class="p-3 bg-light rounded" id="ticket-purpose">--</div>
+          </div>
+          <div class="mb-3">
+            <div class="label small text-muted text-uppercase">Equipment Needed</div>
+            <div id="ticket-equipment">--</div>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <div class="label small text-muted text-uppercase">Staff Remarks</div>
+              <div class="text-muted" id="ticket-remarks">--</div>
+            </div>
+            <div class="col-md-6">
+              <div class="label small text-muted text-uppercase">Approved By</div>
+              <div class="text-muted" id="ticket-approved-by">--</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary" onclick="window.print()">Print Ticket</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>

@@ -300,6 +300,8 @@
         ? `<div class="text-muted-sm">${(r.equipment || []).map(escapeHtml).join(', ')}</div>`
         : '';
 
+      const viewTicketBtn = `<button class="btn btn-sm btn-outline-primary btn-view-ticket" data-id="${r.id}" title="View Ticket">🎫 Ticket</button>`;
+
       return `
         <tr data-row-id="${r.id}">
           <td>#${r.id}</td>
@@ -320,11 +322,28 @@
           </td>
           <td>${escapeHtml(r.attendees)}</td>
           <td>${statusBadge(r.status)}</td>
-          <td class="text-end text-nowrap">${actions}</td>
+          <td class="text-end text-nowrap">${actions} ${viewTicketBtn}</td>
         </tr>`;
     }).join('');
 
     reservationsBody.querySelectorAll('button[data-action]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = Number(btn.getAttribute('data-id'));
+        const reservation = state.items.find((r) => r.id === id);
+        if (!reservation) return;
+        const action = btn.getAttribute('data-action');
+        if (action === 'cancel') return cancelReservation(reservation);
+        openDecision(reservation, action === 'approve' ? 'Approved' : 'Rejected');
+      });
+    });
+
+    reservationsBody.querySelectorAll('.btn-view-ticket').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = Number(btn.getAttribute('data-id'));
+        const reservation = state.items.find((r) => r.id === id);
+        if (reservation) openTicketModal(reservation);
+      });
+    });
       btn.addEventListener('click', () => {
         const id = Number(btn.getAttribute('data-id'));
         const reservation = state.items.find((r) => r.id === id);
@@ -373,6 +392,49 @@
       busy(decisionConfirm, false);
     }
   });
+
+  /* ------------------------------------------------------ ticket modal --- */
+  const ticketModalEl = document.getElementById('ticket-modal');
+  const ticketModal = new bootstrap.Modal(ticketModalEl);
+
+  function openTicketModal(reservation) {
+    const equipment = (reservation.equipment || []).length
+      ? (reservation.equipment || []).map(e => `<span class="badge bg-secondary me-1">${escapeHtml(e)}</span>`).join('')
+      : '<span class="text-muted-sm">None</span>';
+
+    document.getElementById('ticket-res-id').textContent = reservation.id;
+    document.getElementById('ticket-tx-code').textContent = reservation.transaction_code || '-';
+    document.getElementById('ticket-status').textContent = reservation.status;
+    document.getElementById('ticket-status').className = `badge ${statusBadgeClass(reservation.status)}`;
+    document.getElementById('ticket-requester').textContent = reservation.requested_by || '-';
+    document.getElementById('ticket-requester-school').textContent = reservation.requester_school_id || '-';
+    document.getElementById('ticket-requester-role').textContent = (reservation.requester_role || 'student').charAt(0).toUpperCase() + (reservation.requester_role || 'student').slice(1);
+    document.getElementById('ticket-building').textContent = reservation.building_name || '-';
+    document.getElementById('ticket-room').textContent = reservation.room_name || '-';
+    document.getElementById('ticket-room-type').textContent = (reservation.room_type || '-').charAt(0).toUpperCase() + (reservation.room_type || '').slice(1);
+    document.getElementById('ticket-date').textContent = formatDateShort(reservation.res_date);
+    document.getElementById('ticket-start-time').textContent = formatTime(reservation.start_time);
+    document.getElementById('ticket-end-time').textContent = formatTime(reservation.end_time);
+    document.getElementById('ticket-attendees').textContent = reservation.attendees || '-';
+    document.getElementById('ticket-purpose').textContent = reservation.purpose || '-';
+    document.getElementById('ticket-equipment').innerHTML = equipment;
+    document.getElementById('ticket-submitted').textContent = reservation.created_at ? new Date(reservation.created_at).toLocaleString() : '-';
+    document.getElementById('ticket-decided').textContent = reservation.decided_at ? new Date(reservation.decided_at).toLocaleString() : '-';
+    document.getElementById('ticket-remarks').textContent = reservation.remarks || '-';
+    document.getElementById('ticket-approved-by').textContent = reservation.approved_by_name || '-';
+
+    ticketModal.show();
+  }
+
+  function statusBadgeClass(status) {
+    switch (status) {
+      case 'Approved': return 'bg-success';
+      case 'Rejected': return 'bg-danger';
+      case 'Cancelled': return 'bg-secondary';
+      case 'Pending': return 'bg-warning text-dark';
+      default: return 'bg-info text-dark';
+    }
+  }
 
   async function cancelReservation(reservation) {
     if (!window.confirm(`Cancel reservation #${reservation.id} for "${reservation.room_name}"?`)) return;
