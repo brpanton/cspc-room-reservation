@@ -36,9 +36,9 @@
   /* Dark scrim layered on top of the photo (top -> bottom).
      Kept deliberately light so the campus building photo stays visible
      behind the glass panels; bottom stop is darkest for footer legibility. */
-  --bg-scrim-top: rgba(5, 8, 15, 0.42);
-  --bg-scrim-mid: rgba(5, 8, 15, 0.52);
-  --bg-scrim-bottom: rgba(5, 8, 15, 0.72);
+  --bg-scrim-top: rgba(5, 8, 15, 0.22);
+  --bg-scrim-mid: rgba(5, 8, 15, 0.30);
+  --bg-scrim-bottom: rgba(5, 8, 15, 0.42);
   --bg-scrim:
     linear-gradient(180deg,
       var(--bg-scrim-top) 0%,
@@ -46,9 +46,9 @@
       var(--bg-scrim-bottom) 100%);
   /* Soft blue glows so the glass surfaces have something to refract. */
   --bg-glow:
-    radial-gradient(900px 520px at 10% -10%, rgba(59, 130, 246, 0.34), transparent 62%),
-    radial-gradient(780px 460px at 90% 2%, rgba(56, 189, 248, 0.24), transparent 62%),
-    radial-gradient(760px 720px at 72% 112%, rgba(37, 99, 235, 0.28), transparent 62%);
+    radial-gradient(900px 520px at 10% -10%, rgba(59, 130, 246, 0.45), transparent 62%),
+    radial-gradient(780px 460px at 90% 2%, rgba(56, 189, 248, 0.34), transparent 62%),
+    radial-gradient(760px 720px at 72% 112%, rgba(37, 99, 235, 0.38), transparent 62%);
 
   /* --- glass tokens ------------------------------------------------ */
   --glass-1: rgba(255, 255, 255, 0.05);
@@ -105,14 +105,14 @@ body::after {
 
 /* Home page: lighten the page backdrop so the campus photo edges stay visible. */
 .portal-home-page::before {
-  filter: brightness(1.28) saturate(1.18);
+  filter: brightness(1.45) saturate(1.3);
 }
 .portal-home-page::after {
   background-image:
     linear-gradient(180deg,
-      rgba(5, 8, 15, 0.24) 0%,
-      rgba(5, 8, 15, 0.34) 45%,
-      rgba(5, 8, 15, 0.52) 100%),
+      rgba(5, 8, 15, 0.10) 0%,
+      rgba(5, 8, 15, 0.16) 45%,
+      rgba(5, 8, 15, 0.26) 100%),
     var(--bg-glow);
   background-size: auto, auto;
   background-repeat: no-repeat;
@@ -126,7 +126,7 @@ body::before {
   background-position: var(--bg-photo-pos);
   background-size: cover;
   background-repeat: no-repeat;
-  filter: brightness(1.14) saturate(1.1);
+  filter: brightness(1.45) saturate(1.25);
 }
 
 body.admin-login-mode::before,
@@ -5487,9 +5487,9 @@ body:not(.modal-open) {
   :root {
     --bg-photo: url("../img/campus-bg-sm.jpg");
     --bg-photo-pos: center 45%;
-    --bg-scrim-top: rgba(5, 8, 15, 0.58);
-    --bg-scrim-mid: rgba(5, 8, 15, 0.66);
-    --bg-scrim-bottom: rgba(5, 8, 15, 0.82);
+    --bg-scrim-top: rgba(5, 8, 15, 0.30);
+    --bg-scrim-mid: rgba(5, 8, 15, 0.40);
+    --bg-scrim-bottom: rgba(5, 8, 15, 0.50);
   }
 }
 
