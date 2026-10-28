@@ -22,9 +22,31 @@
 
   document.body.classList.add('admin-dashboard-page');
 
-  const me = await requireRole('admin');
-  if (!me) return;
-  renderNavbar(me, 'admin');
+  /* Ensure navbar always renders on admin dashboard */
+  try {
+    const me = await requireRole('admin');
+    if (me) {
+      renderNavbar(me, 'admin');
+    }
+  } catch (err) {
+    console.error('[admin-dashboard] Navbar render failed:', err);
+    /* Fallback: render a minimal navbar so the user always has navigation */
+    const host = document.getElementById('navbar-placeholder');
+    if (host && !host.innerHTML.trim()) {
+      host.innerHTML = `
+        <nav class="navbar navbar-expand-lg navbar-dark portal-navbar">
+          <div class="container portal-nav-inner">
+            <a class="navbar-brand navbar-brand-hornet" href="/admin-dashboard.html">
+              <span class="brand-text"><span class="brand-title">CSPC Lab & Room Reservation</span></span>
+            </a>
+            <div class="navbar-account-area portal-nav-utility d-flex align-items-center">
+              <a class="btn btn-sm btn-outline-light" href="/dashboard.html">Dashboard</a>
+              <a class="btn btn-sm btn-outline-light" href="/rooms-status.html">Room Status</a>
+            </div>
+          </div>
+        </nav>`;
+    }
+  }
 
   /* About Us modal: toggle the top-nav active pill between Admin Dashboard and About Us */
   const aboutUsModalEl = document.getElementById('about-us-modal');
