@@ -6084,11 +6084,10 @@ body, body.modal-open {
   display: flex;
   flex-direction: column;
   height: 100%;
-  border: 1px solid rgba(148, 163, 184, 0.16);
   border-radius: 16px;
   background: linear-gradient(145deg, rgba(16, 33, 57, 0.72), rgba(7, 14, 27, 0.86));
   overflow: hidden;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .home-building-card:hover {
