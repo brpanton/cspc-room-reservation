@@ -372,11 +372,17 @@
 
     const tab = queryParam('tab');
     if (tab) {
-      const btn = filterGroup.querySelector('button[data-status="' + tab + '"]');
+      // Case-insensitive match: URL param 'pending' vs HTML attr 'Pending'
+      let btn = filterGroup.querySelector('button[data-status="' + tab + '"]');
+      if (!btn) {
+        btn = Array.from(filterGroup.querySelectorAll('button')).find(
+          (b) => String(b.getAttribute('data-status') || '').toLowerCase() === tab.toLowerCase()
+        );
+      }
       if (btn) {
         filterGroup.querySelectorAll('button').forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
-        state.status = tab;
+        state.status = String(btn.getAttribute('data-status') || '');
       }
     }
   }
