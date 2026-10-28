@@ -1418,34 +1418,33 @@ function renderStatusGroups(rooms) {
 
   let html = '';
   let anyShown = false;
+  let index = 1;
 
   for (const [buildingName, buildingRooms] of buildingEntries) {
     const tone = buildingStatus(buildingRooms);
-    const labCount = buildingRooms.length;
+    const activeRooms = buildingRooms.length;
+    const totalBookings = buildingRooms.reduce((sum, r) => sum + (r.bookings || []).length, 0);
     const imgUrl = buildingImageUrl(buildingName, buildingRooms);
     anyShown = true;
+    const indexBadge = String(index).padStart(2, '0');
+    index++;
 
     const imgHtml = imgUrl
-      ? `<img class="home-building-card-photo" src="${P.escapeHtml(imgUrl)}" alt="${P.escapeHtml(buildingName)}" loading="lazy">`
+      ? `<img class="home-building-card-photo" src="${P.escapeHtml(imgUrl)}" alt="${P.escapeHtml(buildingName)} building" loading="lazy">`
       : `<div class="home-building-card-photo-placeholder"><span class="home-building-card-icon">🏛️</span></div>`;
 
-    const statusLabels = {
-      available: { text: 'Available', dot: 'is-available' },
-      limited:   { text: 'Limited Availability', dot: 'is-limited' },
-      occupied:  { text: 'Occupied', dot: 'is-occupied' }
-    };
-    const sl = statusLabels[tone];
-
     html += `
-      <article class="home-building-card is-${tone}" data-building="${P.escapeHtml(buildingName)}">
+      <article class="home-building-card is-${tone}" data-building="${P.escapeHtml(buildingName)}" aria-label="${P.escapeHtml(buildingName)}">
+        <span class="card-index">${indexBadge}</span>
         ${imgHtml}
-        <div class="home-building-card-overlay">
-          <span class="home-building-badge labs-badge">${labCount} lab${labCount !== 1 ? 's' : ''}</span>
-          <span class="home-building-badge status-badge is-${tone}">${sl.text}</span>
-        </div>
-        <div class="home-building-card-body">
+        <button class="exit-btn" aria-label="Exit ${P.escapeHtml(buildingName)}" title="Exit">🏠</button>
+        <div class="home-building-card-content">
           <h3>${P.escapeHtml(buildingName)}</h3>
-          <p class="home-building-card-meta">${labCount} laboratory${labCount !== 1 ? 'ies' : ''} • Live status</p>
+          <p class="reservations-booked">${totalBookings} reservation${totalBookings !== 1 ? 's' : ''} booked</p>
+        </div>
+        <div class="home-building-card-footer">
+          <span class="active-rooms">${activeRooms} active room${activeRooms !== 1 ? 's' : ''} · ${totalBookings} booking${totalBookings !== 1 ? 's' : ''}</span>
+          <button class="view-btn" aria-label="View ${P.escapeHtml(buildingName)}" title="View building">↗</button>
         </div>
       </article>
     `;

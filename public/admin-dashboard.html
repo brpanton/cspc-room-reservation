@@ -111,6 +111,19 @@
           <span class="home-status-key"><span class="home-status-dot is-occupied"></span> Occupied</span>
         </div>
 
+        <!-- Building Availability Cards -->
+        <section class="admin-building-cards mb-4" aria-labelledby="admin-buildings-heading">
+          <div class="dashboard-section-heading">
+            <div>
+              <h2 id="admin-buildings-heading">Building Availability</h2>
+            </div>
+            <a href="/rooms-status.html" class="home-text-link">View all rooms <span aria-hidden="true">→</span></a>
+          </div>
+          <div class="home-status-grid" id="admin-building-grid">
+            <div class="home-status-loading">Loading building availability…</div>
+          </div>
+        </section>
+
         <details class="resource-summary mb-4">
           <summary>
             <span>
@@ -697,5 +710,104 @@
   <script src="/js/app.js"></script>
   <script src="/js/cookie-consent.js"></script>
   <script src="/js/admin-dashboard.js?v=20261019-cancel-red"></script>
+  <script>
+  (function () {
+    const grid = document.getElementById('admin-building-grid');
+    if (!grid) return;
+
+    const TONE_RANK = { available: 0, limited: 1, occupied: 2 };
+
+    function buildingStatus(rooms) {
+      let hasOccupied = false;
+      let hasLimited = false;
+      const today = new Date().toISOString().slice(0, 10);
+      const now = new Date().getHours() * 60 + new Date().getMinutes();
+      for (const room of rooms) {
+        const bookings = room.bookings || [];
+        let roomTone = 'available';
+        for (const b of bookings) {
+          if (b.res_date !== today) continue;
+          const bs = (b.start_time || '').split(':').map(Number);
+          const be = (b.end_time || '').split(':').map(Number);
+          if (bs.length === 2 && be.length === 2) {
+            const bsMin = bs[0] * 60 + bs[1];
+            const beMin = be[0] * 60 + be[1];
+            if (bsMin <= now && now < beMin) { roomTone = 'occupied'; break; }
+            roomTone = 'limited';
+          }
+        }
+        if (roomTone === 'occupied') { hasOccupied = true; break; }
+        if (roomTone === 'limited') hasLimited = true;
+      }
+      if (hasOccupied) return 'occupied';
+      if (hasLimited) return 'limited';
+      return 'available';
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    async function render() {
+      try {
+        const res = await fetch('/api/rooms/status');
+        const data = await res.json();
+        const rooms = data.rooms || [];
+
+        const byBuilding = new Map();
+        rooms.forEach((room) => {
+          const bName = room.building_name || 'Unknown Building';
+          if (!byBuilding.has(bName)) byBuilding.set(bName, []);
+          byBuilding.get(bName).push(room);
+        });
+
+        const entries = [...byBuilding.entries()].sort((a, b) => {
+          const ta = buildingStatus(a[1]);
+          const tb = buildingStatus(b[1]);
+          return (TONE_RANK[ta] || 0) - (TONE_RANK[tb] || 0)
+            || b[1].length - a[1].length
+            || String(a[0]).localeCompare(String(b[0]));
+        }).slice(0, 4);
+
+        let html = '';
+        let index = 1;
+        for (const [buildingName, buildingRooms] of entries) {
+          const tone = buildingStatus(buildingRooms);
+          const activeRooms = buildingRooms.length;
+          const totalBookings = buildingRooms.reduce((sum, r) => sum + (r.bookings || []).length, 0);
+          const indexBadge = String(index).padStart(2, '0');
+          index++;
+          const imgUrl = buildingRooms[0] && buildingRooms[0].image_url ? buildingRooms[0].image_url : '';
+          const imgHtml = imgUrl
+            ? `<img class="home-building-card-photo" src="${escapeHtml(imgUrl)}" alt="${escapeHtml(buildingName)} building" loading="lazy">`
+            : `<div class="home-building-card-photo-placeholder"><span class="home-building-card-icon">🏛️</span></div>`;
+          html += `
+            <article class="home-building-card is-${tone}" data-building="${escapeHtml(buildingName)}">
+              <span class="card-index">${indexBadge}</span>
+              ${imgHtml}
+              <button class="exit-btn" aria-label="Exit ${escapeHtml(buildingName)}" title="Exit">🏠</button>
+              <div class="home-building-card-content">
+                <h3>${escapeHtml(buildingName)}</h3>
+                <p class="reservations-booked">${totalBookings} reservation${totalBookings !== 1 ? 's' : ''} booked</p>
+              </div>
+              <div class="home-building-card-footer">
+                <span class="active-rooms">${activeRooms} active room${activeRooms !== 1 ? 's' : ''} · ${totalBookings} booking${totalBookings !== 1 ? 's' : ''}</span>
+                <button class="view-btn" aria-label="View ${escapeHtml(buildingName)}" title="View building">↗</button>
+              </div>
+            </article>
+          `;
+        }
+        grid.innerHTML = html || '<div class="home-status-loading">No active rooms to show right now.</div>';
+      } catch (err) {
+        grid.innerHTML = '<div class="home-status-loading">Building availability is temporarily unavailable.</div>';
+      }
+    }
+
+    render();
+  })();
+  </script>
 </body>
 </html>
