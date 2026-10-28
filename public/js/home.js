@@ -1437,6 +1437,7 @@ function renderStatusGroups(rooms) {
       <article class="home-building-card is-${tone}" data-building="${P.escapeHtml(buildingName)}" aria-label="${P.escapeHtml(buildingName)}">
         ${imgHtml}
         <span class="card-index">${indexBadge}</span>
+        <span class="card-status is-${tone}">${tone.charAt(0).toUpperCase() + tone.slice(1)}</span>
         <div class="home-building-card-content">
           <h3>${P.escapeHtml(buildingName)}</h3>
           <p class="reservations-booked">${activeRooms} active room${activeRooms !== 1 ? 's' : ''} - ${totalBookings} booking${totalBookings !== 1 ? 's' : ''}</p>
