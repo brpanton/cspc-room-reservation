@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    CSPC Reservation Portal - Student Dashboard
    Clean, responsive, fully data-connected student dashboard.
    ============================================================ */
@@ -55,7 +55,7 @@
   /* Navbar: always render, even if user is null (guest view) */
   const host = document.getElementById('navbar-placeholder');
   const renderNavbarFallback = () => {
-    if (!host || host.innerHTML.trim()) return;
+    if (!host) return;
     host.innerHTML = `
       <nav class="navbar navbar-expand-lg navbar-dark portal-navbar">
         <div class="container portal-nav-inner">
@@ -74,7 +74,9 @@
   try {
     if (renderNavbar) {
       renderNavbar(user, 'dashboard');
-    } else {
+    }
+    /* Always ensure navbar renders even if renderNavbar partially failed */
+    if (!host || !host.innerHTML.trim()) {
       renderNavbarFallback();
     }
   } catch (err) {
@@ -639,7 +641,7 @@
       const hint = document.getElementById('account-save-hint');
       if (hint) { hint.textContent = 'Saving changes...'; hint.className = 'modal-field-hint'; }
       saveAccountSettings.disabled = true;
-      saveAccountSettings.textContent = 'Saving…';
+      saveAccountSettings.textContent = 'Savingâ€¦';
 
       try {
         const payload = {
@@ -767,7 +769,7 @@
       const hint = document.getElementById('password-save-hint');
       if (hint) { hint.textContent = 'Changing password...'; hint.className = 'modal-field-hint'; }
       saveChangePassword.disabled = true;
-      saveChangePassword.textContent = 'Updating…';
+      saveChangePassword.textContent = 'Updatingâ€¦';
 
       try {
         const result = await api('/api/auth/change-password', {
@@ -811,7 +813,7 @@
       const hint = document.getElementById('admin-save-hint');
       if (hint) { hint.textContent = 'Creating admin account...'; hint.className = 'modal-field-hint'; }
       saveAddAdmin.disabled = true;
-      saveAddAdmin.textContent = 'Creating…';
+      saveAddAdmin.textContent = 'Creatingâ€¦';
 
       try {
         const result = await api('/api/admin/users', {
@@ -852,7 +854,7 @@
       const hint = document.getElementById('logout-hint');
       if (hint) { hint.textContent = 'Logging out...'; hint.className = 'modal-field-hint'; }
       confirmLogout.disabled = true;
-      confirmLogout.textContent = 'Logging out…';
+      confirmLogout.textContent = 'Logging outâ€¦';
 
       try {
         await api('/api/auth/logout', { method: 'POST' });

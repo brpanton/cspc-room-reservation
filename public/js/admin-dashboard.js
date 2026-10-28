@@ -72,7 +72,9 @@ setInterval(() => {
     me = await requireRole('admin');
     if (me && renderNavbar) {
       renderNavbar(me, 'admin');
-    } else {
+    }
+    /* Always ensure navbar renders even if renderNavbar partially failed */
+    if (!host || !host.innerHTML.trim()) {
       renderNavbarFallback();
     }
   } catch (err) {
