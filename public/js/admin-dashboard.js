@@ -37,9 +37,10 @@
 
   document.body.classList.add('admin-dashboard-page');
 
+  let me = null;
   /* Ensure navbar always renders on admin dashboard */
   try {
-    const me = await requireRole('admin');
+    me = await requireRole('admin');
     if (me) {
       renderNavbar(me, 'admin');
     }
