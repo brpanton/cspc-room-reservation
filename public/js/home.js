@@ -1390,7 +1390,11 @@ function buildingImageUrl(buildingName, rooms) {
   return null;
 }
 
-/** Group rooms by building and render building cards with live status badges. */
+/** Tone ranking so Available buildings surface first, then Limited, then Occupied. */
+const TONE_RANK = { available: 0, limited: 1, occupied: 2 };
+
+/** Group rooms by building and render building cards with live status badges.
+ *  Shows the top 4 buildings, organized by status then by lab count. */
 function renderStatusGroups(rooms) {
   if (!statusGrid) return;
 
@@ -1402,10 +1406,20 @@ function renderStatusGroups(rooms) {
     byBuilding.get(bName).push(room);
   });
 
+  // Organize buildings: Available first, then Limited, then Occupied;
+  // within each status, more laboratories first, then alphabetical.
+  const buildingEntries = [...byBuilding.entries()].sort((a, b) => {
+    const toneA = buildingStatus(a[1]);
+    const toneB = buildingStatus(b[1]);
+    return (TONE_RANK[toneA] || 0) - (TONE_RANK[toneB] || 0)
+      || b[1].length - a[1].length
+      || String(a[0]).localeCompare(String(b[0]));
+  }).slice(0, 4);
+
   let html = '';
   let anyShown = false;
 
-  for (const [buildingName, buildingRooms] of byBuilding) {
+  for (const [buildingName, buildingRooms] of buildingEntries) {
     const tone = buildingStatus(buildingRooms);
     const labCount = buildingRooms.length;
     const imgUrl = buildingImageUrl(buildingName, buildingRooms);
@@ -1444,7 +1458,7 @@ function renderStatusGroups(rooms) {
   }
 }
 
-/** Fetch live room statuses from the backend and re-render the 3 buildings. */
+/** Fetch live room statuses from the backend and re-render the 4 buildings. */
 async function fetchRoomStatuses() {
   if (!statusGrid) return;
   try {
