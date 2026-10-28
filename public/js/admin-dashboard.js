@@ -16,8 +16,20 @@
   } catch { /* ignore */ }
 })();
 
+/* Periodic watchdog: remove any stuck modal-backdrop that could freeze the page */
+setInterval(() => {
+  try {
+    document.querySelectorAll('.modal-backdrop:not([hidden])').forEach((el) => el.remove());
+    if (document.body.classList.contains('modal-open')) {
+      document.body.classList.remove('modal-open');
+      document.body.style.overflow = 'auto';
+      document.body.style.paddingRight = '0';
+    }
+  } catch { /* ignore */ }
+}, 5000);
+
 (async function () {
-  const P = window.Portal;
+  const P = window.Portal || {};
   const {
     api,
     requireRole,
@@ -37,31 +49,35 @@
 
   document.body.classList.add('admin-dashboard-page');
 
+  /* Render navbar first so it's always visible */
+  const host = document.getElementById('navbar-placeholder');
+  function renderNavbarFallback() {
+    if (!host || host.innerHTML.trim()) return;
+    host.innerHTML = `
+      <nav class="navbar navbar-expand-lg navbar-dark portal-navbar">
+        <div class="container portal-nav-inner">
+          <a class="navbar-brand navbar-brand-hornet" href="/admin-dashboard.html">
+            <span class="brand-text"><span class="brand-title">CSPC Lab & Room Reservation</span></span>
+          </a>
+          <div class="navbar-account-area portal-nav-utility d-flex align-items-center">
+            <a class="btn btn-sm btn-outline-light" href="/dashboard.html">Dashboard</a>
+            <a class="btn btn-sm btn-outline-light" href="/rooms-status.html">Room Status</a>
+          </div>
+        </div>
+      </nav>`;
+  }
+
   let me = null;
-  /* Ensure navbar always renders on admin dashboard */
   try {
     me = await requireRole('admin');
-    if (me) {
+    if (me && renderNavbar) {
       renderNavbar(me, 'admin');
+    } else {
+      renderNavbarFallback();
     }
   } catch (err) {
-    console.error('[admin-dashboard] Navbar render failed:', err);
-    /* Fallback: render a minimal navbar so the user always has navigation */
-    const host = document.getElementById('navbar-placeholder');
-    if (host && !host.innerHTML.trim()) {
-      host.innerHTML = `
-        <nav class="navbar navbar-expand-lg navbar-dark portal-navbar">
-          <div class="container portal-nav-inner">
-            <a class="navbar-brand navbar-brand-hornet" href="/admin-dashboard.html">
-              <span class="brand-text"><span class="brand-title">CSPC Lab & Room Reservation</span></span>
-            </a>
-            <div class="navbar-account-area portal-nav-utility d-flex align-items-center">
-              <a class="btn btn-sm btn-outline-light" href="/dashboard.html">Dashboard</a>
-              <a class="btn btn-sm btn-outline-light" href="/rooms-status.html">Room Status</a>
-            </div>
-          </div>
-        </nav>`;
-    }
+    console.error('[admin-dashboard] Navbar/error:', err);
+    renderNavbarFallback();
   }
 
   /* About Us modal: toggle the top-nav active pill between Admin Dashboard and About Us */
