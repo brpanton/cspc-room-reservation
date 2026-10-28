@@ -6120,7 +6120,7 @@ body, body.modal-open {
   height: 100%;
   border-radius: 16px;
   border: 1px solid rgba(148, 163, 184, 0.2);
-  background: linear-gradient(145deg, rgba(16, 33, 57, 0.72), rgba(7, 14, 27, 0.86));
+  background: rgba(7, 14, 27, 0.35);
   overflow: hidden;
   transition: transform 0.2s ease, border-color 0.2s ease;
 }
@@ -6165,7 +6165,7 @@ body, body.modal-open {
   position: absolute;
   inset: 0;
   z-index: 2;
-  background: rgba(7, 14, 27, 0.08);
+  background: rgba(7, 14, 27, 0.03);
   pointer-events: none;
 }
 
