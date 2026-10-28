@@ -2865,7 +2865,7 @@ main.container {
   font-size: 0.85rem;
 }
 
-.home-status-legend { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.9rem; align-items: center; }
+.home-status-legend { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.5rem; margin-bottom: 1rem; align-items: center; }
 
 .home-status-legend-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #93a4bd; margin-right: 0.25rem; flex-shrink: 0; }
 
@@ -6076,7 +6076,8 @@ body, body.modal-open {
    ============================================================ */
 .home-status-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1rem;
+  gap: 1.5rem;
+  margin-bottom: 3rem;
 }
 
 .home-section-heading {
@@ -6085,7 +6086,7 @@ body, body.modal-open {
   justify-content: space-between;
   align-items: flex-start;
   gap: 0.75rem;
-  margin: 0 0 1rem;
+  margin: 0 0 2rem;
 }
 
 .home-section-heading > div {
