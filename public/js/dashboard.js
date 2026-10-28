@@ -5,25 +5,58 @@
 'use strict';
 
 (async function () {
-  const P = window.Portal;
+  const P = window.Portal || {};
   const {
     api, requireRole, renderNavbar, escapeHtml, formatTime, formatDateShort, getLocale,
     statusBadge, emptyRow, toastOk, toastError, busy, queryParam, todayIso
   } = P;
 
-  /* ------------------------------------------------------------- auth ---- */
-  const user = await requireRole();
-  if (!user) return;
+  /* ============================================================
+     IMMEDIATE stuck-backdrop cleanup
+     Bootstrap modals can leave .modal-backdrop layers that freeze
+     the entire page. Remove them before anything else runs so
+     every button and link is clickable from the first frame.
+     ============================================================ */
+  (function unstickModals() {
+    try {
+      document.querySelectorAll('.modal-backdrop').forEach((el) => el.remove());
+      document.body.classList.remove('modal-open');
+      document.body.style.overflow = 'auto';
+      document.body.style.paddingRight = '0';
+    } catch { /* ignore */ }
+  })();
 
-  /* Admins belong on the admin dashboard, not the user dashboard. */
-  if (user.role === 'admin') {
-    window.location.replace('/admin-dashboard.html');
-    return;
+  /* Periodic watchdog: remove any stuck modal-backdrop every 5 seconds */
+  setInterval(() => {
+    try {
+      document.querySelectorAll('.modal-backdrop:not([hidden])').forEach((el) => el.remove());
+      if (document.body.classList.contains('modal-open')) {
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = 'auto';
+        document.body.style.paddingRight = '0';
+      }
+    } catch { /* ignore */ }
+  }, 5000);
+
+  document.body.classList.add('dashboard-page');
+
+  let user = null;
+  /* Ensure navbar always renders on dashboard */
+  try {
+    user = await requireRole();
+    if (user && user.role === 'admin') {
+      window.location.replace('/admin-dashboard.html');
+      return;
+    }
+  } catch (err) {
+    console.error('[dashboard] Auth check failed:', err);
   }
 
   /* Navbar (Home | Dashboard | Room Status | About Us) is rendered by app.js.
      Hide any admin / management entries for students. */
-  renderNavbar(user, 'dashboard');
+  if (renderNavbar) {
+    renderNavbar(user, 'dashboard');
+  }
   if (user.role !== 'admin' && user.role !== 'custodian') {
     const adminItems = document.querySelectorAll(
       '.profile-menu .dropdown-item#add-admin-menu-item, .portal-nav-link[href="/admin-dashboard.html"], .portal-nav-link[href="/admin-management.html"]'
