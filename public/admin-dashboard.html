@@ -783,7 +783,7 @@
           const imgUrl = buildingRooms[0] && buildingRooms[0].image_url ? buildingRooms[0].image_url : '';
           const imgHtml = imgUrl
             ? `<img class="home-building-card-photo" src="${escapeHtml(imgUrl)}" alt="${escapeHtml(buildingName)} building" loading="lazy">`
-            : `<div class="home-building-card-photo-placeholder"><span class="home-building-card-icon">🏛️</span></div>`;
+            : `<div class="home-building-card-photo-placeholder"></div>`;
           html += `
             <article class="home-building-card is-${tone}" data-building="${escapeHtml(buildingName)}">
               <span class="card-index">${indexBadge}</span>

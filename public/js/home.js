@@ -1431,7 +1431,7 @@ function renderStatusGroups(rooms) {
 
     const imgHtml = imgUrl
       ? `<img class="home-building-card-photo" src="${P.escapeHtml(imgUrl)}" alt="${P.escapeHtml(buildingName)} building" loading="lazy">`
-      : `<div class="home-building-card-photo-placeholder"><span class="home-building-card-icon">🏛️</span></div>`;
+      : `<div class="home-building-card-photo-placeholder"></div>`;
 
     html += `
       <article class="home-building-card is-${tone}" data-building="${P.escapeHtml(buildingName)}" aria-label="${P.escapeHtml(buildingName)}">
