@@ -2490,6 +2490,7 @@ main.container {
   font-size: 0.84rem;
   font-weight: 700;
   text-decoration: none;
+  margin-top: 1.25rem;
 }
 
 .home-text-link:hover { color: #fff; text-shadow: 0 0 16px rgba(96, 165, 250, 0.55); }
