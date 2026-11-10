@@ -64,7 +64,11 @@ router.post('/avatar', (req, res, next) => {
     }
 
     const detected = imageType(req.file.buffer);
-    if (!detected || detected.mime !== req.file.mimetype) {
+    const mime = (req.file.mimetype || '').toLowerCase();
+    const isJpeg = detected && detected.mime === 'image/jpeg' && (mime === 'image/jpeg' || mime === 'image/jpg' || mime === 'image/pjpeg');
+    const isPng = detected && detected.mime === 'image/png' && (mime === 'image/png' || mime === 'image/x-png');
+    const isWebp = detected && detected.mime === 'image/webp' && (mime === 'image/webp');
+    if (!detected || (!isJpeg && !isPng && !isWebp)) {
       const err = new Error('The selected file is not a valid JPEG, PNG, or WebP image.');
       err.status = 400;
       throw err;
@@ -107,7 +111,7 @@ router.delete('/avatar', async (req, res, next) => {
 
 router.patch('/', async (req, res, next) => {
   try {
-    const { full_name, school_id, email, recovery_email, admin_level } = req.body;
+    const { full_name, school_id, email, department, recovery_email, admin_level } = req.body;
     const userId = req.session.user.id;
 
     const updates = [];
@@ -125,6 +129,10 @@ router.patch('/', async (req, res, next) => {
     if (email !== undefined) {
       updates.push(`email = $${paramIndex++}`);
       values.push(email);
+    }
+    if (department !== undefined) {
+      updates.push(`department = $${paramIndex++}`);
+      values.push(department || null);
     }
     if (recovery_email !== undefined) {
       updates.push(`recovery_email = $${paramIndex++}`);
@@ -147,7 +155,7 @@ router.patch('/', async (req, res, next) => {
     }
 
     values.push(userId);
-    const query = `UPDATE users SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING id, school_id, full_name, email, recovery_email, role, admin_level, avatar_url`;
+    const query = `UPDATE users SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING id, school_id, full_name, email, department, recovery_email, role, admin_level, avatar_url`;
     const result = await pool.query(query, values);
     if (!result.rowCount) {
       const err = new Error('Your account could not be found.');

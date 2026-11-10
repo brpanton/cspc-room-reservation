@@ -1146,7 +1146,7 @@
       const hint = document.getElementById('account-save-hint');
       if (hint) { hint.textContent = 'Saving changes...'; hint.className = 'modal-field-hint'; }
       saveAccountSettings.disabled = true;
-      saveAccountSettings.textContent = 'Savingâ€¦';
+      saveAccountSettings.textContent = 'Saving...';
 
       try {
         const payload = {

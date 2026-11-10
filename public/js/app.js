@@ -931,6 +931,9 @@ async function api(path, { method = 'GET', body, headers, button } = {}) {
   };
   if (body !== undefined) {
     if (body instanceof FormData) {
+      if (opts.headers && opts.headers['Content-Type']) {
+        delete opts.headers['Content-Type'];
+      }
       opts.body = body;
     } else {
       opts.headers['Content-Type'] = 'application/json';
@@ -938,15 +941,28 @@ async function api(path, { method = 'GET', body, headers, button } = {}) {
     }
   }
 
+  const controller = new AbortController();
+  const timeoutMs = 25000;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  opts.signal = controller.signal;
+
   try {
     let res;
     try {
       res = await fetch(path, opts);
     } catch (networkErr) {
+      if (networkErr && networkErr.name === 'AbortError') {
+        const err = new Error('Request timed out. Please check your network connection and try again.');
+        err.status = 408;
+        err.cause = networkErr;
+        throw err;
+      }
       const err = new Error('Cannot reach the server. Is it still running?');
       err.status = 0;
       err.cause = networkErr;
       throw err;
+    } finally {
+      clearTimeout(timeoutId);
     }
 
     const isJson = (res.headers.get('content-type') || '').includes('application/json');
@@ -1138,6 +1154,9 @@ function renderNavbar(user, active) {
     ? String(user.full_name || 'U').trim().split(/\s+/).slice(0, 1).map((part) => part.charAt(0).toUpperCase()).join('') || 'U'
     : '';
   const avatarUrl = user && user.avatar_url ? escapeHtml(user.avatar_url) : '';
+  const avatarCircleContent = avatarUrl
+    ? `<img src="${avatarUrl}" alt="Avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" />`
+    : avatarInitial;
 
   let navLinks = '';
   if (user) {
@@ -1168,7 +1187,7 @@ function renderNavbar(user, active) {
     : `          <hr class="dropdown-divider" />`;
 
   const userArea = user
-    ? `\n      <div class="user-profile-wrapper d-inline-flex align-items-center gap-0 position-relative" id="user-profile-wrapper">\n        <button type="button" class="profile-pill" id="profile-pill" aria-haspopup="true" aria-expanded="false">\n          <span class="avatar-circle" id="profile-avatar">${avatarInitial}</span>\n          <span class="profile-name" id="profile-name">${escapeHtml(user.full_name || 'User')}</span>\n          <span class="role-badge" id="profile-role">${String(user.role || 'STUDENT').toUpperCase()}</span>\n          <span class="dropdown-arrow">▼</span>\n        </button>\n        <div class="profile-dropdown-menu" id="profile-dropdown-menu" hidden>\n          <div class="dropdown-section">\n            <div class="dropdown-section-title">Your Account</div>\n            <button type="button" class="dropdown-item" id="menu-account-settings">\n              <span class="item-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>\n              <span class="item-label">Account Settings</span>\n            </button>\n            <button type="button" class="dropdown-item" id="menu-change-password">\n              <span class="item-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>\n              <span class="item-label">Change Password</span>\n            </button>\n          </div>\n${adminSectionNewStyle}\n          <button type="button" class="dropdown-item dropdown-item-danger" id="menu-logout">\n            <span class="item-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>\n            <span class="item-label">Log Out</span>\n          </button>\n        </div>\n      </div>`
+    ? `\n      <div class="user-profile-wrapper d-inline-flex align-items-center gap-0 position-relative" id="user-profile-wrapper">\n        <button type="button" class="profile-pill" id="profile-pill" aria-haspopup="true" aria-expanded="false">\n          <span class="avatar-circle" id="profile-avatar">${avatarCircleContent}</span>\n          <span class="profile-name" id="profile-name">${escapeHtml(user.full_name || 'User')}</span>\n          <span class="role-badge" id="profile-role">${String(user.role || 'STUDENT').toUpperCase()}</span>\n          <span class="dropdown-arrow">▼</span>\n        </button>\n        <div class="profile-dropdown-menu" id="profile-dropdown-menu" hidden>\n          <div class="dropdown-section">\n            <div class="dropdown-section-title">Your Account</div>\n            <button type="button" class="dropdown-item" id="menu-account-settings">\n              <span class="item-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>\n              <span class="item-label">Account Settings</span>\n            </button>\n            <button type="button" class="dropdown-item" id="menu-change-password">\n              <span class="item-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>\n              <span class="item-label">Change Password</span>\n            </button>\n          </div>\n${adminSectionNewStyle}\n          <button type="button" class="dropdown-item dropdown-item-danger" id="menu-logout">\n            <span class="item-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>\n            <span class="item-label">Log Out</span>\n          </button>\n        </div>\n      </div>`
     : isPublicLanding
       ? `
       <div class="d-inline-flex align-items-center gap-2">
@@ -1469,7 +1488,7 @@ function renderNavbar(user, active) {
           </div>
           <div class="mt-4 text-end">
             <button type="button" class="btn btn-outline-secondary" id="cancelAccountSettingsBtn" data-bs-dismiss="modal">Cancel</button>
-            <button type="submit" class="btn btn-cspc" id="acct-save-btn">Save Changes</button>
+            <button type="submit" class="btn btn-cspc" id="acct-save-btn" data-no-loading="true">Save Changes</button>
           </div>
         </form>
       </div>
@@ -1491,9 +1510,51 @@ function renderNavbar(user, active) {
     const previewImg = document.getElementById('profile-avatar-preview-img');
     const previewInitials = document.getElementById('profile-avatar-preview-initials');
 
+    let isSavingAccountSettings = false;
+    const MAX_AVATAR_BYTES = 2 * 1024 * 1024; // 2 MB
+    const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+    /* ── Helper: validate selected avatar file ── */
+    const validateAvatarFile = (file) => {
+      if (!file) return { valid: false, message: 'Please select an image file.' };
+      const fileType = (file.type || '').toLowerCase();
+      if (!ALLOWED_MIME_TYPES.includes(fileType)) {
+        return {
+          valid: false,
+          message: 'Please choose a valid JPG, PNG, or WebP image.'
+        };
+      }
+      if (file.size > MAX_AVATAR_BYTES) {
+        const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+        return {
+          valid: false,
+          message: `Profile photo must be 2 MB or smaller (selected file is ${sizeMb} MB).`
+        };
+      }
+      return { valid: true };
+    };
+
+    /* ── Helper: reset avatar preview in modal ── */
+    const resetAvatarPreview = (currentUrl, fullName) => {
+      if (!previewImg || !previewInitials) return;
+      if (currentUrl) {
+        previewImg.src = currentUrl;
+        previewImg.hidden = false;
+        previewInitials.hidden = true;
+      } else {
+        previewImg.src = '';
+        previewImg.hidden = true;
+        previewInitials.hidden = false;
+        previewInitials.textContent = String(fullName || '?')
+          .trim().split(/\s+/).slice(0, 2).map((p) => p.charAt(0)).join('').toUpperCase() || 'U';
+      }
+    };
+
     /* ── Helper: fully dismiss modal and clean up backdrop/body ── */
     const dismissAccountSettingsModal = () => {
-      accountSettingsModal.hide();
+      try {
+        accountSettingsModal.hide();
+      } catch {}
       document.body.classList.remove('modal-open');
       document.body.style.overflow = '';
       document.querySelectorAll('.modal-backdrop').forEach((el) => el.remove());
@@ -1510,106 +1571,225 @@ function renderNavbar(user, active) {
       }
     };
 
-    if (accountSettingsForm && saveAccountSettingsBtn) {
-      accountSettingsModalEl.addEventListener('show.bs.modal', async () => {
-        const u = await getCurrentUser();
-        if (!u) return;
-        document.getElementById('acct-full-name').value = u.full_name || '';
-        document.getElementById('acct-student-id').value = u.school_id || '';
-        document.getElementById('acct-email').value = u.email || '';
-        document.getElementById('acct-contact').value = u.contact_number || '';
-        const currentUrl = u.avatar_url;
-        if (previewImg && previewInitials) {
-          previewImg.src = currentUrl || '';
-          previewImg.hidden = !currentUrl;
-          previewInitials.hidden = Boolean(currentUrl);
-          previewInitials.textContent = String(u.full_name || '?')
-            .trim().split(/\s+/).slice(0, 2).map((p) => p.charAt(0)).join('').toUpperCase() || 'MA';
-        }
-      });
+    /* ── Helper: update avatar & name displays across the entire page ── */
+    const updateProfileDisplaysAcrossApp = (u) => {
+      if (!u) return;
+      const avatarUrl = u.avatar_url;
 
-      // Live preview when a file is selected
-      avatarInput?.addEventListener('change', () => {
-        const file = avatarInput.files?.[0];
-        if (!file) return;
-        const url = URL.createObjectURL(file);
-        previewImg.src = url;
+      // 1. Top navbar profile pill
+      const navbarAvatar = document.getElementById('profile-avatar');
+      if (navbarAvatar) {
+        if (avatarUrl) {
+          navbarAvatar.innerHTML = `<img src="${escapeHtml(avatarUrl)}" alt="Avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" />`;
+        } else {
+          const initial = (u.full_name || 'U').trim().split(/\s+/).slice(0, 1).map((p) => p.charAt(0).toUpperCase()).join('') || 'U';
+          navbarAvatar.textContent = initial;
+        }
+      }
+      const navbarName = document.getElementById('profile-name');
+      if (navbarName) {
+        navbarName.textContent = u.full_name || 'User';
+      }
+      const navbarRole = document.getElementById('profile-role');
+      if (navbarRole) {
+        navbarRole.textContent = String(u.role || 'STUDENT').toUpperCase();
+      }
+
+      // 2. Dashboard / page-level profile displays
+      const dashName = document.getElementById('profile-name-display') || document.getElementById('user-name') || document.querySelector('.dash-profile-name');
+      if (dashName) dashName.textContent = u.full_name || 'User';
+      const dashAvatar = document.getElementById('dash-profile-avatar');
+      if (dashAvatar && avatarUrl) {
+        dashAvatar.innerHTML = `<img src="${escapeHtml(avatarUrl)}" alt="Avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" />`;
+      }
+    };
+
+    /* ── Modal show handler: populate form & preview ── */
+    accountSettingsModalEl.addEventListener('show.bs.modal', async () => {
+      if (avatarInput) avatarInput.value = '';
+      isSavingAccountSettings = false;
+      if (saveAccountSettingsBtn) {
+        saveAccountSettingsBtn.disabled = false;
+        saveAccountSettingsBtn.textContent = 'Save Changes';
+        saveAccountSettingsBtn.classList.remove('is-btn-loading');
+        saveAccountSettingsBtn.removeAttribute('aria-busy');
+      }
+
+      const u = await getCurrentUser();
+      if (!u) return;
+
+      const nameEl = document.getElementById('acct-full-name');
+      const idEl = document.getElementById('acct-student-id');
+      const emailEl = document.getElementById('acct-email');
+      const deptEl = document.getElementById('acct-department');
+      const contactEl = document.getElementById('acct-contact');
+
+      if (nameEl) nameEl.value = u.full_name || '';
+      if (idEl) idEl.value = u.school_id || '';
+      if (emailEl) emailEl.value = u.email || '';
+      if (deptEl) deptEl.value = u.department || '';
+      if (contactEl) contactEl.value = u.contact_number || '';
+
+      resetAvatarPreview(u.avatar_url, u.full_name);
+    });
+
+    // Live preview with early client-side validation on file selection
+    avatarInput?.addEventListener('change', () => {
+      const file = avatarInput.files?.[0];
+      if (!file) return;
+
+      const check = validateAvatarFile(file);
+      if (!check.valid) {
+        toastError(check.message);
+        avatarInput.value = '';
+        const u = sessionCache?.user;
+        resetAvatarPreview(u?.avatar_url, u?.full_name);
+        return;
+      }
+
+      const objectUrl = URL.createObjectURL(file);
+      if (previewImg && previewInitials) {
+        previewImg.src = objectUrl;
         previewImg.hidden = false;
         previewInitials.hidden = true;
-      });
+      }
+    });
 
-      // Clicking the camera button opens the file picker
-      const avatarBtn = document.querySelector('.avatar-upload-btn');
-      avatarBtn?.addEventListener('click', () => {
-        avatarInput?.click();
-      });
+    // Camera button triggers file picker
+    const avatarBtn = document.querySelector('.avatar-upload-btn');
+    avatarBtn?.addEventListener('click', () => {
+      avatarInput?.click();
+    });
 
+    /* ── Prevent multiple clicks while saving is in flight ── */
+    saveAccountSettingsBtn?.addEventListener('click', (event) => {
+      if (isSavingAccountSettings) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    });
+
+    /* ── Form submit handler with complete try/catch/finally ── */
+    if (accountSettingsForm && saveAccountSettingsBtn) {
       accountSettingsForm.addEventListener('submit', async (event) => {
         event.preventDefault();
-        saveAccountSettingsBtn.disabled = true;
-        saveAccountSettingsBtn.textContent = 'Saving…';
-        try {
-          const u = await getCurrentUser();
-          // Upload avatar first if a new file was selected
-          let avatarUrl = u && u.avatar_url;
-          if (avatarInput?.files?.[0]) {
-            const formData = new FormData();
-            formData.append('avatar', avatarInput.files[0]);
-            const uploadResult = await api('/api/profile/avatar', { method: 'POST', body: formData });
-            avatarUrl = uploadResult.avatar_url;
-          }
+        if (isSavingAccountSettings) return;
 
-          const payload = {
-            full_name: document.getElementById('acct-full-name').value.trim(),
-            school_id: document.getElementById('acct-student-id').value.trim() || null,
-            email: document.getElementById('acct-email').value.trim(),
-            contact_number: document.getElementById('acct-contact').value.trim() || null,
-          };
-          const result = await api('/api/profile', { method: 'PATCH', body: payload });
-          dismissAccountSettingsModal();
-          toastOk(result.message || 'Profile updated.');
-          if (result.user) {
-            if (sessionCache && sessionCache.user) Object.assign(sessionCache.user, result.user);
-          }
-          // Update navbar avatar badge (profile pill uses #profile-avatar initials span)
-          const navbarAvatar = document.getElementById('profile-avatar');
-          if (navbarAvatar && avatarUrl) {
-            navbarAvatar.innerHTML = `<img src="${escapeHtml(avatarUrl)}" alt="Avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" />`;
-          }
-        } catch (err) {
-          toastError(err.message);
-        } finally {
-          saveAccountSettingsBtn.disabled = false;
-          saveAccountSettingsBtn.textContent = 'Save changes';
-        }
-      });
-    }
-
-    /* ── Isolated Account Settings modal button handlers ── */
-    if (saveAccountSettingsBtn && accountSettingsForm) {
-      saveAccountSettingsBtn.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-
+        const fullNameInput = document.getElementById('acct-full-name');
+        const studentIdInput = document.getElementById('acct-student-id');
         const emailInput = document.getElementById('acct-email');
-        if (emailInput && emailInput.value.trim() && !emailInput.value.trim().endsWith('@my.cspc.edu.ph')) {
-          toastError('Please use your institutional email (@my.cspc.edu.ph).');
-          emailInput.focus();
+        const deptInput = document.getElementById('acct-department');
+        const contactInput = document.getElementById('acct-contact');
+
+        const fullName = fullNameInput ? fullNameInput.value.trim() : '';
+        const studentId = studentIdInput ? studentIdInput.value.trim() : '';
+        const email = emailInput ? emailInput.value.trim() : '';
+        const department = deptInput ? deptInput.value.trim() : '';
+        const contact = contactInput ? contactInput.value.trim() : '';
+
+        // Client-side validations before network request
+        if (!fullName) {
+          toastError('Please enter your full name.');
+          fullNameInput?.focus();
           return;
         }
 
-        accountSettingsForm.requestSubmit();
+        if (!studentId) {
+          toastError('Please enter your Student or Employee ID.');
+          studentIdInput?.focus();
+          return;
+        }
+
+        const emailRegex = /^[^\s@]+@(cspc\.edu\.ph|my\.cspc\.edu\.ph)$/i;
+        if (!email || !emailRegex.test(email)) {
+          toastError('Please use your institutional email address (@cspc.edu.ph or @my.cspc.edu.ph).');
+          emailInput?.focus();
+          return;
+        }
+
+        const selectedFile = avatarInput?.files?.[0];
+        if (selectedFile) {
+          const check = validateAvatarFile(selectedFile);
+          if (!check.valid) {
+            toastError(check.message);
+            return;
+          }
+        }
+
+        // Set loading state
+        isSavingAccountSettings = true;
+        saveAccountSettingsBtn.disabled = true;
+        saveAccountSettingsBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...';
+
+        // Keep Cancel and Close buttons enabled and dismissible
+        if (cancelAccountSettingsBtn) cancelAccountSettingsBtn.disabled = false;
+        if (accountSettingsCloseBtn) accountSettingsCloseBtn.disabled = false;
+
+        try {
+          const u = await getCurrentUser();
+          let avatarUrl = u && u.avatar_url;
+
+          // 1. Upload avatar photo if file was selected
+          if (selectedFile) {
+            const formData = new FormData();
+            formData.append('avatar', selectedFile);
+            const uploadResult = await api('/api/profile/avatar', { method: 'POST', body: formData });
+            if (uploadResult && uploadResult.avatar_url) {
+              avatarUrl = uploadResult.avatar_url;
+            }
+          }
+
+          // 2. Update profile data
+          const payload = {
+            full_name: fullName,
+            school_id: studentId || null,
+            email: email,
+            department: department || null,
+            contact_number: contact || null,
+          };
+
+          const result = await api('/api/profile', { method: 'PATCH', body: payload });
+
+          // 3. Update session cache & state across the app
+          const updatedUser = {
+            ...(u || {}),
+            ...(result.user || payload),
+            avatar_url: avatarUrl || (result.user && result.user.avatar_url) || (u && u.avatar_url) || null
+          };
+
+          if (sessionCache && sessionCache.user) {
+            Object.assign(sessionCache.user, updatedUser);
+          }
+
+          // 4. Update UI displays across the page
+          updateProfileDisplaysAcrossApp(updatedUser);
+
+          // 5. Dismiss modal cleanly and show success confirmation
+          dismissAccountSettingsModal();
+          toastOk(result.message || 'Profile updated successfully.');
+        } catch (err) {
+          console.error('[Account Settings] Save failed:', err);
+          toastError(err.message || 'Failed to save changes. Please try again.');
+        } finally {
+          isSavingAccountSettings = false;
+          saveAccountSettingsBtn.disabled = false;
+          saveAccountSettingsBtn.textContent = 'Save Changes';
+          saveAccountSettingsBtn.classList.remove('is-btn-loading');
+          saveAccountSettingsBtn.removeAttribute('aria-busy');
+        }
       });
     }
 
     if (cancelAccountSettingsBtn) {
       cancelAccountSettingsBtn.addEventListener('click', (event) => {
+        event.preventDefault();
         dismissAccountSettingsModal();
       });
     }
 
     if (accountSettingsCloseBtn) {
       accountSettingsCloseBtn.addEventListener('click', (event) => {
+        event.preventDefault();
         dismissAccountSettingsModal();
       });
     }
@@ -1617,21 +1797,22 @@ function renderNavbar(user, active) {
     /* data-bs-dismiss buttons inside Account Settings modal ── */
     accountSettingsModalEl.querySelectorAll('[data-bs-dismiss="modal"]').forEach((btn) => {
       btn.addEventListener('click', (event) => {
+        event.preventDefault();
         dismissAccountSettingsModal();
       });
     });
 
     accountSettingsModalEl.addEventListener('hidden.bs.modal', async () => {
       if (avatarInput) avatarInput.value = '';
+      isSavingAccountSettings = false;
+      if (saveAccountSettingsBtn) {
+        saveAccountSettingsBtn.disabled = false;
+        saveAccountSettingsBtn.textContent = 'Save Changes';
+        saveAccountSettingsBtn.classList.remove('is-btn-loading');
+        saveAccountSettingsBtn.removeAttribute('aria-busy');
+      }
       const u = await getCurrentUser();
-      const currentUrl = u && u.avatar_url;
-      if (previewImg) {
-        previewImg.src = currentUrl || '';
-        previewImg.hidden = !currentUrl;
-      }
-      if (previewInitials) {
-        previewInitials.hidden = Boolean(currentUrl);
-      }
+      resetAvatarPreview(u?.avatar_url, u?.full_name);
     });
 
   }
