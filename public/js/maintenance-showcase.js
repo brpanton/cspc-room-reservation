@@ -634,10 +634,6 @@
         </div>
 
         <div class="card-body border-bottom border-secondary border-opacity-25" id="admin-maint-form-wrap" hidden>
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <span class="fw-semibold text-info small text-uppercase">Schedule / Edit Maintenance Notice</span>
-            <button type="button" class="btn-glass-close" id="admin-maint-close-x" aria-label="Close maintenance form" title="Close">&times;</button>
-          </div>
           <form id="admin-maint-form" enctype="multipart/form-data">
             <input type="hidden" id="maint-edit-id" value="" />
             <div class="row g-3">
@@ -830,9 +826,6 @@
     });
 
     pane.querySelector('#admin-maint-cancel-btn').addEventListener('click', () => {
-      formWrap.hidden = true;
-    });
-    pane.querySelector('#admin-maint-close-x')?.addEventListener('click', () => {
       formWrap.hidden = true;
     });
 

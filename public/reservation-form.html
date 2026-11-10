@@ -18,9 +18,6 @@
         <span aria-hidden="true">&larr;</span>
         <span>Back</span>
       </button>
-      <button type="button" class="btn-glass-close" data-page-close data-close-href="/dashboard.html" aria-label="Close reservation form" title="Close">
-        &times;
-      </button>
     </div>
 
     <h1 class="page-title h4">Request a lab or room</h1>
@@ -32,12 +29,7 @@
     <div class="row g-4">
       <div class="col-lg-7">
         <div class="card">
-          <div class="card-header d-flex justify-content-between align-items-center">
-            <span>Reservation details</span>
-            <button type="button" class="btn-glass-close" data-page-close data-close-href="/dashboard.html" aria-label="Close" title="Close and return">
-              &times;
-            </button>
-          </div>
+          <div class="card-header">Reservation details</div>
           <div class="card-body">
             <div id="form-alert" class="d-none" role="alert"></div>
 
@@ -91,10 +83,9 @@
                 <div id="equipment-list" class="d-flex flex-wrap gap-3"></div>
               </div>
 
-              <div class="d-flex flex-wrap gap-2">
+              <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-cspc" id="submit-btn">Submit request</button>
                 <button type="reset" class="btn btn-outline-secondary" id="reset-btn">Clear</button>
-                <button type="button" class="btn btn-outline-light ms-auto" data-page-back data-fallback="/dashboard.html">&larr; Back / Cancel</button>
               </div>
             </form>
           </div>
@@ -117,9 +108,9 @@
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="/js/app.js?v=20261110-nav1"></script>
+  <script src="/js/app.js?v=20261110-nav2"></script>
   <script src="/js/cookie-consent.js"></script>
-  <script src="/js/reservation-form.js?v=20261110-nav1"></script>
-  <script src="/js/maintenance-showcase.js?v=20261110-nav1"></script>
+  <script src="/js/reservation-form.js?v=20261110-nav2"></script>
+  <script src="/js/maintenance-showcase.js?v=20261110-nav2"></script>
 </body>
 </html>

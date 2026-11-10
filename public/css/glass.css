@@ -1152,5 +1152,288 @@ html body:not(.lg-off) .portal-navbar .nav-link.active {
   padding: 0.85rem 1.15rem 0;
 }
 
+/* ==========================================================================
+   UNIVERSAL POLISHED BUTTON LOADING STATE & SPINNER
+   ========================================================================== */
+@keyframes btn-spinner-rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.is-btn-loading {
+  position: relative;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  pointer-events: none !important;
+  cursor: wait !important;
+  opacity: 0.88 !important;
+  user-select: none;
+  transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  min-width: 14px;
+  min-height: 14px;
+  border: 2.2px solid currentColor;
+  border-right-color: transparent;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: btn-spinner-rotate 0.65s linear infinite;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.btn-loading-text {
+  display: inline-block;
+  line-height: 1.2;
+}
+
+/* ==========================================================================
+   WCAG AA HIGH-CONTRAST TYPOGRAPHY, VISIBILITY & FORM LEGIBILITY OVERRIDES
+   ========================================================================== */
+
+:root {
+  --cspc-ink: #f8fafc;
+  --cspc-muted: #cbd5e1;
+  --bs-body-color: #f8fafc;
+  --bs-secondary-color: #cbd5e1;
+  --lg-base: rgba(10, 18, 36, 0.64);
+  --lg-base-strong: rgba(8, 15, 30, 0.78);
+  --lg-base-input: rgba(11, 19, 38, 0.82);
+}
+
+/* 1. Strengthen translucent glass surfaces so bright sky areas never wash out text */
+main.container {
+  background: var(--lg-fill), rgba(10, 18, 36, 0.62) !important;
+  color: #f8fafc;
+}
+
+.facility-showcase-section,
+.availability-section-card,
+.about-section-card,
+.room-group-section,
+.filter-bar,
+.stat-card,
+.showcase-info-card,
+.card:not(.ticket-card) {
+  background: var(--lg-fill), rgba(10, 18, 36, 0.68) !important;
+  color: #f8fafc;
+}
+
+.card:not(.ticket-card) .card-header {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.78) 0%, rgba(15, 23, 42, 0.55) 100%) !important;
+  color: #ffffff !important;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+}
+
+/* 2. Crisp White Headings & Subheadings with Contrast Shadow */
+body:not(.ticket-print-mode) h1,
+body:not(.ticket-print-mode) h2,
+body:not(.ticket-print-mode) h3,
+body:not(.ticket-print-mode) h4,
+body:not(.ticket-print-mode) h5,
+body:not(.ticket-print-mode) h6,
+.page-title,
+.modal-title,
+.about-hero-title,
+.availability-title,
+.facility-showcase-title,
+.showcase-room-title,
+.room-group-title,
+.stat-value {
+  color: #ffffff !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+/* 3. Body Text, Muted Subtitles & Helper Text (>= 4.5:1 Contrast Ratio) */
+body,
+p,
+li,
+td,
+.card:not(.ticket-card) .card-body {
+  color: #f1f5f9;
+}
+
+.text-muted,
+.text-muted-sm,
+.text-muted-small,
+.form-text,
+.identifier-hint,
+.stat-sub,
+.stat-label,
+.availability-sub,
+.availability-meta,
+.facility-showcase-sub,
+.room-group-sub,
+.showcase-slide-counter,
+.booking-slot .meta,
+.home-feature-text,
+.about-card-text,
+.about-Step-desc {
+  color: #e2e8f0 !important;
+  opacity: 1 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+}
+
+.text-muted-sm strong,
+.text-muted-small strong,
+.availability-meta strong {
+  color: #ffffff !important;
+  font-weight: 700;
+}
+
+/* 4. High-Contrast Form Labels */
+.form-label,
+label:not(.btn):not(.form-check-label) {
+  color: #f8fafc !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.03em;
+  opacity: 1 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.form-check-label {
+  color: #f1f5f9 !important;
+  opacity: 1 !important;
+}
+
+/* 5. Form Inputs, Selects, Placeholders & Disabled States */
+.form-control,
+.form-select,
+.auth-input,
+.availability-select {
+  background-color: rgba(11, 19, 38, 0.82) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(148, 163, 184, 0.48) !important;
+  font-weight: 500;
+  opacity: 1 !important;
+}
+
+.form-control:focus,
+.form-select:focus,
+.auth-input:focus,
+.availability-select:focus {
+  background-color: rgba(15, 23, 42, 0.94) !important;
+  color: #ffffff !important;
+  border-color: #60a5fa !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.32) !important;
+}
+
+.form-control::placeholder,
+.auth-input::placeholder,
+textarea::placeholder,
+input::placeholder {
+  color: #cbd5e1 !important;
+  opacity: 0.88 !important;
+}
+
+/* Fix faded/dark disabled inputs & selects (e.g. "Choose a building first") */
+.form-control:disabled,
+.form-select:disabled,
+.form-control[readonly],
+.availability-select:disabled {
+  background-color: rgba(15, 23, 42, 0.78) !important;
+  color: #cbd5e1 !important;
+  -webkit-text-fill-color: #cbd5e1 !important;
+  border-color: rgba(148, 163, 184, 0.38) !important;
+  opacity: 1 !important;
+  cursor: not-allowed;
+}
+
+/* Ensure native dropdown <option> items are always high-contrast dark-on-light or light-on-dark */
+.form-select option,
+.availability-select option,
+select option {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+.form-select option:disabled,
+select option:disabled {
+  color: #94a3b8 !important;
+}
+
+/* 6. Status Pills, Badges & Showcase Meta Pills */
+.showcase-pill-available,
+.status-chip-available,
+.badge.bg-success {
+  color: #ecfdf5 !important;
+  background: rgba(5, 150, 105, 0.78) !important;
+  border: 1px solid rgba(110, 231, 183, 0.65) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+
+.showcase-pill-maint,
+.badge.bg-warning {
+  color: #fffbeb !important;
+  background: rgba(217, 119, 6, 0.82) !important;
+  border: 1px solid rgba(252, 211, 77, 0.7) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+
+.showcase-ready-title,
+.text-success {
+  color: #6ee7b7 !important;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+}
+
+.showcase-ready-desc {
+  color: #f1f5f9 !important;
+}
+
+.showcase-meta-pill {
+  color: #f1f5f9 !important;
+  background: rgba(15, 23, 42, 0.75) !important;
+  border-color: rgba(148, 163, 184, 0.42) !important;
+}
+
+/* 7. Prevent Text Clipping & Z-Index Obscuring */
+.card-body,
+.modal-body,
+.showcase-info-card {
+  position: relative;
+  z-index: 2;
+}
+
+/* 8. Preserve Printable White Ticket Card Contrast on reservation-success.html */
+.ticket-card,
+.ticket-card .card-body {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  text-shadow: none !important;
+}
+
+.ticket-card h1,
+.ticket-card h2,
+.ticket-card h3,
+.ticket-card h4,
+.ticket-card h5,
+.ticket-card h6,
+.ticket-card .ticket-value,
+.ticket-card strong {
+  color: #0f172a !important;
+  text-shadow: none !important;
+}
+
+.ticket-card .text-muted,
+.ticket-card .text-muted-sm,
+.ticket-card .ticket-label {
+  color: #334155 !important;
+  text-shadow: none !important;
+}
+
+
+
 
 

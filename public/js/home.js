@@ -1289,11 +1289,7 @@
               <span class="availability-meta text-muted-small d-block">Building</span>
               <h6 class="mb-0 text-light">${P.escapeHtml(buildingName || 'All buildings')}</h6>
             </div>
-            <div class="d-flex align-items-center gap-2 ms-auto">
-              <button type="button" class="btn-glass-back" data-close-availability aria-label="Back to search">
-                <span aria-hidden="true">&larr;</span>
-                <span>Back</span>
-              </button>
+            <div class="ms-auto">
               <button type="button" class="btn-glass-close" data-close-availability aria-label="Close availability results" title="Close">
                 &times;
               </button>
@@ -1673,13 +1669,10 @@ function statusCard(room, dateValue, slot, remark) {
       // Summary chips
       searchResult.hidden = false;
       searchResult.innerHTML =
-        `<div class="d-flex flex-wrap align-items-center justify-content-between gap-2">` +
         `<div class="home-search-summary" role="status" aria-live="polite">` +
         `<span class="home-search-summary-chip available"><strong>${availableCount}</strong> Available</span>` +
         `<span class="home-search-summary-chip limited"><strong>${limitedCount}</strong> Limited</span>` +
         `<span class="home-search-summary-chip occupied"><strong>${occupiedCount}</strong> Occupied</span>` +
-        `</div>` +
-        `<button type="button" class="btn-glass-close" data-close-availability aria-label="Dismiss search results" title="Close">&times;</button>` +
         `</div>` +
         `<p class="mb-1 text-muted-sm">${rooms.length} total room(s) ${when} on <strong>${P.escapeHtml(P.formatDate(date))}</strong> in <strong>${P.escapeHtml(buildingName)}</strong>.</p>`;
 

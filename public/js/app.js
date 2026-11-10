@@ -878,12 +878,25 @@ localizeTree();
 
 /* ------------------------------------------------------------------ API --- */
 
+const MIN_BUTTON_LOADING_MS = 2000;
+const buttonLoadingMap = new WeakMap();
+let lastClickedActionBtn = null;
+let lastClickedAt = 0;
+
 /**
  * Thin fetch wrapper around the JSON API.
- * On failure it throws an Error carrying the HTTP status and the server's
- * `error` message so callers can simply `catch`.
+ * Automatically links in-flight requests to the active loading button so the
+ * spinner stays active for Math.max(2000ms, networkDuration).
  */
-async function api(path, { method = 'GET', body, headers } = {}) {
+async function api(path, { method = 'GET', body, headers, button } = {}) {
+  const trackedBtn =
+    button ||
+    (lastClickedActionBtn && performance.now() - lastClickedAt < 350 ? lastClickedActionBtn : null);
+  const trackedState = trackedBtn ? buttonLoadingMap.get(trackedBtn) : null;
+  if (trackedState) {
+    trackedState.pendingCount += 1;
+  }
+
   const opts = {
     method,
     headers: { Accept: 'application/json', ...(headers || {}) },
@@ -898,27 +911,34 @@ async function api(path, { method = 'GET', body, headers } = {}) {
     }
   }
 
-  let res;
   try {
-    res = await fetch(path, opts);
-  } catch (networkErr) {
-    const err = new Error('Cannot reach the server. Is it still running?');
-    err.status = 0;
-    err.cause = networkErr;
-    throw err;
-  }
+    let res;
+    try {
+      res = await fetch(path, opts);
+    } catch (networkErr) {
+      const err = new Error('Cannot reach the server. Is it still running?');
+      err.status = 0;
+      err.cause = networkErr;
+      throw err;
+    }
 
-  const isJson = (res.headers.get('content-type') || '').includes('application/json');
-  const payload = isJson ? await res.json().catch(() => ({})) : {};
+    const isJson = (res.headers.get('content-type') || '').includes('application/json');
+    const payload = isJson ? await res.json().catch(() => ({})) : {};
 
-  if (!res.ok) {
-    const err = new Error(payload.error || `Request failed (${res.status}).`);
-    err.status = res.status;
-    err.code = payload.code;
-    err.payload = payload;
-    throw err;
+    if (!res.ok) {
+      const err = new Error(payload.error || `Request failed (${res.status}).`);
+      err.status = res.status;
+      err.code = payload.code;
+      err.payload = payload;
+      throw err;
+    }
+    return payload;
+  } finally {
+    if (trackedState && trackedBtn) {
+      trackedState.pendingCount = Math.max(0, trackedState.pendingCount - 1);
+      scheduleButtonRestore(trackedBtn);
+    }
   }
-  return payload;
 }
 
 /* --------------------------------------------------------------- session --- */
@@ -1876,20 +1896,221 @@ function emptyRow(colspan, message) {
   return `<tr><td colspan="${colspan}" class="text-center text-muted-sm py-4">${escapeHtml(message)}</td></tr>`;
 }
 
-/** Disables a button and shows a spinner while a request is in flight. */
-function busy(button, isBusy, label = 'Working...') {
+/**
+ * Universal Button Loading Controller (2000ms minimum duration + async network wait).
+ */
+function startButtonLoading(button, customLabel) {
   if (!button) return;
-  if (isBusy) {
-    button.dataset.original = button.innerHTML;
-    button.disabled = true;
-    button.innerHTML =
-      '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>' +
-      escapeHtml(label);
+  let state = buttonLoadingMap.get(button);
+  if (!state) {
+    const isInput = button.tagName === 'INPUT';
+    state = {
+      isInput,
+      originalHtml: isInput ? button.value : button.innerHTML,
+      originalDisabled: Boolean(button.disabled),
+      originalMinWidth: button.style.minWidth || '',
+      startTime: performance.now(),
+      pendingCount: 0,
+      explicitBusy: false,
+      timerId: null
+    };
+    const rect = button.getBoundingClientRect();
+    if (rect.width > 0) {
+      button.style.minWidth = `${Math.ceil(rect.width)}px`;
+    }
+    buttonLoadingMap.set(button, state);
+  } else if (state.timerId) {
+    clearTimeout(state.timerId);
+    state.timerId = null;
+  }
+
+  const label =
+    customLabel ||
+    button.getAttribute('data-loading-text') ||
+    (button.textContent.trim() ? 'Loading...' : '');
+
+  button.classList.add('is-btn-loading');
+  button.setAttribute('aria-busy', 'true');
+
+  // Defer .disabled = true by one frame so clicking <button type="submit"> still fires form submit
+  requestAnimationFrame(() => {
+    if (buttonLoadingMap.has(button) && 'disabled' in button) {
+      button.disabled = true;
+    }
+  });
+
+  if (state.isInput) {
+    button.value = label || 'Loading...';
   } else {
-    button.disabled = false;
-    if (button.dataset.original) button.innerHTML = button.dataset.original;
+    button.innerHTML =
+      '<span class="btn-spinner" role="status" aria-hidden="true"></span>' +
+      (label ? `<span class="btn-loading-text">${escapeHtml(label)}</span>` : '');
   }
 }
+
+function restoreButtonNow(button) {
+  const state = buttonLoadingMap.get(button);
+  if (!state) return;
+  if (state.timerId) clearTimeout(state.timerId);
+  buttonLoadingMap.delete(button);
+
+  button.classList.remove('is-btn-loading');
+  button.removeAttribute('aria-busy');
+  button.style.minWidth = state.originalMinWidth;
+  if ('disabled' in button) {
+    button.disabled = state.originalDisabled;
+  }
+  if (state.isInput) {
+    button.value = state.originalHtml;
+  } else {
+    button.innerHTML = state.originalHtml;
+  }
+}
+
+function scheduleButtonRestore(button) {
+  const state = buttonLoadingMap.get(button);
+  if (!state) return;
+  // Keep spinner active if an async API call or explicit busy() lock is still running
+  if (state.pendingCount > 0 || state.explicitBusy) return;
+
+  const elapsed = performance.now() - state.startTime;
+  const remaining = Math.max(0, MIN_BUTTON_LOADING_MS - elapsed);
+
+  if (state.timerId) clearTimeout(state.timerId);
+  if (remaining === 0) {
+    restoreButtonNow(button);
+  } else {
+    state.timerId = setTimeout(() => {
+      const latest = buttonLoadingMap.get(button);
+      if (latest && latest.pendingCount === 0 && !latest.explicitBusy) {
+        restoreButtonNow(button);
+      }
+    }, remaining);
+  }
+}
+
+/** Disables a button and shows a spinner while a request is in flight (enforces >= 2000ms). */
+function busy(button, isBusy, label = 'Loading...') {
+  if (!button) return;
+  if (isBusy) {
+    startButtonLoading(button, label);
+    const state = buttonLoadingMap.get(button);
+    if (state) state.explicitBusy = true;
+  } else {
+    const state = buttonLoadingMap.get(button);
+    if (state) {
+      state.explicitBusy = false;
+      scheduleButtonRestore(button);
+    } else {
+      button.disabled = false;
+      button.classList.remove('is-btn-loading');
+      button.removeAttribute('aria-busy');
+    }
+  }
+}
+
+/**
+ * Reusable async wrapper: activates the button spinner, executes `asyncTask()`,
+ * and guarantees the spinner runs for at least 2000ms AND for the full async duration.
+ */
+async function withButtonLoading(button, asyncTask, loadingText = 'Loading...') {
+  if (button) {
+    startButtonLoading(button, loadingText);
+    const state = buttonLoadingMap.get(button);
+    if (state) state.pendingCount += 1;
+  }
+  try {
+    return await asyncTask();
+  } finally {
+    if (button) {
+      const state = buttonLoadingMap.get(button);
+      if (state) state.pendingCount = Math.max(0, state.pendingCount - 1);
+      scheduleButtonRestore(button);
+    }
+  }
+}
+
+/**
+ * Reusable fetch wrapper bound to a button element with 2000ms minimum delay.
+ */
+async function fetchWithLoading(button, url, options = {}, loadingText = 'Loading...') {
+  return withButtonLoading(
+    button,
+    async () => {
+      const response = await fetch(url, options);
+      const isJson = (response.headers.get('content-type') || '').includes('application/json');
+      const data = isJson ? await response.json().catch(() => ({})) : await response.text();
+      if (!response.ok) {
+        throw new Error((data && data.error) || `Request failed (${response.status})`);
+      }
+      return data;
+    },
+    loadingText
+  );
+}
+
+/**
+ * Determines whether a clicked button should trigger the automatic 2-second loading spinner.
+ * Excludes instant UI toggles (modal close X, dropdown toggles, tab switches, password eye icon).
+ */
+function shouldAutoLoadButton(el) {
+  if (!el || el.disabled || el.classList.contains('is-btn-loading')) return false;
+  if (el.hasAttribute('data-no-loading')) return false;
+  if (
+    el.matches(
+      '.btn-close, .btn-glass-close, [data-bs-dismiss], [data-bs-toggle="tab"], [data-bs-toggle="dropdown"], [data-bs-toggle="collapse"], [role="tab"], .dropdown-toggle, .dropdown-item, .password-toggle-btn, .auth-mode-btn, .identifier-btn, .showcase-thumb-btn, .admin-nav-btn, #profile-pill, #portal-notif-btn, #user-adv-prev, #user-adv-next, #user-adv-close, [data-maint-prev], [data-maint-next], [data-maint-close], [data-close-early-checkout], [data-close-admin-term]'
+    )
+  ) {
+    return false;
+  }
+  if (el.closest('#status-filters, #session-log-filter-group, .overview-stat')) {
+    return false;
+  }
+  // If it's a submit button inside a form, let the form's submit listener trigger loading if valid
+  if (el.tagName === 'BUTTON' && (el.type === 'submit' || !el.getAttribute('type')) && el.form) {
+    return false;
+  }
+  return true;
+}
+
+// Global delegated click listener for action buttons and button-styled links
+document.addEventListener(
+  'click',
+  (event) => {
+    const btn = event.target.closest(
+      'button, input[type="button"], input[type="submit"], a.btn, .btn-glass-back'
+    );
+    if (!btn) return;
+
+    lastClickedActionBtn = btn;
+    lastClickedAt = performance.now();
+
+    if (!shouldAutoLoadButton(btn)) return;
+
+    startButtonLoading(btn);
+    scheduleButtonRestore(btn);
+  },
+  false
+);
+
+// Global delegated form submit listener so submit buttons spin for >= 2000ms + full network duration
+document.addEventListener(
+  'submit',
+  (event) => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement)) return;
+    const submitter =
+      event.submitter ||
+      form.querySelector('button[type="submit"], input[type="submit"], button:not([type])');
+    if (!submitter || submitter.hasAttribute('data-no-loading')) return;
+
+    lastClickedActionBtn = submitter;
+    lastClickedAt = performance.now();
+    startButtonLoading(submitter);
+    scheduleButtonRestore(submitter);
+  },
+  false
+);
 
 /** Reads a form into a plain object (repeated names become arrays). */
 function formToObject(form) {
@@ -1990,9 +2211,21 @@ window.Portal = {
   queryParam,
   emptyRow,
   busy,
+  startButtonLoading,
+  stopButtonLoading: scheduleButtonRestore,
+  withButtonLoading,
+  fetchWithLoading,
   formToObject,
   setFormValue,
   broadcastAvailabilityChange
+};
+
+window.ButtonLoader = {
+  MIN_LOADING_MS: MIN_BUTTON_LOADING_MS,
+  start: startButtonLoading,
+  stop: scheduleButtonRestore,
+  withLoading: withButtonLoading,
+  fetch: fetchWithLoading
 };
 
 /* ------------------------------------------------------------

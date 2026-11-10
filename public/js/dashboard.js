@@ -519,19 +519,7 @@
 
   /* ------------------------------------------------------- actions ------ */
   function initActions() {
-    const newResBtn = document.getElementById('new-reservation-link');
-    if (newResBtn) {
-      newResBtn.addEventListener('click', () => {
-        window.location.assign('/reservation-form.html');
-      });
-    }
-
-    const viewPendingBtn = document.getElementById('view-pending-link');
-    if (viewPendingBtn) {
-      viewPendingBtn.addEventListener('click', () => {
-        window.location.assign('/dashboard.html?tab=pending');
-      });
-    }
+    // Handled below by explicit button handlers (newResBtn / viewPendingBtn)
   }
 
   /* ============================================================
