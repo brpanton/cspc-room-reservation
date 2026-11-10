@@ -39,6 +39,8 @@ const maintenanceRoutes = require('./routes/maintenance');
 const { ensureMaintenanceSchema } = require('./routes/maintenance');
 const sessionOverrideRoutes = require('./routes/session-override');
 const { ensureSessionOverrideSchema } = require('./routes/session-override');
+const advisoryRoutes = require('./routes/advisory');
+const { ensureAdvisorySchema } = require('./routes/advisory');
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -87,6 +89,7 @@ app.use(attachUser);
 app.use('/api/auth', authRoutes);
 app.use('/api', maintenanceRoutes); // facility-showcase, maintenance advisories, admin maintenance & photo CRUD
 app.use('/api', sessionOverrideRoutes); // early check-out, admin force termination, two-way SSE/polling notifications
+app.use('/api', advisoryRoutes); // dynamic scheduled advisory & maintenance banner (public & admin)
 app.use('/api', roomRoutes); // public: buildings, rooms, availability
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/admin', adminRoutes);
@@ -239,7 +242,8 @@ async function start() {
     await testConnection();
     await ensureMaintenanceSchema();
     await ensureSessionOverrideSchema();
-    console.log('[db] PostgreSQL connection established, maintenance & session override schemas ready.');
+    await ensureAdvisorySchema();
+    console.log('[db] PostgreSQL connection established, maintenance, session override & advisory schemas ready.');
   } catch (err) {
     console.error('\n[db] Could not connect to PostgreSQL:', err.message);
     console.error('[db] Check your .env settings and make sure PostgreSQL is running.');

@@ -375,3 +375,25 @@ CREATE INDEX IF NOT EXISTS idx_snotif_recipient_role ON session_notifications(re
 CREATE INDEX IF NOT EXISTS idx_snotif_recipient_user ON session_notifications(recipient_user_id, is_read, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_snotif_reservation    ON session_notifications(reservation_id);
 CREATE INDEX IF NOT EXISTS idx_snotif_event_type     ON session_notifications(event_type);
+
+-- -------------------------------------------------------------
+-- Scheduled Advisory & Maintenance Banner Module:
+-- Schema for storing dynamic administrative advisories, scheduled downtime,
+-- and live maintenance notices shown before & after login.
+-- -------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS advisories (
+  id                  SERIAL PRIMARY KEY,
+  title               VARCHAR(200) NOT NULL,
+  message             TEXT         NOT NULL,
+  expected_completion TIMESTAMP    DEFAULT NULL,
+  type                VARCHAR(50)  NOT NULL DEFAULT 'maintenance'
+                      CHECK (type IN ('maintenance', 'scheduled', 'warning', 'info', 'emergency')),
+  is_active           BOOLEAN      NOT NULL DEFAULT TRUE,
+  created_by          INT          DEFAULT NULL REFERENCES users(id) ON DELETE SET NULL,
+  created_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_advisories_is_active           ON advisories(is_active);
+CREATE INDEX IF NOT EXISTS idx_advisories_expected_completion ON advisories(expected_completion);
+CREATE INDEX IF NOT EXISTS idx_advisories_updated_at          ON advisories(updated_at DESC);

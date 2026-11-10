@@ -11,11 +11,24 @@ function attachUser(req, res, next) {
   next();
 }
 
+function isApiCall(req) {
+  const url = req.originalUrl || req.url || '';
+  const base = req.baseUrl || '';
+  const p = req.path || '';
+  return (
+    url.startsWith('/api/') ||
+    base.startsWith('/api') ||
+    p.startsWith('/api/') ||
+    Boolean(req.xhr) ||
+    Boolean(req.headers.accept && req.headers.accept.includes('application/json'))
+  );
+}
+
 /** Blocks anonymous visitors. Returns 401 JSON for /api/*, else redirects. */
 function requireLogin(req, res, next) {
   if (req.session && req.session.user) return next();
 
-  if (req.path.startsWith('/api/')) {
+  if (isApiCall(req)) {
     return res.status(401).json({ error: 'Not authenticated. Please log in.' });
   }
   return res.redirect('/index.html?error=login_required');
@@ -26,7 +39,7 @@ function requireStaff(req, res, next) {
   const user = req.session && req.session.user;
   if (user && (user.role === 'custodian' || user.role === 'admin')) return next();
 
-  if (req.path.startsWith('/api/')) {
+  if (isApiCall(req)) {
     return res.status(403).json({ error: 'Staff access (custodian or admin) is required.' });
   }
   return res.redirect('/dashboard.html?error=forbidden');
@@ -37,7 +50,7 @@ function requireAdmin(req, res, next) {
   const user = req.session && req.session.user;
   if (user && user.role === 'admin') return next();
 
-  if (req.path.startsWith('/api/')) {
+  if (isApiCall(req)) {
     return res.status(403).json({ error: 'Administrator access is required.' });
   }
   // Silently send non-admin users to their regular dashboard instead of

@@ -116,6 +116,8 @@
     allRooms: [],
     searchQuery: '',
     filterChip: '',
+    buildingFilter: '',
+    showAllLabs: false,
     timelineDate: todayIso()
   };
 
@@ -284,69 +286,188 @@
   }
 
   /* -------------------------------------------------------------
-     2. QUICK LAB SEARCH & FILTER
-     Instant search bar + fast filter chips for labs
+     2. QUICK LAB SEARCH & FILTER (ORGANIZED BY CATEGORY & BUILDING)
      ------------------------------------------------------------- */
+  function getLabCategory(room) {
+    const name = String(room.name || '').toLowerCase();
+    const type = String(room.room_type || room.type || '').toLowerCase();
+
+    // Check Sciences & Health first with regex word boundaries to avoid "physics" matching "cs "
+    if (/\b(physics|science|chemistry|health|nursing|speech|food|biology|btvded|green|cookery)\b/i.test(name)) {
+      return 'Sciences & Health';
+    }
+    if (type === 'hall' || /\b(hall|amphitheater|lecture)\b/i.test(name)) {
+      return 'Lecture Halls';
+    }
+    if (/\b(computer|comlab|cs|it|mac|multimedia|erp|nas|rise|development|ctde|lis|steno|software|network|cisco|programming)\b/i.test(name)) {
+      return 'Computer & IT';
+    }
+    if (/\b(electrical|ee|me|mechatronics|lathe|fabrication|drafting|hydraulic|ectw|hc|robotics|electronics)\b/i.test(name)) {
+      return 'Engineering & Tech';
+    }
+    return 'Laboratories';
+  }
+
+  function formatRoomName(raw) {
+    if (!raw) return 'Laboratory';
+    let s = String(raw).trim();
+    // Normalize uppercase LABORATORY to clean Title Case
+    s = s.replace(/\bLABORATORY\b/g, 'Laboratory');
+    return s;
+  }
+
+  function renderBuildingDropdown() {
+    const select = document.getElementById('lab-building-filter');
+    if (!select) return;
+
+    const counts = {};
+    (state.allRooms || []).forEach((r) => {
+      const b = (r.building_name || 'Campus Building').trim();
+      counts[b] = (counts[b] || 0) + 1;
+    });
+
+    const sortedBuildings = Object.keys(counts).sort();
+    let html = `<option value="">All Buildings (${state.allRooms.length})</option>`;
+    sortedBuildings.forEach((bld) => {
+      const isSel = (state.buildingFilter || '').toLowerCase() === bld.toLowerCase() ? 'selected' : '';
+      html += `<option value="${escapeHtml(bld)}" ${isSel}>${escapeHtml(bld)} (${counts[bld]})</option>`;
+    });
+    select.innerHTML = html;
+  }
+
+  function renderCategoryFilterChips() {
+    const chipContainer = document.getElementById('lab-filter-chips');
+    if (!chipContainer) return;
+
+    const activeFilter = String(state.filterChip || '').toLowerCase();
+
+    // Clean, structured category chips without emojis
+    const categories = [
+      { id: '', label: 'All Labs' },
+      { id: 'available', label: 'Available Today' },
+      { id: 'Computer & IT', label: 'Computer & IT' },
+      { id: 'Engineering & Tech', label: 'Engineering & Tech' },
+      { id: 'Sciences & Health', label: 'Sciences & Health' },
+      { id: 'Lecture Halls', label: 'Lecture Halls' }
+    ];
+
+    let html = categories.map((cat) => {
+      const isActive = (!cat.id && !activeFilter) || (cat.id && activeFilter === cat.id.toLowerCase());
+      return `<button type="button" class="btn btn-sm btn-outline-primary chip-filter ${isActive ? 'active' : ''}" data-value="${escapeHtml(cat.id)}">${cat.label}</button>`;
+    }).join(' ');
+
+    chipContainer.innerHTML = html;
+
+    // Attach click events
+    chipContainer.querySelectorAll('.chip-filter').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        chipContainer.querySelectorAll('.chip-filter').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.filterChip = btn.getAttribute('data-value') || '';
+        state.showAllLabs = false; // reset to 6 examples on filter change
+        renderFilteredLabCards();
+      });
+    });
+  }
+
   function renderFilteredLabCards() {
     if (!labStatusEl) return;
     const rooms = state.allRooms || [];
     const query = (state.searchQuery || '').trim().toLowerCase();
-    const chip = state.filterChip || '';
+    const chip = (state.filterChip || '').trim().toLowerCase();
+    const bldFilter = (state.buildingFilter || '').trim().toLowerCase();
 
     const filtered = rooms.filter((r) => {
       const name = String(r.name || '').toLowerCase();
       const bName = String(r.building_name || '').toLowerCase();
-      const rType = String(r.type || r.room_type || '').toLowerCase();
-      const matchesSearch = !query || name.includes(query) || bName.includes(query) || rType.includes(query);
+      const category = getLabCategory(r).toLowerCase();
+
+      // 1. Text Search matching
+      const matchesSearch = !query || name.includes(query) || bName.includes(query) || category.includes(query);
       if (!matchesSearch) return false;
 
+      // 2. Building dropdown filter
+      if (bldFilter && bName !== bldFilter) return false;
+
+      // 3. Category chip filter
       if (!chip) return true;
       if (chip === 'available') {
         const occ = r.occupancy_pct != null ? Number(r.occupancy_pct) : 0;
         return occ < 70 && !r.is_under_maintenance;
       }
-      return rType.includes(chip.toLowerCase()) || name.toLowerCase().includes(chip.toLowerCase());
+      return category === chip;
     });
 
     const countEl = document.getElementById('lab-match-count');
     if (countEl) {
-      countEl.textContent = `(${filtered.length} labs found)`;
+      const bldText = bldFilter ? ` in ${state.buildingFilter}` : '';
+      const queryText = query ? ` matching "${state.searchQuery}"` : '';
+      countEl.textContent = `(${filtered.length} labs found${queryText}${bldText})`;
     }
 
     if (filtered.length === 0) {
       labStatusEl.innerHTML = `
-        <div class="text-center text-muted-small py-4">
-          No laboratories match your filter. Try clearing your search query or selecting "All Labs".
+        <div class="text-center text-muted-small py-5">
+          <div class="fs-4 mb-2 text-secondary">No Results</div>
+          <div class="fw-bold text-white mb-1">No laboratories match your current filters</div>
+          <div class="text-muted-sm mb-3">Try adjusting your search terms, selecting "All Buildings", or resetting filter tags.</div>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-reset-filters">Reset All Filters</button>
         </div>
       `;
+      const resetBtn = document.getElementById('btn-reset-filters');
+      if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+          state.searchQuery = '';
+          state.filterChip = '';
+          state.buildingFilter = '';
+          state.showAllLabs = false;
+          const searchInput = document.getElementById('quick-lab-search');
+          if (searchInput) searchInput.value = '';
+          const bldSelect = document.getElementById('lab-building-filter');
+          if (bldSelect) bldSelect.value = '';
+          const clearBtn = document.getElementById('btn-clear-lab-search');
+          if (clearBtn) clearBtn.style.display = 'none';
+          renderCategoryFilterChips();
+          renderFilteredLabCards();
+        });
+      }
       return;
     }
 
-    const displayRooms = filtered.slice(0, 6);
-    labStatusEl.innerHTML = '<div class="row g-3">' +
+    // Give 6 examples of laboratory initially; the rest is revealed via clickable "Show All"
+    const maxInitial = 6;
+    const shouldShowAll = state.showAllLabs || filtered.length <= maxInitial;
+    const displayRooms = shouldShowAll ? filtered : filtered.slice(0, maxInitial);
+
+    let html = '<div class="row g-3">' +
       displayRooms.map((r) => {
         const isMaint = Boolean(r.is_under_maintenance);
-        const maint = r.active_maintenance;
         const occ = r.occupancy_pct != null ? Number(r.occupancy_pct) : ((r.bookings || []).length * 25);
         const isAvailable = !isMaint && occ < 70;
         const badgeClass = isMaint ? 'badge-maintenance' : (isAvailable ? 'bg-success' : 'bg-warning');
-        const badgeText = isMaint ? '⚠ Maintenance' : (isAvailable ? 'Available' : 'Busy');
+        const badgeText = isMaint ? 'Maintenance' : (isAvailable ? 'Available' : 'Busy');
+        const categoryLabel = getLabCategory(r);
+        const formattedTitle = formatRoomName(r.name);
+
         const actionBtn = isMaint
-          ? '<button type="button" class="btn btn-sm btn-outline-secondary w-100 mt-3" disabled>🔒 Under Maintenance</button>'
-          : `<a href="/reservation-form.html?building_id=${encodeURIComponent(r.building_id || '')}&room_id=${encodeURIComponent(r.id)}" class="btn btn-sm btn-cspc w-100 mt-3">+ Reserve Lab</a>`;
+          ? '<button type="button" class="btn btn-sm btn-outline-secondary w-100 mt-3" disabled>Under Maintenance</button>'
+          : `<a href="/reservation-form.html?building_id=${encodeURIComponent(r.building_id || '')}&room_id=${encodeURIComponent(r.id)}" class="btn btn-sm btn-cspc w-100 mt-3 fw-semibold">+ Reserve Lab</a>`;
 
         return `
           <div class="col-12 col-sm-6 col-lg-4">
-            <div class="card lab-status-card ${isMaint ? 'is-maintenance' : ''} h-100 p-3 d-flex flex-column justify-content-between">
+            <div class="card lab-status-card ${isMaint ? 'is-maintenance' : ''} h-100 p-3 d-flex flex-column justify-content-between" style="border: 1px solid rgba(59, 130, 246, 0.2); background: rgba(15, 23, 42, 0.75);">
               <div>
                 <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
-                  <div class="fw-bold text-white fs-6">${escapeHtml(r.name || 'Room')}</div>
-                  <span class="badge ${badgeClass} rounded-pill">${badgeText}</span>
+                  <div>
+                    <span class="badge bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle px-2 py-0.5 mb-1" style="font-size: 0.68rem;">${escapeHtml(categoryLabel)}</span>
+                    <div class="fw-bold text-white fs-6 mt-0.5">${escapeHtml(formattedTitle)}</div>
+                  </div>
+                  <span class="badge ${badgeClass} rounded-pill px-2.5 py-1 fw-bold">${badgeText}</span>
                 </div>
                 ${r.building_name ? `<div class="text-muted-small mb-2">${escapeHtml(r.building_name)}</div>` : ''}
-                <div class="d-flex justify-content-between small text-muted-sm mt-2">
-                  <span>Capacity: <strong>${r.capacity || 40} seats</strong></span>
-                  <span>Usage: <strong>${Math.min(100, Math.round(occ))}%</strong></span>
+                <div class="d-flex justify-content-between small text-muted-sm mt-3 pt-2 border-top border-secondary-subtle">
+                  <span>Capacity: <strong class="text-light">${r.capacity || 40} seats</strong></span>
+                  <span>Usage: <strong class="${isAvailable ? 'text-success' : 'text-warning'}">${Math.min(100, Math.round(occ))}%</strong></span>
                 </div>
                 <div class="progress mt-2" style="height: 6px;">
                   <div class="progress-bar ${isAvailable ? 'bg-success' : 'bg-warning'}" style="width: ${Math.min(100, occ)}%;"></div>
@@ -357,6 +478,37 @@
           </div>
         `;
       }).join('') + '</div>';
+
+    // Clickable Show All / Show Less button
+    if (filtered.length > maxInitial) {
+      if (!state.showAllLabs) {
+        html += `
+          <div class="text-center mt-4 pt-2">
+            <button type="button" id="btn-toggle-all-labs" class="btn btn-outline-primary px-4 py-2 fw-semibold shadow-sm">
+              Show All (${filtered.length} Laboratories) &darr;
+            </button>
+          </div>
+        `;
+      } else {
+        html += `
+          <div class="text-center mt-4 pt-2">
+            <button type="button" id="btn-toggle-all-labs" class="btn btn-outline-secondary px-4 py-1.5 fw-semibold">
+              Show Less (Display 6 Examples) &uarr;
+            </button>
+          </div>
+        `;
+      }
+    }
+
+    labStatusEl.innerHTML = html;
+
+    const toggleBtn = document.getElementById('btn-toggle-all-labs');
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', () => {
+        state.showAllLabs = !state.showAllLabs;
+        renderFilteredLabCards();
+      });
+    }
   }
 
   async function loadLabStatus() {
@@ -365,6 +517,8 @@
       const date = todayIso();
       const data = await api('/api/availability?date=' + date);
       state.allRooms = data.rooms || [];
+      renderBuildingDropdown();
+      renderCategoryFilterChips();
       renderFilteredLabCards();
     } catch (err) {
       console.error('[dashboard lab] Error:', err.message);
@@ -726,25 +880,40 @@
       });
     }
 
-    // Quick Lab Search input
+    // Quick Lab Search input + Clear button
     const labSearchInput = document.getElementById('quick-lab-search');
-    if (labSearchInput) {
-      labSearchInput.addEventListener('input', (e) => {
-        state.searchQuery = e.target.value;
-        renderFilteredLabCards();
-      });
-    }
+    const btnClearSearch = document.getElementById('btn-clear-lab-search');
 
-    // Quick Lab Filter Chips
-    const chipContainer = document.getElementById('lab-filter-chips');
-    if (chipContainer) {
-      chipContainer.querySelectorAll('.chip-filter').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          chipContainer.querySelectorAll('.chip-filter').forEach((b) => b.classList.remove('active'));
-          btn.classList.add('active');
-          state.filterChip = btn.getAttribute('data-type') || '';
+    if (labSearchInput) {
+      const handleSearch = () => {
+        state.searchQuery = labSearchInput.value;
+        if (btnClearSearch) {
+          btnClearSearch.style.display = labSearchInput.value ? 'block' : 'none';
+        }
+        renderFilteredLabCards();
+      };
+
+      labSearchInput.addEventListener('input', handleSearch);
+      labSearchInput.addEventListener('search', handleSearch);
+      labSearchInput.addEventListener('keyup', handleSearch);
+
+      if (btnClearSearch) {
+        btnClearSearch.addEventListener('click', () => {
+          labSearchInput.value = '';
+          state.searchQuery = '';
+          btnClearSearch.style.display = 'none';
+          labSearchInput.focus();
           renderFilteredLabCards();
         });
+      }
+    }
+
+    // Building Dropdown Filter
+    const bldSelect = document.getElementById('lab-building-filter');
+    if (bldSelect) {
+      bldSelect.addEventListener('change', (e) => {
+        state.buildingFilter = e.target.value;
+        renderFilteredLabCards();
       });
     }
 

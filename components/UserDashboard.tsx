@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import AdvisoryBanner from './AdvisoryBanner';
 
 // ============================================================================
 // TypeScript Interfaces & Types
@@ -96,6 +97,8 @@ export default function UserDashboard() {
   );
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilterChip, setSelectedFilterChip] = useState<string>('All');
+  const [selectedBuilding, setSelectedBuilding] = useState<string>('');
+  const [showAllLabs, setShowAllLabs] = useState<boolean>(false);
 
   // Modal state for cancellation
   const [cancelModalReservation, setCancelModalReservation] = useState<Reservation | null>(null);
@@ -306,22 +309,72 @@ export default function UserDashboard() {
     }
   };
 
-  // Filtered rooms logic
+  // Helper to categorize rooms by specialty
+  const getLabCategory = useCallback((room: Room) => {
+    const name = String(room.name || '').toLowerCase();
+    const type = String(room.type || (room as any).room_type || '').toLowerCase();
+
+    // Prioritize Sciences & Health first with regex word boundaries to avoid "physics" matching "cs "
+    if (/\b(physics|science|chemistry|health|nursing|speech|food|biology|btvded|green|cookery)\b/i.test(name)) {
+      return 'Sciences & Health';
+    }
+    if (type === 'hall' || /\b(hall|amphitheater|lecture)\b/i.test(name)) {
+      return 'Lecture Halls';
+    }
+    if (/\b(computer|comlab|cs|it|mac|multimedia|erp|nas|rise|development|ctde|lis|steno|software|network|cisco|programming)\b/i.test(name)) {
+      return 'Computer & IT';
+    }
+    if (/\b(electrical|ee|me|mechatronics|lathe|fabrication|drafting|hydraulic|ectw|hc|robotics|electronics)\b/i.test(name)) {
+      return 'Engineering & Tech';
+    }
+    return 'Laboratories';
+  }, []);
+
+  // Helper to format uppercase strings cleanly
+  const formatRoomTitle = useCallback((raw: string) => {
+    if (!raw) return 'Laboratory';
+    return String(raw).trim().replace(/\bLABORATORY\b/g, 'Laboratory');
+  }, []);
+
+  // Dynamically extract unique buildings from the API dataset with counts
+  const buildingOptions = useMemo(() => {
+    const counts: Record<string, number> = {};
+    rooms.forEach((r) => {
+      const b = (r.building_name || 'Campus Building').trim();
+      counts[b] = (counts[b] || 0) + 1;
+    });
+    return Object.keys(counts).sort().map((name) => ({
+      name,
+      count: counts[name],
+    }));
+  }, [rooms]);
+
+  // Combined filtering: search input + building dropdown + category chip
   const filteredRooms = useMemo(() => {
     return rooms.filter((room) => {
-      const matchesSearch =
-        room.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        room.building_name.toLowerCase().includes(searchQuery.toLowerCase());
+      const name = (room.name || '').toLowerCase();
+      const bName = (room.building_name || '').toLowerCase();
+      const category = getLabCategory(room).toLowerCase();
+      const q = searchQuery.toLowerCase().trim();
 
+      // 1. Text Search matching (searches room name, building, or category)
+      const matchesSearch = !q || name.includes(q) || bName.includes(q) || category.includes(q);
       if (!matchesSearch) return false;
 
-      if (selectedFilterChip === 'All') return true;
+      // 2. Building dropdown filter
+      if (selectedBuilding && bName !== selectedBuilding.toLowerCase()) {
+        return false;
+      }
+
+      // 3. Category chip filter
+      if (!selectedFilterChip || selectedFilterChip === 'All') return true;
       if (selectedFilterChip === 'Available Today') {
         return (room.occupancy_pct || 0) < 80 && !room.is_under_maintenance;
       }
-      return room.type === selectedFilterChip;
+
+      return category === selectedFilterChip.toLowerCase();
     });
-  }, [rooms, searchQuery, selectedFilterChip]);
+  }, [rooms, searchQuery, selectedBuilding, selectedFilterChip, getLabCategory]);
 
   // Active / Upcoming reservations
   const activeReservations = useMemo(() => {
@@ -414,6 +467,9 @@ export default function UserDashboard() {
 
   return (
     <div className="min-h-screen bg-[#070d19] text-slate-100 font-sans selection:bg-blue-600 selection:text-white">
+      {/* Dynamic Scheduled Advisory / Maintenance Banner */}
+      <AdvisoryBanner />
+
       {/* ====================================================================
           1. SIMPLIFIED TOP NAVIGATION BAR
           Decluttered: No redundant admin links; clean Hornet brand & user pill.
@@ -723,66 +779,102 @@ export default function UserDashboard() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <span>🔍 Quick Lab Search &amp; Filter</span>
+                <span>Quick Lab Search &amp; Filter</span>
                 <span className="text-xs font-mono text-slate-400">({filteredRooms.length} rooms matching)</span>
               </h2>
               <p className="text-xs text-slate-400">
-                Instantly filter campus facilities by specialty, building, or real-time availability.
+                Filter by campus building, domain specialty, or live real-time availability.
               </p>
             </div>
 
-            {/* Fast Search Input */}
-            <div className="relative w-full md:w-72">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search lab name or building..."
-                className="w-full bg-[#0d162b] border border-slate-700/80 rounded-xl px-4 py-2 pl-9 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition"
-              />
-              <span className="absolute left-3 top-2.5 text-slate-400 text-xs">🔍</span>
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-2 text-slate-400 hover:text-white text-xs"
+            {/* Building dropdown & Search input */}
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap w-full md:w-auto">
+              <select
+                value={selectedBuilding}
+                onChange={(e) => {
+                  setSelectedBuilding(e.target.value);
+                  setShowAllLabs(false);
+                }}
+                className="bg-[#0d162b] border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+              >
+                <option value="">All Buildings ({rooms.length})</option>
+                {buildingOptions.map((b) => (
+                  <option key={b.name} value={b.name}>
+                    {b.name} ({b.count})
+                  </option>
+                ))}
+              </select>
+
+              <div className="relative flex-fill min-w-[200px]">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setShowAllLabs(false);
+                  }}
+                  placeholder="Search lab, code, or keyword..."
+                  className="w-full bg-[#0d162b] border border-slate-700/80 rounded-xl px-4 py-2 pl-9 pr-7 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition"
+                />
+                <svg
+                  className="absolute left-3 top-2.5 w-3.5 h-3.5 text-slate-400 pointer-events-none"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
                 >
-                  ✕
-                </button>
-              )}
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
+                </svg>
+                {searchQuery && (
+                  <button
+                    onClick={() => {
+                      setSearchQuery('');
+                      setShowAllLabs(false);
+                    }}
+                    className="absolute right-2.5 top-2 text-slate-400 hover:text-white text-xs"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Quick Filter Chips */}
+          {/* Clean, Organized Category Filter Pills (No Emojis) */}
           <div className="flex flex-wrap items-center gap-2">
             {[
-              'All',
-              'Available Today',
-              'Computer Lab',
-              'Electronics Lab',
-              'Science Lab',
-              'Lecture Room',
+              { id: 'All', label: 'All Labs' },
+              { id: 'Available Today', label: 'Available Today' },
+              { id: 'Computer & IT', label: 'Computer & IT' },
+              { id: 'Engineering & Tech', label: 'Engineering & Tech' },
+              { id: 'Sciences & Health', label: 'Sciences & Health' },
+              { id: 'Lecture Halls', label: 'Lecture Halls' },
             ].map((chip) => {
-              const isActive = selectedFilterChip === chip;
+              const isActive = selectedFilterChip === chip.id;
               return (
                 <button
-                  key={chip}
-                  onClick={() => setSelectedFilterChip(chip)}
+                  key={chip.id}
+                  onClick={() => {
+                    setSelectedFilterChip(chip.id);
+                    setShowAllLabs(false);
+                  }}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
                     isActive
                       ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30 border border-blue-500'
                       : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 border border-slate-800 hover:border-slate-700'
                   }`}
                 >
-                  {chip === 'Available Today' ? '⚡ Available Today' : chip}
+                  {chip.label}
                 </button>
               );
             })}
           </div>
 
-          {/* Lab Cards Grid */}
+          {/* Lab Cards Grid - Shows 6 initial examples with clickable Show All */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredRooms.map((room) => {
+            {(showAllLabs ? filteredRooms : filteredRooms.slice(0, 6)).map((room) => {
               const isAvailable = (room.occupancy_pct || 0) < 80 && !room.is_under_maintenance;
+              const categoryLabel = getLabCategory(room);
               return (
                 <div
                   key={room.id}
@@ -791,7 +883,7 @@ export default function UserDashboard() {
                   <div>
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700/60">
-                        {room.type}
+                        {categoryLabel}
                       </span>
                       <span
                         className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${
@@ -808,7 +900,7 @@ export default function UserDashboard() {
                     </div>
 
                     <h4 className="text-sm font-bold text-white group-hover:text-blue-400 transition leading-snug">
-                      {room.name}
+                      {formatRoomTitle(room.name)}
                     </h4>
                     <p className="text-xs text-slate-400 mt-0.5">{room.building_name}</p>
 
@@ -838,6 +930,21 @@ export default function UserDashboard() {
               );
             })}
           </div>
+
+          {/* Clickable Show All / Show Less button */}
+          {filteredRooms.length > 6 && (
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                onClick={() => setShowAllLabs(!showAllLabs)}
+                className="px-5 py-2 rounded-xl text-xs font-semibold bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/30 transition shadow-sm"
+              >
+                {!showAllLabs
+                  ? `Show All (${filteredRooms.length} Laboratories) ↓`
+                  : `Show Less (Display 6 Examples) ↑`}
+              </button>
+            </div>
+          )}
         </section>
 
         {/* ====================================================================
