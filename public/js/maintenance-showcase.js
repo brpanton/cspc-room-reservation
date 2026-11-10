@@ -147,7 +147,7 @@
       const isOngoing = item.effective_status === 'Ongoing';
       backdrop.innerHTML = `
         <div class="maint-popup-card" role="dialog" aria-modal="true" aria-labelledby="maint-popup-title">
-          <div class="maint-popup-cover">
+          <div class="maint-popup-cover is-maintenance is-loading" data-glass-label="Under Maintenance" data-glass-sublabel="${esc(item.target_label)}">
             <img src="${esc(item.showcase_image || '/img/campus-bg-sm.jpg')}" alt="${esc(item.target_label)}" />
             <div class="maint-popup-cover-scrim">
               <span class="maint-banner-pill">
@@ -256,28 +256,95 @@
   }
 
   // ==========================================================================
-  // 3. PUBLIC LANDING PAGE: ADVERTISEMENT-STYLE FACILITY SHOWCASE CAROUSEL
+  // 3. UNIVERSAL LABORATORY SHOWCASE CAROUSEL (PUBLIC, USER DASHBOARD & ADMIN)
   // ==========================================================================
-  function renderPublicShowcaseCarousel(data, openPopupFn, session) {
-    const heroSection = document.getElementById('overview');
-    if (!heroSection) return;
+  const SHOWCASE_AUTO_PLAY_MS = 3000;
+
+  function mountFacilityShowcaseCarousel(
+    data,
+    {
+      sectionId = 'facility-showcase-section',
+      anchorEl = null,
+      insertMode = 'after', // 'after' | 'before' | 'prepend' | 'append'
+      viewMode = 'public',  // 'public' | 'user' | 'admin'
+      isAuthenticated = false
+    } = {}
+  ) {
+    if (!anchorEl) return;
 
     const labs = Array.isArray(data.labs) ? data.labs : [];
     if (!labs.length) return;
-    const isAuthenticated = Boolean(session && session.authenticated);
 
-    let section = document.getElementById('facility-showcase-section');
+    let section = document.getElementById(sectionId);
     if (!section) {
       section = document.createElement('section');
-      section.id = 'facility-showcase-section';
-      section.className = 'facility-showcase-section';
+      section.id = sectionId;
+      section.className = 'facility-showcase-section mb-4';
       section.setAttribute('aria-label', 'Featured Laboratories & Live Maintenance Showcase');
-      heroSection.parentNode.insertBefore(section, heroSection.nextSibling);
+
+      if (insertMode === 'before' && anchorEl.parentNode) {
+        anchorEl.parentNode.insertBefore(section, anchorEl);
+      } else if (insertMode === 'prepend') {
+        anchorEl.insertBefore(section, anchorEl.firstChild);
+      } else if (insertMode === 'append') {
+        anchorEl.appendChild(section);
+      } else if (anchorEl.parentNode) {
+        anchorEl.parentNode.insertBefore(section, anchorEl.nextSibling);
+      }
     }
 
     let currentSlide = 0;
     let currentPhotoIdx = 0;
     let timer = null;
+    let isHovered = false;
+
+    function stopAutoRotate() {
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+    }
+
+    function startAutoRotate() {
+      stopAutoRotate();
+      if (labs.length <= 1) return;
+      timer = setInterval(() => {
+        if (isHovered) return;
+        currentSlide = (currentSlide + 1) % labs.length;
+        currentPhotoIdx = 0;
+        render();
+      }, SHOWCASE_AUTO_PLAY_MS);
+    }
+
+    /**
+     * Resets the 3-second countdown timer whenever the user manually clicks
+     * Next, Prev, an indicator dot, or a photo thumbnail so it never skips early.
+     */
+    function resetAutoRotate() {
+      stopAutoRotate();
+      startAutoRotate();
+    }
+
+    function buildActionHtml(lab, isMaint) {
+      if (viewMode === 'admin') {
+        return `
+          <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-sm btn-outline-light" data-showcase-admin-maint="${esc(lab.id)}">
+              ⚙ Manage Maintenance
+            </button>
+            <a href="/rooms-status.html" class="btn btn-sm btn-cspc">
+              View Room Timetable →
+            </a>
+          </div>`;
+      }
+      if (isMaint) {
+        return `<button type="button" class="btn btn-outline-secondary" disabled>🔒 Under Maintenance</button>`;
+      }
+      if (isAuthenticated || viewMode === 'user') {
+        return `<a href="/reservation-form.html?building_id=${encodeURIComponent(lab.building_id || '')}&room_id=${encodeURIComponent(lab.id)}" class="btn btn-cspc">Reserve Space →</a>`;
+      }
+      return `<button type="button" class="btn btn-cspc" data-bs-toggle="modal" data-bs-target="#visitor-login-modal">Sign in to Reserve →</button>`;
+    }
 
     function render() {
       const lab = labs[currentSlide];
@@ -296,18 +363,19 @@
       if (lab.has_aircon) amenities.push('❄️ Air-Conditioned');
       if (lab.has_sound) amenities.push('🔊 Sound System');
 
+      const subtitleText =
+        viewMode === 'admin'
+          ? 'Live rotating overview of all campus laboratories, equipment tags, and active maintenance advisories.'
+          : isAuthenticated || viewMode === 'user'
+            ? 'Explore campus laboratories and check real-time maintenance status before reserving a space.'
+            : 'Explore campus laboratories before signing in. Rooms undergoing maintenance are flagged in real time.';
+
       section.innerHTML = `
         <div class="showcase-header">
           <div>
             <span class="showcase-kicker">✦ Campus Facility Showcase &amp; Live Advisories</span>
             <h2 class="h4 fw-bold text-white mt-2 mb-1">Featured Laboratories &amp; Real-Time Facility Status</h2>
-            <p class="text-muted-sm mb-0">
-              ${
-                isAuthenticated
-                  ? 'Explore campus laboratories and check real-time maintenance status before reserving a space.'
-                  : 'Explore campus laboratories before signing in. Rooms undergoing maintenance are flagged in real time.'
-              }
-            </p>
+            <p class="text-muted-sm mb-0">${subtitleText}</p>
           </div>
           <div class="d-flex align-items-center gap-2">
             <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-50 rounded-pill px-3 py-2">
@@ -320,7 +388,7 @@
         </div>
 
         <div class="showcase-stage">
-          <div class="showcase-photo-wrap">
+          <div class="showcase-photo-wrap ${isMaint ? 'is-maintenance' : ''} is-loading" data-glass-label="${isMaint ? 'Under Maintenance' : 'Facility Photo'}" data-glass-sublabel="${esc(lab.name)}">
             <img class="showcase-main-img" src="${esc(activePhoto.image_url)}" alt="${esc(lab.name)}" />
             <div class="showcase-photo-overlay">
               <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
@@ -387,27 +455,20 @@
 
             <div class="mt-4 pt-3 border-top border-light border-opacity-10 d-flex justify-content-between align-items-center flex-wrap gap-2">
               <div class="d-flex align-items-center gap-2">
-                <button type="button" class="btn btn-sm btn-outline-light" id="showcase-prev-btn" aria-label="Previous laboratory">← Prev</button>
+                <button type="button" class="btn btn-sm btn-outline-light" data-showcase-prev="1" aria-label="Previous laboratory">← Prev</button>
                 <div class="showcase-dots">
                   ${labs
-                    .slice(0, 8)
                     .map(
                       (_, dIdx) =>
                         `<button type="button" class="showcase-dot ${dIdx === currentSlide ? 'active' : ''}" data-slide-idx="${dIdx}" aria-label="Slide ${dIdx + 1}"></button>`
                     )
                     .join('')}
                 </div>
-                <button type="button" class="btn btn-sm btn-outline-light" id="showcase-next-btn" aria-label="Next laboratory">Next →</button>
+                <button type="button" class="btn btn-sm btn-outline-light" data-showcase-next="1" aria-label="Next laboratory">Next →</button>
               </div>
 
               <div>
-                ${
-                  isMaint
-                    ? `<button type="button" class="btn btn-outline-secondary" disabled>🔒 Under Maintenance</button>`
-                    : isAuthenticated
-                      ? `<a href="/reservation-form.html?building_id=${encodeURIComponent(lab.building_id || '')}&room_id=${encodeURIComponent(lab.id)}" class="btn btn-cspc">Reserve Space →</a>`
-                      : `<button type="button" class="btn btn-cspc" data-bs-toggle="modal" data-bs-target="#visitor-login-modal">Sign in to Reserve →</button>`
-                }
+                ${buildActionHtml(lab, isMaint)}
               </div>
             </div>
           </div>
@@ -418,6 +479,7 @@
         btn.addEventListener('click', () => {
           currentPhotoIdx = Number(btn.getAttribute('data-photo-idx'));
           render();
+          resetAutoRotate();
         });
       });
 
@@ -426,46 +488,89 @@
           currentSlide = Number(btn.getAttribute('data-slide-idx'));
           currentPhotoIdx = 0;
           render();
+          resetAutoRotate();
         });
       });
 
-      const prevBtn = section.querySelector('#showcase-prev-btn');
+      const prevBtn = section.querySelector('[data-showcase-prev]');
       if (prevBtn) {
         prevBtn.addEventListener('click', () => {
           currentSlide = (currentSlide - 1 + labs.length) % labs.length;
           currentPhotoIdx = 0;
           render();
+          resetAutoRotate();
         });
       }
 
-      const nextBtn = section.querySelector('#showcase-next-btn');
+      const nextBtn = section.querySelector('[data-showcase-next]');
       if (nextBtn) {
         nextBtn.addEventListener('click', () => {
           currentSlide = (currentSlide + 1) % labs.length;
           currentPhotoIdx = 0;
           render();
+          resetAutoRotate();
+        });
+      }
+
+      const adminMaintBtn = section.querySelector('[data-showcase-admin-maint]');
+      if (adminMaintBtn) {
+        adminMaintBtn.addEventListener('click', () => {
+          const navBtn = document.querySelector('.admin-nav-btn[data-target="#pane-maintenance"]');
+          if (navBtn) navBtn.click();
+          const pane = document.getElementById('pane-maintenance');
+          pane?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });
       }
     }
 
-    function startAutoRotate() {
+    // Hover to Pause & Mouseleave to Resume 3-second cycle
+    section.addEventListener('mouseenter', () => {
+      isHovered = true;
       stopAutoRotate();
-      timer = setInterval(() => {
-        currentSlide = (currentSlide + 1) % labs.length;
-        currentPhotoIdx = 0;
-        render();
-      }, 6500);
-    }
-
-    function stopAutoRotate() {
-      if (timer) clearInterval(timer);
-    }
-
-    section.addEventListener('mouseenter', stopAutoRotate);
-    section.addEventListener('mouseleave', startAutoRotate);
+    });
+    section.addEventListener('mouseleave', () => {
+      isHovered = false;
+      resetAutoRotate();
+    });
 
     render();
     startAutoRotate();
+  }
+
+  function renderPublicShowcaseCarousel(data, openPopupFn, session) {
+    const heroSection = document.getElementById('overview');
+    if (!heroSection) return;
+    mountFacilityShowcaseCarousel(data, {
+      sectionId: 'facility-showcase-section',
+      anchorEl: heroSection,
+      insertMode: 'after',
+      viewMode: 'public',
+      isAuthenticated: Boolean(session && session.authenticated)
+    });
+  }
+
+  function renderUserShowcaseCarousel(data) {
+    const labSection = document.getElementById('laboratory-status')?.closest('section.card');
+    if (!labSection) return;
+    mountFacilityShowcaseCarousel(data, {
+      sectionId: 'user-facility-showcase-section',
+      anchorEl: labSection,
+      insertMode: 'before',
+      viewMode: 'user',
+      isAuthenticated: true
+    });
+  }
+
+  function renderAdminShowcaseCarousel(data) {
+    const adminOverview = document.getElementById('admin-overview');
+    if (!adminOverview) return;
+    mountFacilityShowcaseCarousel(data, {
+      sectionId: 'admin-facility-showcase-section',
+      anchorEl: adminOverview,
+      insertMode: 'append',
+      viewMode: 'admin',
+      isAuthenticated: true
+    });
   }
 
   // ==========================================================================
@@ -524,6 +629,30 @@
     }
 
     let idx = 0;
+    let advTimer = null;
+    let advHovered = false;
+
+    function stopAdvTimer() {
+      if (advTimer) {
+        clearInterval(advTimer);
+        advTimer = null;
+      }
+    }
+
+    function startAdvTimer() {
+      stopAdvTimer();
+      if (slides.length <= 1) return;
+      advTimer = setInterval(() => {
+        if (advHovered) return;
+        idx = (idx + 1) % slides.length;
+        draw();
+      }, SHOWCASE_AUTO_PLAY_MS);
+    }
+
+    function resetAdvTimer() {
+      stopAdvTimer();
+      startAdvTimer();
+    }
 
     function draw() {
       const s = slides[idx];
@@ -565,21 +694,30 @@
       widget.querySelector('#user-adv-prev')?.addEventListener('click', () => {
         idx = (idx - 1 + slides.length) % slides.length;
         draw();
+        resetAdvTimer();
       });
       widget.querySelector('#user-adv-next')?.addEventListener('click', () => {
         idx = (idx + 1) % slides.length;
         draw();
+        resetAdvTimer();
       });
       widget.querySelector('#user-adv-close')?.addEventListener('click', () => {
+        stopAdvTimer();
         widget.hidden = true;
       });
     }
 
+    widget.addEventListener('mouseenter', () => {
+      advHovered = true;
+      stopAdvTimer();
+    });
+    widget.addEventListener('mouseleave', () => {
+      advHovered = false;
+      resetAdvTimer();
+    });
+
     draw();
-    setInterval(() => {
-      idx = (idx + 1) % slides.length;
-      draw();
-    }, 6000);
+    startAdvTimer();
   }
 
   // ==========================================================================
@@ -1118,10 +1256,12 @@
       }
 
       if (isUserDashboard) {
+        renderUserShowcaseCarousel(showcaseData);
         renderUserDashboardAdvisoryWidget(showcaseData);
       }
 
       if (isAdminDashboard) {
+        renderAdminShowcaseCarousel(showcaseData);
         await initAdminMaintenancePanel();
       }
     } catch (err) {

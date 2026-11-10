@@ -1135,10 +1135,26 @@
     if (room.has_aircon) amenities.push('Aircon');
     if (room.has_sound) amenities.push('Sound');
 
+    const isMaint = Boolean(room.is_under_maintenance || room.has_date_maintenance);
+    const bannerHtml =
+      typeof P.renderGlassImage === 'function'
+        ? P.renderGlassImage({
+            src: room.image_url || '',
+            alt: room.name,
+            label: isMaint ? 'Under Maintenance' : 'Room Preview',
+            sublabel: room.building_name || '',
+            isMaintenance: isMaint,
+            containerClass: 'glass-img-card-banner',
+            imgClass: 'glass-img room-card-img'
+          })
+        : room.image_url
+          ? `<img class="room-card-img" src="${P.escapeHtml(room.image_url)}" alt="${P.escapeHtml(room.name)}" loading="lazy" />`
+          : '';
+
     return `
       <div class="col-md-6 col-xl-4">
         <div class="card room-card availability-room-card h-100 clickable-room-card" data-room-id="${room.id}" data-reserve-url="${P.escapeHtml(reserveUrl)}">
-          ${room.image_url ? `<img class="room-card-img" src="${P.escapeHtml(room.image_url)}" alt="${P.escapeHtml(room.name)}" loading="lazy" />` : ''}
+          ${bannerHtml}
           <div class="card-body d-flex flex-column">
             <div class="d-flex justify-content-between align-items-start mb-2">
               <div>
@@ -1449,9 +1465,13 @@ function renderStatusGroups(rooms) {
     const indexBadge = String(index).padStart(2, '0');
     index++;
 
+    const placeholderInner =
+      typeof P.glassPlaceholderInnerHtml === 'function'
+        ? P.glassPlaceholderInnerHtml({ label: 'Facility Photo', sublabel: buildingName })
+        : '';
     const imgHtml = imgUrl
       ? `<img class="home-building-card-photo" src="${P.escapeHtml(imgUrl)}" alt="${P.escapeHtml(buildingName)} building" loading="lazy">`
-      : `<div class="home-building-card-photo-placeholder"></div>`;
+      : `<div class="home-building-card-photo-placeholder">${placeholderInner}</div>`;
 
     html += `
       <article class="home-building-card is-${tone}" data-building="${P.escapeHtml(buildingName)}" aria-label="${P.escapeHtml(buildingName)}">
@@ -1583,11 +1603,19 @@ function statusCard(room, dateValue, slot, remark) {
     .filter(Boolean).map(P.escapeHtml).join(" � ");
   const occ = occupancyPct(room);
   const equip = equipmentHtml(room);
+  const labPlaceholderInner =
+    typeof P.glassPlaceholderInnerHtml === 'function'
+      ? P.glassPlaceholderInnerHtml({
+          label: room.is_under_maintenance ? 'Under Maintenance' : 'Room Preview',
+          sublabel: room.building_name || '',
+          isMaintenance: Boolean(room.is_under_maintenance)
+        })
+      : '';
   const buildingImg = room.image_url
     ? `<img class="home-lab-card-photo" src="${P.escapeHtml(room.image_url)}" alt="${P.escapeHtml(room.building_name)} building" loading="lazy">`
-    : `<div class="home-lab-card-photo-placeholder"><span class="home-lab-building-icon">???</span></div>`;
+    : `<div class="home-lab-card-photo-placeholder">${labPlaceholderInner}</div>`;
   const tone = status.tone;
-  const statusIcon = tone === "available" ? "??" : tone === "limited" ? "??" : "??";
+  const statusIcon = tone === "available" ? "●" : tone === "limited" ? "◐" : "○";
   const statusText = tone === "available" ? "Available" : tone === "limited" ? "Limited" : "Occupied";
   const actionText = tone === "available" ? "Book Room" : "View Schedule";
   const btnClass = tone === "available" ? "btn-cspc" : "btn-outline-secondary";

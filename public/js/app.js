@@ -2184,6 +2184,224 @@ document.addEventListener('click', (event) => {
   }
 });
 
+/* ------------------------------------------------------------------
+   UNIVERSAL GLASSMORPHISM IMAGE CONTAINER & FALLBACK SYSTEM
+   ------------------------------------------------------------------ */
+
+const GLASS_CAMERA_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+  <circle cx="12" cy="13" r="4"></circle>
+</svg>`;
+
+const GLASS_MAINT_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+  <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+</svg>`;
+
+function glassPlaceholderInnerHtml({
+  label = 'Facility Photo',
+  sublabel = '',
+  isMaintenance = false
+} = {}) {
+  const effectiveLabel = isMaintenance && label === 'Facility Photo' ? 'Under Maintenance' : label;
+  const iconSvg = isMaintenance ? GLASS_MAINT_SVG : GLASS_CAMERA_SVG;
+  return `
+    <span class="glass-img-icon-ring" aria-hidden="true">${iconSvg}</span>
+    <span class="glass-img-label">${escapeHtml(effectiveLabel)}</span>
+    ${sublabel ? `<span class="glass-img-sublabel">${escapeHtml(sublabel)}</span>` : ''}
+  `;
+}
+
+/**
+ * Generates a reusable Glassmorphic Image Container HTML string with
+ * automatic skeleton loading shimmer and a built-in frosted placeholder fallback.
+ */
+function renderGlassImage({
+  src = '',
+  alt = '',
+  label = 'Room Preview',
+  sublabel = '',
+  isMaintenance = false,
+  containerClass = 'glass-img-card-banner',
+  imgClass = 'glass-img room-card-img'
+} = {}) {
+  const cleanSrc = String(src || '').trim();
+  const maintCls = isMaintenance ? ' is-maintenance' : '';
+  const stateCls = cleanSrc ? ' is-loading' : ' is-broken';
+  const fallbackHtml = `
+    <div class="glass-img-fallback" aria-hidden="${cleanSrc ? 'true' : 'false'}">
+      ${glassPlaceholderInnerHtml({ label, sublabel, isMaintenance })}
+    </div>`;
+
+  if (!cleanSrc) {
+    return `
+      <div class="glass-img-container ${escapeHtml(containerClass)}${maintCls} is-broken" role="img" aria-label="${escapeHtml(alt || label)}">
+        ${fallbackHtml}
+      </div>`;
+  }
+
+  return `
+    <div class="glass-img-container ${escapeHtml(containerClass)}${maintCls}${stateCls}" data-glass-label="${escapeHtml(label)}" data-glass-sublabel="${escapeHtml(sublabel)}">
+      <img class="${escapeHtml(imgClass)}" src="${escapeHtml(cleanSrc)}" alt="${escapeHtml(alt || label)}" loading="lazy" />
+      ${fallbackHtml}
+    </div>`;
+}
+
+/**
+ * Automatically upgrades any broken or loading images across the DOM
+ * into glassmorphic containers with skeleton shimmer and SVG camera fallback.
+ */
+(function initGlobalGlassImageSystem() {
+  function ensureFallbackInsideContainer(container, img) {
+    if (!container) return;
+    if (!container.querySelector('.glass-img-fallback')) {
+      const isMaint =
+        container.classList.contains('is-maintenance') ||
+        Boolean(container.closest('.is-maintenance'));
+      const label =
+        container.getAttribute('data-glass-label') ||
+        (isMaint ? 'Under Maintenance' : img?.alt ? 'Room Preview' : 'Facility Photo');
+      const sublabel = container.getAttribute('data-glass-sublabel') || (img?.alt || '');
+      const fallback = document.createElement('div');
+      fallback.className = 'glass-img-fallback';
+      fallback.innerHTML = glassPlaceholderInnerHtml({
+        label,
+        sublabel,
+        isMaintenance: isMaint
+      });
+      container.appendChild(fallback);
+    }
+  }
+
+  function handleImageLoaded(img) {
+    if (!img || img.classList.contains('cspc-logo') || img.classList.contains('avatar-preview-img')) return;
+    const container = img.closest(
+      '.glass-img-container, .showcase-photo-wrap, .maint-popup-cover, .admin-gallery-item'
+    );
+    if (container) {
+      container.classList.remove('is-loading', 'is-broken');
+      container.classList.add('is-loaded');
+    }
+  }
+
+  function handleImageError(img) {
+    if (!img || img.classList.contains('cspc-logo') || img.classList.contains('avatar-preview-img')) return;
+    const existingContainer = img.closest(
+      '.glass-img-container, .showcase-photo-wrap, .maint-popup-cover, .admin-gallery-item'
+    );
+    if (existingContainer) {
+      existingContainer.classList.remove('is-loading', 'is-loaded');
+      existingContainer.classList.add('is-broken');
+      ensureFallbackInsideContainer(existingContainer, img);
+      return;
+    }
+
+    // Standalone image (e.g. .user-maint-photo, .home-building-card-photo, .home-lab-card-photo, .room-card-img)
+    if (img.dataset.glassReplaced === '1') return;
+    img.dataset.glassReplaced = '1';
+
+    const isMaint = Boolean(img.closest('.is-maintenance'));
+    const isSmall = img.classList.contains('user-maint-photo') || img.width > 0 && img.width < 120;
+    const label = isMaint
+      ? 'Under Maintenance'
+      : img.classList.contains('home-building-card-photo')
+        ? 'Facility Photo'
+        : 'Room Preview';
+
+    const placeholder = document.createElement('div');
+    placeholder.className =
+      `glass-img-placeholder ${img.className || ''}${isMaint ? ' is-maintenance' : ''}${isSmall ? ' glass-img-sm' : ''}`.trim();
+    placeholder.setAttribute('role', 'img');
+    placeholder.setAttribute('aria-label', img.alt || label);
+    placeholder.innerHTML = glassPlaceholderInnerHtml({
+      label,
+      sublabel: isSmall ? '' : (img.alt || ''),
+      isMaintenance: isMaint
+    });
+    img.replaceWith(placeholder);
+  }
+
+  function upgradePlaceholdersAndImages(root = document) {
+    if (!root || !root.querySelectorAll) return;
+
+    // 1. Populate any legacy empty placeholder divs with the Glassmorphic SVG icon & typography
+    root
+      .querySelectorAll('.home-building-card-photo-placeholder, .home-lab-card-photo-placeholder')
+      .forEach((el) => {
+        if (el.dataset.glassUpgraded === '1') return;
+        el.dataset.glassUpgraded = '1';
+        const isBuilding = el.classList.contains('home-building-card-photo-placeholder');
+        const card = el.closest('[data-building], .home-lab-card');
+        const sub = card?.getAttribute('data-building') || '';
+        el.innerHTML = glassPlaceholderInnerHtml({
+          label: isBuilding ? 'Facility Photo' : 'Room Preview',
+          sublabel: sub
+        });
+      });
+
+    // 2. Check all facility images for loading/broken state
+    root.querySelectorAll('img').forEach((img) => {
+      if (img.classList.contains('cspc-logo') || img.classList.contains('avatar-preview-img')) return;
+      const container = img.closest(
+        '.glass-img-container, .showcase-photo-wrap, .maint-popup-cover, .admin-gallery-item'
+      );
+      if (img.complete) {
+        if (img.naturalWidth === 0 && img.getAttribute('src')) {
+          handleImageError(img);
+        } else {
+          handleImageLoaded(img);
+        }
+      } else if (container) {
+        container.classList.add('is-loading');
+        ensureFallbackInsideContainer(container, img);
+      }
+    });
+  }
+
+  document.addEventListener(
+    'load',
+    (e) => {
+      if (e.target && e.target.tagName === 'IMG') handleImageLoaded(e.target);
+    },
+    true
+  );
+
+  document.addEventListener(
+    'error',
+    (e) => {
+      if (e.target && e.target.tagName === 'IMG') handleImageError(e.target);
+    },
+    true
+  );
+
+  const imgObserver = new MutationObserver((mutations) => {
+    for (const m of mutations) {
+      m.addedNodes.forEach((node) => {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          if (node.tagName === 'IMG') {
+            if (node.complete && node.naturalWidth === 0 && node.getAttribute('src')) {
+              handleImageError(node);
+            }
+          } else {
+            upgradePlaceholdersAndImages(node);
+          }
+        }
+      });
+    }
+  });
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      upgradePlaceholdersAndImages(document);
+      imgObserver.observe(document.body, { childList: true, subtree: true });
+    });
+  } else {
+    upgradePlaceholdersAndImages(document);
+    if (document.body) {
+      imgObserver.observe(document.body, { childList: true, subtree: true });
+    }
+  }
+})();
+
 window.Portal = {
   setLocale: setPortalLocale,
   getLocale: currentUiLocale,
@@ -2215,6 +2433,8 @@ window.Portal = {
   stopButtonLoading: scheduleButtonRestore,
   withButtonLoading,
   fetchWithLoading,
+  renderGlassImage,
+  glassPlaceholderInnerHtml,
   formToObject,
   setFormValue,
   broadcastAvailabilityChange

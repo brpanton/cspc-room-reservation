@@ -129,10 +129,25 @@
           ? 'is-free'
           : '';
 
+    const bannerHtml =
+      typeof P.renderGlassImage === 'function'
+        ? P.renderGlassImage({
+            src: room.image_url || '',
+            alt: room.name,
+            label: isMaint ? 'Under Maintenance' : 'Room Preview',
+            sublabel: room.building_name || '',
+            isMaintenance: isMaint,
+            containerClass: 'glass-img-card-banner',
+            imgClass: 'glass-img room-card-img'
+          })
+        : room.image_url
+          ? `<img class="room-card-img" src="${escapeHtml(room.image_url)}" alt="${escapeHtml(room.name)}" loading="lazy" />`
+          : '';
+
     return `
       <div class="col-md-6 col-xl-4">
         <div class="card room-card ${cardStateClass} h-100">
-          ${room.image_url ? `<img class="room-card-img" src="${escapeHtml(room.image_url)}" alt="${escapeHtml(room.name)}" loading="lazy" />` : ''}
+          ${bannerHtml}
           <div class="card-body d-flex flex-column">
             <div class="d-flex justify-content-between align-items-start gap-2">
               <div>

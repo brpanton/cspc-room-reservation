@@ -1433,6 +1433,255 @@ select option:disabled {
   text-shadow: none !important;
 }
 
+/* ==========================================================================
+   UNIVERSAL GLASSMORPHISM IMAGE CONTAINERS, SHIMMER & PLACEHOLDERS
+   ========================================================================== */
+
+@keyframes glass-shimmer-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Base Glassmorphic Image Container & Placeholder Surface */
+.glass-img-container,
+.glass-img-placeholder,
+.home-building-card-photo-placeholder,
+.home-lab-card-photo-placeholder,
+.showcase-photo-wrap,
+.maint-popup-cover,
+.admin-gallery-item {
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow:
+    0 8px 32px 0 rgba(0, 0, 0, 0.36),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  transition:
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.28s ease,
+    border-color 0.28s ease,
+    box-shadow 0.28s ease;
+}
+
+/* Card top-banner variant (flush with top of .room-card / .home-lab-card) */
+.glass-img-container.glass-img-card-banner,
+.room-card > .glass-img-container,
+.room-card > .glass-img-placeholder {
+  border-radius: 16px 16px 0 0;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  height: 175px;
+  width: 100%;
+}
+
+/* Smooth Hover Interaction (slight elevation + increased background opacity) */
+.glass-img-container:hover,
+.glass-img-placeholder:hover,
+.room-card:hover > .glass-img-container,
+.room-card:hover > .glass-img-placeholder,
+.home-building-card:hover .home-building-card-photo-placeholder,
+.home-lab-card:hover .home-lab-card-photo-placeholder {
+  background: rgba(255, 255, 255, 0.13);
+  border-color: rgba(255, 255, 255, 0.32);
+  box-shadow:
+    0 12px 36px 0 rgba(0, 0, 0, 0.44),
+    inset 0 1px 2px 0 rgba(255, 255, 255, 0.25);
+}
+
+.glass-img-container:not(.glass-img-card-banner):hover,
+.glass-img-placeholder:not(.glass-img-card-banner):hover {
+  transform: translateY(-2px);
+}
+
+/* Actual Image Inside Glass Container */
+.glass-img-container > img.glass-img,
+.glass-img-container > img.room-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  position: relative;
+  z-index: 2;
+  transition: opacity 0.35s ease, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.glass-img-container:hover > img.glass-img,
+.room-card:hover .glass-img-container > img.glass-img {
+  transform: scale(1.03);
+}
+
+/* Hide broken image element when container enters fallback error state */
+.glass-img-container.is-broken > img,
+.showcase-photo-wrap.is-broken > img.showcase-main-img,
+.maint-popup-cover.is-broken > img {
+  opacity: 0 !important;
+  pointer-events: none;
+}
+
+/* Horizontal Skeleton Shimmer Gradient while Image is Fetching */
+.glass-img-container.is-loading::after,
+.glass-img-shimmer::after,
+.showcase-photo-wrap.is-loading::after,
+.maint-popup-cover.is-loading::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.08) 35%,
+    rgba(255, 255, 255, 0.22) 50%,
+    rgba(255, 255, 255, 0.08) 65%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: glass-shimmer-slide 1.75s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+}
+
+/* Centered Placeholder Content (Icon Ring + Typography) */
+.glass-img-placeholder,
+.glass-img-fallback,
+.home-building-card-photo-placeholder,
+.home-lab-card-photo-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1.25rem;
+  gap: 0.6rem;
+  min-height: 165px;
+  color: #f8fafc;
+  user-select: none;
+}
+
+/* Fallback layer inside a .glass-img-container (visible while loading or when broken/missing) */
+.glass-img-container .glass-img-fallback {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  min-height: 100%;
+  background: radial-gradient(
+    circle at 50% 35%,
+    rgba(56, 189, 248, 0.12) 0%,
+    rgba(15, 23, 42, 0.45) 100%
+  );
+}
+
+.glass-img-container.is-loaded:not(.is-broken) .glass-img-fallback {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+/* Frosted Circular Icon Wrapper */
+.glass-img-icon-ring {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.28),
+    inset 0 1px 1px rgba(255, 255, 255, 0.28);
+  color: #e2e8f0;
+  transition: transform 0.25s ease, background 0.25s ease, border-color 0.25s ease;
+}
+
+.glass-img-container:hover .glass-img-icon-ring,
+.glass-img-placeholder:hover .glass-img-icon-ring {
+  transform: scale(1.07);
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.42);
+  color: #ffffff;
+}
+
+.glass-img-icon-ring svg {
+  width: 24px;
+  height: 24px;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Under-Maintenance Variant */
+.glass-img-container.is-maintenance .glass-img-fallback,
+.glass-img-placeholder.is-maintenance {
+  background: radial-gradient(
+    circle at 50% 35%,
+    rgba(245, 158, 11, 0.18) 0%,
+    rgba(15, 23, 42, 0.58) 100%
+  );
+  border-color: rgba(251, 191, 36, 0.35);
+}
+
+.glass-img-container.is-maintenance .glass-img-icon-ring,
+.glass-img-placeholder.is-maintenance .glass-img-icon-ring {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(252, 211, 77, 0.45);
+  color: #fde68a;
+}
+
+/* Clean, Legible Placeholder Typography */
+.glass-img-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #f8fafc !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.65);
+  line-height: 1.25;
+}
+
+.glass-img-sublabel {
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: #cbd5e1 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  max-width: 22ch;
+  line-height: 1.3;
+}
+
+/* Compact Variant (for thumbnails / small user-maint-photo) */
+.glass-img-sm {
+  min-height: 92px;
+  padding: 0.65rem;
+  border-radius: 12px;
+}
+
+.glass-img-sm .glass-img-icon-ring {
+  width: 36px;
+  height: 36px;
+}
+
+.glass-img-sm .glass-img-icon-ring svg {
+  width: 18px;
+  height: 18px;
+}
+
+.glass-img-sm .glass-img-label {
+  font-size: 0.7rem;
+}
+
+
 
 
 
