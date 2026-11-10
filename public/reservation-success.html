@@ -11,25 +11,133 @@
   <style>
     @media print {
       .no-print { display: none !important; }
-      .ticket-body { background: #fff !important; }
-      .card { border: 1px solid #000 !important; box-shadow: none !important; }
+      .ticket-body { background: #fff !important; padding: 0 !important; }
+      .ticket-card { border: 1px solid #000 !important; box-shadow: none !important; }
       .badge { border: 1px solid #000 !important; }
     }
-    .ticket-body { background: #f1f5f9; min-height: 100vh; color: #111827; }
-    .ticket-card { border: 2px solid #1a237e; border-radius: 12px; overflow: hidden; background: #ffffff; }
-    .ticket-header h2 { color: #fff !important; }
-    .ticket-header p { color: #e2e8f0 !important; opacity: 1 !important; }
-    .alert-info { background: #e0e7ff; color: #1e3a8a; border: 1px solid #c7d2fe; }
-    .alert-info small { color: #1e3a8a; }
-    .ticket-body-inner { padding: 1.5rem; background: #ffffff; }
-    .tx-badge { font-size: 1.25rem; font-weight: 800; letter-spacing: 1px; }
-    .info-row { border-bottom: 2px solid #e2e8f0; padding: 0.85rem 0; background: #fbfdfd; }
-    .info-row:last-child { border-bottom: none; }
-    .label { color: #475569; font-size: 0.875rem; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; }
-    .value { font-weight: 800; color: #111827; font-size: 1rem; }
-    .status-pending { background: #fef3c7; color: #92400e; border: 1px solid #f59e0b; }
-    .btn-print { background: #1a237e; border: none; color: #fff; }
-    .btn-print:hover { background: #283593; }
+    .ticket-body {
+      background: #f1f5f9;
+      min-height: 100vh;
+      color: #0f172a;
+    }
+    .ticket-card {
+      position: relative;
+      border: 1px solid #cbd5e1;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #ffffff !important;
+      box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.18), 0 0 1px 1px rgba(0, 0, 0, 0.05);
+    }
+    /* X Close Button */
+    .btn-close-ticket {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      color: #475569;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 15;
+      cursor: pointer;
+    }
+    .btn-close-ticket:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+      border-color: #94a3b8;
+      transform: scale(1.08);
+    }
+    .btn-close-ticket:active {
+      transform: scale(0.95);
+    }
+    .ticket-header {
+      padding: 1.75rem 3rem 1.25rem 2rem;
+      background: #ffffff;
+      border-bottom: 2px dashed #e2e8f0;
+    }
+    .ticket-header h2 {
+      color: #0f172a !important;
+      font-weight: 800;
+      font-size: 1.45rem;
+      letter-spacing: -0.3px;
+    }
+    .ticket-header p {
+      color: #64748b !important;
+      font-size: 0.875rem;
+      font-weight: 600;
+      opacity: 1 !important;
+    }
+    .alert-info {
+      background: #e0e7ff;
+      color: #1e3a8a;
+      border: 1px solid #c7d2fe;
+    }
+    .alert-info small {
+      color: #1e3a8a;
+    }
+    .ticket-body-inner {
+      padding: 1.75rem;
+      background: #ffffff;
+    }
+    .tx-badge {
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      background: #0284c7 !important;
+      color: #ffffff !important;
+      box-shadow: 0 4px 14px -3px rgba(2, 132, 199, 0.5);
+    }
+    .info-row {
+      border-bottom: 2px solid #f1f5f9;
+      padding: 0.85rem 0.5rem;
+      background: #fbfdfd;
+      border-radius: 6px;
+    }
+    .info-row:last-child {
+      border-bottom: none;
+    }
+    .label {
+      color: #475569;
+      font-size: 0.825rem;
+      text-transform: uppercase;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.25rem;
+    }
+    .value {
+      font-weight: 800;
+      color: #0f172a;
+      font-size: 1.05rem;
+      word-break: break-word;
+    }
+    .status-pending {
+      background: #fef3c7 !important;
+      color: #92400e !important;
+      border: 1px solid #f59e0b !important;
+      font-size: 0.9rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      display: inline-block;
+    }
+    .btn-print {
+      background: #1e3a8a;
+      border: none;
+      color: #ffffff;
+      font-weight: 700;
+      padding: 0.5rem 1.1rem;
+      border-radius: 8px;
+      transition: background 0.2s ease;
+    }
+    .btn-print:hover {
+      background: #1e40af;
+      color: #ffffff;
+    }
   </style>
 </head>
 <body class="ticket-body">
@@ -39,14 +147,22 @@
     <div class="row justify-content-center">
       <div class="col-lg-8 col-xl-6">
         <div class="card ticket-card shadow">
+          <!-- X Close Button -->
+          <a href="/dashboard.html" class="btn-close-ticket no-print" aria-label="Close ticket" title="Close and Return to Dashboard">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </a>
+
           <div class="ticket-header text-center">
             <h2 class="mb-1">CSPC Lab &amp; Room Reservation</h2>
-            <p class="mb-0 opacity-90 small">Computer Studies Department &middot; Ticket Receipt</p>
+            <p class="mb-0 small">Computer Studies Department &middot; Ticket Receipt</p>
           </div>
 
           <div class="ticket-body-inner">
             <div class="text-center mb-4">
-              <span class="badge tx-badge bg-primary px-4 py-2 rounded-pill">
+              <span class="badge tx-badge px-4 py-2 rounded-pill">
                 Transaction: <span id="tx-code">--</span>
               </span>
             </div>
@@ -73,7 +189,7 @@
               <div class="col-6">
                 <div class="info-row">
                   <div class="label">Room / Lab</div>
-                  <div class="value fw-bold" id="res-room">--</div>
+                  <div class="value fw-bold text-primary" id="res-room">--</div>
                 </div>
               </div>
               <div class="col-6">
@@ -108,17 +224,19 @@
               </div>
             </div>
 
-            <div class="d-grid gap-2 d-md-flex justify-content-md-end no-print mt-4">
-              <a href="/dashboard.html" class="btn btn-outline-secondary btn-sm">Back to Dashboard</a>
+            <div class="d-grid gap-2 d-md-flex justify-content-md-between align-items-center no-print mt-4 pt-2 border-top">
+              <a href="/dashboard.html" class="btn btn-outline-secondary btn-sm px-3 fw-semibold">
+                &larr; Back to Dashboard
+              </a>
               <button class="btn btn-print btn-sm" onclick="window.print()">
-                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 17v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v6M16 11V7a4 4 0 0 0-8-8v4M15 11v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6m8 0H5"/></svg>
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="me-1"><path d="M17 17v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v6M16 11V7a4 4 0 0 0-8-8v4M15 11v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6m8 0H5"/></svg>
                 Print Ticket
               </button>
             </div>
           </div>
         </div>
 
-        <div class="alert alert-info mt-4 text-center no-print">
+        <div class="alert alert-info mt-4 text-center no-print shadow-sm">
           <small>
             Your reservation request has been submitted as <strong>Pending</strong>. An administrator will review and approve it.
             Please keep this transaction code for reference.
@@ -136,17 +254,53 @@
   <script src="/js/app.js"></script>
   <script>
     (function () {
+      function formatTicketDate(val) {
+        if (!val || val === '--') return '--';
+        const str = String(val).trim();
+        const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (match) {
+          const [, y, m, d] = match;
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          const monthName = months[parseInt(m, 10) - 1] || m;
+          return `${monthName} ${parseInt(d, 10)}, ${y}`;
+        }
+        return str;
+      }
+
+      function formatTicketTime(start, end) {
+        if (!start || start === '--') return '--';
+        function fmt(t) {
+          const parts = String(t).split(':');
+          if (parts.length >= 2) {
+            let h = parseInt(parts[0], 10);
+            const m = parts[1];
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            h = h % 12 || 12;
+            return `${h}:${m} ${ampm}`;
+          }
+          return t;
+        }
+        return end && end !== '--' ? `${fmt(start)} – ${fmt(end)}` : fmt(start);
+      }
+
       const params = new URLSearchParams(window.location.search);
       document.getElementById('tx-code').textContent = params.get('tx') || '--';
       document.getElementById('res-id').textContent = params.get('id') || '--';
       document.getElementById('res-building').textContent = params.get('building') || '--';
       document.getElementById('res-room').textContent = params.get('room') || '--';
-      document.getElementById('res-date').textContent = params.get('date') || '--';
-      document.getElementById('res-time').textContent = (params.get('start') || '--') + ' – ' + (params.get('end') || '--');
+      document.getElementById('res-date').textContent = formatTicketDate(params.get('date'));
+      document.getElementById('res-time').textContent = formatTicketTime(params.get('start'), params.get('end'));
       document.getElementById('res-requester').textContent = params.get('requester') || '--';
       document.getElementById('res-purpose').textContent = params.get('purpose') || '--';
       document.getElementById('res-attendees').textContent = params.get('attendees') || '--';
       document.getElementById('res-status').textContent = params.get('status') || 'Pending';
+
+      // Keyboard Esc shortcut to close ticket and return to dashboard
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+          window.location.href = '/dashboard.html';
+        }
+      });
     })();
   </script>
 </body>

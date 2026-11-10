@@ -276,7 +276,7 @@ router.post('/', async (req, res, next) => {
 
     /* ---- fetch full reservation details for the success/ticket page ---- */
     const { rows: detailRows } = await pool.query(
-      `SELECT res.id, res.transaction_code, res.res_date, res.start_time, res.end_time,
+      `SELECT res.id, res.transaction_code, TO_CHAR(res.res_date, 'YYYY-MM-DD') AS res_date, res.start_time, res.end_time,
               res.purpose, res.attendees, res.status,
               r.name AS room_name, r.room_type, r.capacity,
               b.id AS building_id, b.name AS building_name,
