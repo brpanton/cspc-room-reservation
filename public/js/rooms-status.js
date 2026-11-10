@@ -74,38 +74,82 @@
   /** One card per room, listing its booked slots for the selected date. */
   function roomCard(room) {
     const booked = room.bookings || [];
+    const isMaint = Boolean(room.is_under_maintenance || room.has_date_maintenance);
+    const maint = room.active_maintenance;
     const amenities = [];
     if (room.capacity) amenities.push(`Seats ${room.capacity}`);
     if (room.has_projector) amenities.push('Projector');
     if (room.has_aircon) amenities.push('Aircon');
     if (room.has_sound) amenities.push('Sound');
 
-    const slots = booked.length
-      ? `<ul class="slot-list mt-3">${booked.map((b) => `
+    const untilStr =
+      isMaint && maint && maint.end_time
+        ? new Date(maint.end_time).toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit'
+          })
+        : '';
+
+    const maintAlertHtml = isMaint
+      ? `<div class="maint-lock-banner mt-3">
+           <div class="d-flex justify-content-between align-items-center mb-1">
+             <span class="badge badge-maintenance rounded-pill">⚠ Under Maintenance</span>
+             ${untilStr ? `<span class="small text-warning">Until ${escapeHtml(untilStr)}</span>` : ''}
+           </div>
+           <div class="fw-semibold small">${escapeHtml((maint && maint.title) || 'Scheduled Facility Maintenance')}</div>
+           ${maint && maint.description ? `<div class="text-muted-sm small mt-1">${escapeHtml(maint.description)}</div>` : ''}
+         </div>`
+      : '';
+
+    const slots = isMaint
+      ? maintAlertHtml
+      : booked.length
+        ? `<ul class="slot-list mt-3">${booked
+            .map(
+              (b) => `
           <li class="${b.status === 'Approved' ? 'slot-approved' : ''} slot-blue">
             <span>${escapeHtml(formatTime(b.start_time))} - ${escapeHtml(formatTime(b.end_time))}</span>
             ${statusBadge(b.status)}
-          </li>`).join('')}</ul>`
-      : '<p class="text-info fw-semibold mb-0 mt-3">Free the whole day</p>';
+          </li>`
+            )
+            .join('')}</ul>`
+        : '<p class="text-info fw-semibold mb-0 mt-3">Free the whole day</p>';
+
+    const actionHtml = isMaint
+      ? `<button type="button" class="btn btn-sm btn-outline-secondary w-100 mt-3" disabled>🔒 Under Maintenance — Booking Disabled</button>`
+      : `<a href="/reservation-form.html?building_id=${encodeURIComponent(room.building_id || '')}&room_id=${encodeURIComponent(room.id)}" class="btn btn-sm btn-cspc w-100 mt-3">+ Reserve this space</a>`;
+
+    const cardStateClass = isMaint
+      ? 'is-maintenance'
+      : booked.length
+        ? 'is-busy'
+        : room.is_free_all_day
+          ? 'is-free'
+          : '';
 
     return `
       <div class="col-md-6 col-xl-4">
-        <div class="card room-card ${booked.length ? 'is-busy' : (room.is_free_all_day ? 'is-free' : '')}">
+        <div class="card room-card ${cardStateClass} h-100">
           ${room.image_url ? `<img class="room-card-img" src="${escapeHtml(room.image_url)}" alt="${escapeHtml(room.name)}" loading="lazy" />` : ''}
-          <div class="card-body">
-            <div class="d-flex justify-content-between align-items-start">
+          <div class="card-body d-flex flex-column">
+            <div class="d-flex justify-content-between align-items-start gap-2">
               <div>
                 <h2 class="h6 mb-0">${escapeHtml(room.name)}</h2>
                 <div class="text-muted-sm">${escapeHtml(room.building_name)}${room.floor ? ` · ${escapeHtml(room.floor)}` : ''}</div>
               </div>
-              <span class="badge text-bg-light border">
-                ${escapeHtml(ROOM_TYPE_LABELS[room.room_type] || room.room_type)}
+              <span class="badge ${isMaint ? 'badge-maintenance' : 'text-bg-light border'}">
+                ${isMaint ? 'Under Maintenance' : escapeHtml(ROOM_TYPE_LABELS[room.room_type] || room.room_type)}
               </span>
             </div>
             <div class="mt-2">
               ${amenities.map((a) => `<span class="amenity-pill">${escapeHtml(a)}</span>`).join('')}
             </div>
-            ${slots}
+            <div class="mt-auto">
+              ${slots}
+              ${actionHtml}
+            </div>
           </div>
         </div>
       </div>`;

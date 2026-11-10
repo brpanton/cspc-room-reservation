@@ -23,6 +23,7 @@ const {
   EQUIPMENT_TYPES,
   STATUSES
 } = require('../middleware/validate');
+const { findMaintenanceConflict } = require('./maintenance');
 
 const router = express.Router();
 
@@ -175,6 +176,23 @@ router.post('/', async (req, res, next) => {
     }
 
     await conn.query('BEGIN');
+
+    const maintConflict = await findMaintenanceConflict(conn, { roomId, date, startTime, endTime });
+    if (maintConflict) {
+      const endStr = new Date(maintConflict.end_time).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      });
+      const err = new Error(
+        `${roomRows[0].name} is under maintenance ("${maintConflict.title}") until ${endStr}. ` +
+        `Reservations are blocked during this maintenance window.`
+      );
+      err.status = 409;
+      err.code = 'MAINTENANCE_CONFLICT';
+      throw err;
+    }
 
     const conflict = await findConflict(conn, { roomId, date, startTime, endTime });
     if (conflict) {
@@ -375,6 +393,21 @@ router.patch('/:id/decision', requireStaff, async (req, res, next) => {
     }
 
     if (status === 'Approved') {
+      const maintConflict = await findMaintenanceConflict(conn, {
+        roomId: reservation.room_id,
+        date: reservation.res_date,
+        startTime: reservation.start_time,
+        endTime: reservation.end_time
+      });
+      if (maintConflict) {
+        const err = new Error(
+          `Cannot approve: the room or building is under maintenance ("${maintConflict.title}") during that window.`
+        );
+        err.status = 409;
+        err.code = 'MAINTENANCE_CONFLICT';
+        throw err;
+      }
+
       const conflict = await findConflict(conn, {
         roomId: reservation.room_id,
         date: reservation.res_date,

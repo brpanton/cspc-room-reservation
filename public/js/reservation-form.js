@@ -128,9 +128,10 @@
       rooms = data.rooms || [];
       roomSel.innerHTML = rooms.length
         ? '<option value="">Select a room...</option>' +
-          rooms.map((r) =>
-            `<option value="${r.id}">${escapeHtml(r.name)}${r.floor ? ` · ${escapeHtml(r.floor)}` : ''} - ${escapeHtml(ROOM_TYPE_LABELS[r.room_type] || r.room_type)}, seats ${r.capacity}</option>`
-          ).join('')
+          rooms.map((r) => {
+            const maintTag = r.is_under_maintenance ? ' [⚠ UNDER MAINTENANCE]' : '';
+            return `<option value="${r.id}">${escapeHtml(r.name)}${r.floor ? ` · ${escapeHtml(r.floor)}` : ''} - ${escapeHtml(ROOM_TYPE_LABELS[r.room_type] || r.room_type)}, seats ${r.capacity}${maintTag}</option>`;
+          }).join('')
         : '<option value="">No active rooms in this building</option>';
       if (selectedRoomId && rooms.some((room) => String(room.id) === String(selectedRoomId))) {
         roomSel.value = String(selectedRoomId);
@@ -173,6 +174,10 @@
     const room = selectedRoom();
     const date = dateInput.value;
 
+    // Reset submit button lock state by default
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Submit request';
+
     if (!room || !date) {
       previewPanel.innerHTML =
         '<p class="text-muted-sm mb-0">Pick a room and date to see what is already booked.</p>';
@@ -184,8 +189,47 @@
       const data = await api(
         `/api/availability?date=${encodeURIComponent(date)}&room_id=${encodeURIComponent(room.id)}`
       );
-      const entry = (data.rooms || []).find((r) => String(r.id) === String(room.id));
-      const bookings = entry ? entry.bookings : [];
+      const entry = (data.rooms || []).find((r) => String(r.id) === String(room.id)) || room;
+      const bookings = entry.bookings || [];
+      const start = document.getElementById('start_time').value;
+      const end = document.getElementById('end_time').value;
+
+      // Check if room has active maintenance or scheduled maintenance overlapping chosen slot
+      const schedList = entry.scheduled_maintenance || room.scheduled_maintenance || [];
+      let blockingMaint = entry.is_under_maintenance ? entry.active_maintenance : null;
+      if (!blockingMaint && schedList.length && date && start && end) {
+        const slotStartMs = new Date(`${date}T${start}:00`).getTime();
+        const slotEndMs = new Date(`${date}T${end}:00`).getTime();
+        blockingMaint = schedList.find((m) => {
+          const ms = new Date(m.start_time).getTime();
+          const me = new Date(m.end_time).getTime();
+          return ms < slotEndMs && me > slotStartMs;
+        }) || null;
+      }
+
+      if (blockingMaint) {
+        const untilStr = blockingMaint.end_time
+          ? new Date(blockingMaint.end_time).toLocaleString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit'
+            })
+          : 'TBD';
+        submitBtn.disabled = true;
+        submitBtn.textContent = '🔒 Under Maintenance — Booking Disabled';
+        previewPanel.innerHTML = `
+          <div class="maint-lock-banner">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="badge badge-maintenance rounded-pill">⚠ Under Maintenance</span>
+              <span class="small text-warning fw-semibold">Until ${escapeHtml(untilStr)}</span>
+            </div>
+            <div class="fw-bold mb-1">${escapeHtml(blockingMaint.title || 'Scheduled Maintenance')}</div>
+            <p class="small mb-2">${escapeHtml(blockingMaint.description || 'This facility is temporarily unavailable due to maintenance.')}</p>
+            <div class="small text-warning">Reservations for this room are locked during its maintenance window.</div>
+          </div>`;
+        return;
+      }
 
       if (!bookings.length) {
         previewPanel.innerHTML =
@@ -205,8 +249,6 @@
         '</ul>';
 
       // Warn early when the chosen window collides with an existing booking.
-      const start = document.getElementById('start_time').value;
-      const end = document.getElementById('end_time').value;
       if (start && end && collisions(start, end, bookings).length) {
         previewPanel.innerHTML +=
           '<div class="alert alert-warning mb-0 mt-3 py-2">' +

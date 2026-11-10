@@ -15,6 +15,7 @@
 const express = require('express');
 const pool = require('../db');
 const { requireFields, parseDate, todayIso } = require('../middleware/validate');
+const { enrichRoomsWithMaintenance } = require('./maintenance');
 
 const router = express.Router();
 
@@ -109,7 +110,8 @@ router.get('/rooms', async (req, res, next) => {
        ORDER BY b.name, r.name`,
       params
     );
-    res.json({ rooms: rows });
+    const enriched = await enrichRoomsWithMaintenance(rows);
+    res.json({ rooms: enriched });
   } catch (err) {
     next(err);
   }
@@ -142,7 +144,7 @@ router.get('/rooms/status', async (req, res, next) => {
        ORDER BY b.name, r.name`,
     );
 
-    const rooms = roomRows.map((room) => {
+    const mappedRooms = roomRows.map((room) => {
       const roomBookings = bookings
         .filter((bk) => bk.room_id === room.id)
         .map((bk) => ({
@@ -154,6 +156,8 @@ router.get('/rooms/status', async (req, res, next) => {
         }));
       return { ...room, bookings: roomBookings };
     });
+
+    const rooms = await enrichRoomsWithMaintenance(mappedRooms, date);
 
     res.json({ date, rooms, total_rooms: rooms.length });
   } catch (err) {
@@ -173,7 +177,8 @@ router.get('/rooms/:id', async (req, res, next) => {
       [req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Room not found.' });
-    res.json({ room: rows[0] });
+    const [enriched] = await enrichRoomsWithMaintenance(rows);
+    res.json({ room: enriched });
   } catch (err) {
     next(err);
   }
@@ -233,7 +238,7 @@ router.get('/availability', async (req, res, next) => {
     );
 
     // Group bookings under their room and mark each room free/busy.
-    const rooms = roomRows.map((room) => {
+    const mappedRooms = roomRows.map((room) => {
       const roomBookings = bookings
         .filter((bk) => bk.room_id === room.id)
         .map((bk) => ({
@@ -245,6 +250,12 @@ router.get('/availability', async (req, res, next) => {
         }));
       return { ...room, bookings: roomBookings, is_free_all_day: roomBookings.length === 0 };
     });
+
+    const enrichedRooms = await enrichRoomsWithMaintenance(mappedRooms, date);
+    const rooms = enrichedRooms.map((r) => ({
+      ...r,
+      is_free_all_day: r.is_free_all_day && !r.is_under_maintenance && !r.has_date_maintenance
+    }));
 
     res.json({
       date,

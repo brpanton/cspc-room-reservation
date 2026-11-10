@@ -236,3 +236,74 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires);
+
+-- -------------------------------------------------------------
+-- Building showcase metadata (cover image + optional description)
+-- -------------------------------------------------------------
+ALTER TABLE buildings
+  ADD COLUMN IF NOT EXISTS cover_image_url VARCHAR(255) DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS description     TEXT         DEFAULT NULL;
+
+-- -------------------------------------------------------------
+-- Facility Images: multi-photo gallery for each laboratory (room)
+-- or building. Supports both uploaded files (/uploads/facilities/*)
+-- and static/remote URLs (/img/*).
+-- -------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS facility_images (
+  id            SERIAL PRIMARY KEY,
+  target_type   VARCHAR(20)  NOT NULL CHECK (target_type IN ('room', 'building')),
+  room_id       INT          DEFAULT NULL,
+  building_id   INT          DEFAULT NULL,
+  image_url     VARCHAR(255) NOT NULL,
+  caption       VARCHAR(160) DEFAULT NULL,
+  is_primary    BOOLEAN      NOT NULL DEFAULT FALSE,
+  display_order INT          NOT NULL DEFAULT 0,
+  uploaded_by   INT          DEFAULT NULL,
+  created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_fimg_room     FOREIGN KEY (room_id)     REFERENCES rooms(id)     ON DELETE CASCADE,
+  CONSTRAINT fk_fimg_building FOREIGN KEY (building_id) REFERENCES buildings(id) ON DELETE CASCADE,
+  CONSTRAINT fk_fimg_uploader FOREIGN KEY (uploaded_by) REFERENCES users(id)     ON DELETE SET NULL,
+  CONSTRAINT chk_fimg_target  CHECK (
+    (target_type = 'room'     AND room_id IS NOT NULL AND building_id IS NULL) OR
+    (target_type = 'building' AND building_id IS NOT NULL AND room_id IS NULL)
+  )
+);
+
+CREATE INDEX IF NOT EXISTS idx_fimg_room     ON facility_images(room_id);
+CREATE INDEX IF NOT EXISTS idx_fimg_building ON facility_images(building_id);
+
+-- -------------------------------------------------------------
+-- Maintenance Logs: scheduled or ongoing maintenance windows for
+-- a specific laboratory (room_id) or an entire building (building_id).
+-- `display_mode` controls whether the notice appears as a priority
+-- popup ('popup'), carousel slide ('carousel'), or both ('both').
+-- -------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS maintenance_logs (
+  id               SERIAL PRIMARY KEY,
+  target_type      VARCHAR(20)  NOT NULL DEFAULT 'room' CHECK (target_type IN ('room', 'building')),
+  room_id          INT          DEFAULT NULL,
+  building_id      INT          DEFAULT NULL,
+  title            VARCHAR(160) NOT NULL,
+  description      TEXT         NOT NULL,
+  start_time       TIMESTAMP    NOT NULL,
+  end_time         TIMESTAMP    NOT NULL,
+  status           VARCHAR(20)  NOT NULL DEFAULT 'Scheduled' CHECK (status IN ('Scheduled', 'Ongoing', 'Completed', 'Cancelled')),
+  display_mode     VARCHAR(20)  NOT NULL DEFAULT 'both' CHECK (display_mode IN ('popup', 'carousel', 'both')),
+  banner_image_url VARCHAR(255) DEFAULT NULL,
+  created_by       INT          DEFAULT NULL,
+  created_at       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_maint_room     FOREIGN KEY (room_id)     REFERENCES rooms(id)     ON DELETE CASCADE,
+  CONSTRAINT fk_maint_building FOREIGN KEY (building_id) REFERENCES buildings(id) ON DELETE CASCADE,
+  CONSTRAINT fk_maint_creator  FOREIGN KEY (created_by)  REFERENCES users(id)     ON DELETE SET NULL,
+  CONSTRAINT chk_maint_target  CHECK (
+    (target_type = 'room'     AND room_id IS NOT NULL) OR
+    (target_type = 'building' AND building_id IS NOT NULL)
+  ),
+  CONSTRAINT chk_maint_time    CHECK (end_time > start_time)
+);
+
+CREATE INDEX IF NOT EXISTS idx_maint_status   ON maintenance_logs(status);
+CREATE INDEX IF NOT EXISTS idx_maint_room     ON maintenance_logs(room_id);
+CREATE INDEX IF NOT EXISTS idx_maint_building ON maintenance_logs(building_id);
+CREATE INDEX IF NOT EXISTS idx_maint_window   ON maintenance_logs(start_time, end_time);

@@ -1,0 +1,847 @@
+/* =============================================================
+   CSPC Reservation Portal - "Liquid Glass" enhancement layer
+   -------------------------------------------------------------
+   Loaded AFTER style.css on every page. It does not change any
+   layout or behaviour - it only makes surfaces more glassy:
+     - clearer, more translucent panels with heavier frosted blur
+     - light-catching top edges + soft specular sheen
+     - glossy pill buttons, frosted inputs, glass navbar/sidebar
+   To turn the effect off, remove the <link href="/css/glass.css">
+   tag from the HTML pages (or delete this file).
+   ============================================================= */
+
+:root {
+  /* Fills: a diagonal sheen (bright top-left -> clear middle -> soft glow) */
+  --lg-fill:
+    linear-gradient(135deg,
+      rgba(255, 255, 255, 0.13) 0%,
+      rgba(255, 255, 255, 0.05) 38%,
+      rgba(255, 255, 255, 0.025) 62%,
+      rgba(255, 255, 255, 0.07) 100%);
+  --lg-fill-strong:
+    linear-gradient(135deg,
+      rgba(255, 255, 255, 0.18) 0%,
+      rgba(255, 255, 255, 0.07) 40%,
+      rgba(255, 255, 255, 0.04) 65%,
+      rgba(255, 255, 255, 0.10) 100%);
+  /* Tinted fill for surfaces that need more contrast (menus, modals, nav) */
+  --lg-tint: rgba(12, 20, 38, 0.42);
+  --lg-tint-strong: rgba(10, 17, 32, 0.62);
+  /* Soft dark base under the clear glass so muted text stays readable
+     even where the campus photo behind is bright (sky, white walls). */
+  --lg-base: rgba(10, 17, 32, 0.34);
+
+  --lg-blur: blur(26px) saturate(170%);
+  --lg-blur-soft: blur(16px) saturate(170%);
+
+  --lg-edge: rgba(255, 255, 255, 0.16);
+  --lg-edge-top: rgba(255, 255, 255, 0.38);
+  --lg-shadow:
+    0 18px 50px -18px rgba(0, 0, 0, 0.65),
+    0 2px 6px rgba(0, 0, 0, 0.18);
+  --lg-inner:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.05),
+    inset 1px 0 0 rgba(255, 255, 255, 0.06);
+  --lg-glow-blue: 0 0 0 1px rgba(96, 165, 250, 0.35), 0 12px 40px -12px rgba(59, 130, 246, 0.55);
+}
+
+/* ---------------------------------------------------- page canvas --- */
+main.container {
+  background: var(--lg-fill), rgba(10, 17, 32, 0.12);
+  border: 1px solid var(--lg-edge);
+  border-top-color: var(--lg-edge-top);
+  box-shadow: var(--lg-shadow), var(--lg-inner);
+  backdrop-filter: blur(18px) saturate(170%);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+}
+
+/* ---------------------------------------------------------- navbar --- */
+/* body:not(.lg-off) bumps specificity just above the !important rules in style.css
+   for .dashboard-page / .admin-dashboard-page, so every page gets the
+   same translucent glass bar. */
+html body:not(.lg-off) .portal-navbar {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.02)),
+    var(--lg-tint) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow:
+    0 10px 30px -14px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 rgba(96, 165, 250, 0.35) !important;
+  backdrop-filter: var(--lg-blur) !important;
+  -webkit-backdrop-filter: var(--lg-blur) !important;
+}
+
+html body:not(.lg-off) .portal-navbar .nav-link {
+  border-radius: 999px;
+  border: 1px solid transparent;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+html body:not(.lg-off) .portal-navbar .nav-link:hover {
+  background: rgba(255, 255, 255, 0.09) !important;
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+html body:not(.lg-off) .portal-navbar .nav-link.active {
+  background: linear-gradient(180deg, rgba(96, 165, 250, 0.32), rgba(59, 130, 246, 0.14)) !important;
+  border-color: rgba(147, 197, 253, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+/* ------------------------------------------------- cards & panels --- */
+.card,
+.auth-card,
+.admin-login-mode .auth-card {
+  background: var(--lg-fill), var(--lg-base);
+  border: 1px solid var(--lg-edge);
+  border-top-color: var(--lg-edge-top);
+  box-shadow: var(--lg-shadow), var(--lg-inner);
+  backdrop-filter: var(--lg-blur);
+  -webkit-backdrop-filter: var(--lg-blur);
+}
+
+/* Login / register card: a touch more tint so form text stays crisp. */
+.auth-card {
+  background: var(--lg-fill-strong), var(--lg-tint);
+}
+
+.card-header {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent);
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Admin shell: replace the near-opaque slate panels with real glass. */
+.admin-panel {
+  background: var(--lg-fill), rgba(10, 16, 28, 0.22);
+  border-color: var(--lg-edge);
+  border-top-color: var(--lg-edge-top);
+  box-shadow: var(--lg-shadow), var(--lg-inner);
+  backdrop-filter: var(--lg-blur);
+  -webkit-backdrop-filter: var(--lg-blur);
+}
+
+.admin-topbar,
+.admin-sidebar {
+  background: var(--lg-fill-strong), var(--lg-tint);
+  border: 1px solid var(--lg-edge);
+  border-top-color: var(--lg-edge-top);
+  box-shadow: var(--lg-shadow), var(--lg-inner);
+  backdrop-filter: var(--lg-blur);
+  -webkit-backdrop-filter: var(--lg-blur);
+}
+
+.admin-nav-btn {
+  border-radius: 14px;
+}
+
+.admin-nav-btn:hover,
+.admin-nav-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.admin-nav-btn.active {
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.34), rgba(59, 130, 246, 0.12));
+  border-color: rgba(147, 197, 253, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32), 0 8px 24px -12px rgba(59, 130, 246, 0.8);
+  color: #fff;
+}
+
+/* ------------------------------------------------------ stat cards --- */
+.stat-card {
+  background: var(--lg-fill), var(--lg-base);
+  border: 1px solid var(--lg-edge);
+  border-top-color: var(--lg-edge-top);
+  box-shadow: var(--lg-shadow), var(--lg-inner);
+  backdrop-filter: var(--lg-blur);
+  -webkit-backdrop-filter: var(--lg-blur);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+}
+
+.stat-card:hover {
+  background: var(--lg-fill-strong), var(--lg-base);
+  border-color: rgba(147, 197, 253, 0.4);
+  transform: translateY(-3px);
+  box-shadow: var(--lg-shadow), var(--lg-inner), var(--lg-glow-blue);
+}
+
+.stat-card.stat-total,
+.stat-card.stat-pending,
+.stat-card.stat-approved,
+.stat-card.stat-rejected {
+  border-color: rgba(147, 197, 253, 0.32);
+  border-top-color: var(--lg-edge-top);
+  box-shadow: var(--lg-shadow), var(--lg-inner), 0 0 28px -6px rgba(59, 130, 246, 0.45);
+}
+
+.overview-stat.is-active {
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.3), rgba(59, 130, 246, 0.1));
+  border-color: rgba(147, 197, 253, 0.6);
+  box-shadow: var(--lg-inner), var(--lg-glow-blue);
+}
+
+/* ----------------------------------------------------- room cards --- */
+.room-card:hover {
+  border-color: rgba(147, 197, 253, 0.45);
+  box-shadow: var(--lg-shadow), var(--lg-inner), var(--lg-glow-blue);
+}
+
+/* --------------------------------------------------------- buttons --- */
+/* Glossy primary: gradient body + bright upper "lens" highlight. */
+.btn-cspc,
+.admin-login-mode .btn-cspc,
+.auth-card .btn-cspc {
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.06) 48%, rgba(255, 255, 255, 0) 52%),
+    linear-gradient(135deg, rgba(96, 165, 250, 0.95), rgba(37, 99, 235, 0.92));
+  border: 1px solid rgba(191, 219, 254, 0.45);
+  box-shadow:
+    0 10px 28px -12px rgba(59, 130, 246, 0.95),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+  backdrop-filter: var(--lg-blur-soft);
+  -webkit-backdrop-filter: var(--lg-blur-soft);
+}
+
+.btn-cspc:hover,
+.btn-cspc:focus {
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.36) 0%, rgba(255, 255, 255, 0.1) 48%, rgba(255, 255, 255, 0) 52%),
+    linear-gradient(135deg, rgba(125, 185, 255, 0.98), rgba(29, 78, 216, 0.95));
+  border-color: rgba(219, 234, 254, 0.65);
+}
+
+/* Frosted secondary / outline buttons. */
+.btn-outline-cspc,
+.btn-outline-secondary,
+.btn-outline-light,
+.btn-outline-primary,
+.btn-group > .btn {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  color: var(--cspc-ink);
+  backdrop-filter: var(--lg-blur-soft);
+  -webkit-backdrop-filter: var(--lg-blur-soft);
+}
+
+.btn-outline-cspc:hover,
+.btn-outline-cspc:focus,
+.btn-outline-secondary:hover,
+.btn-outline-secondary:focus,
+.btn-outline-light:hover,
+.btn-outline-light:focus,
+.btn-outline-primary:hover,
+.btn-outline-primary:focus,
+.btn-group > .btn:hover {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.07));
+  border-color: rgba(191, 219, 254, 0.5);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 6px 20px -10px rgba(59, 130, 246, 0.7);
+}
+
+.btn-group > .btn.active,
+.btn-group > .btn.active:focus {
+  background: linear-gradient(180deg, rgba(96, 165, 250, 0.4), rgba(59, 130, 246, 0.16));
+  border-color: rgba(147, 197, 253, 0.6);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  color: #fff;
+}
+
+.btn-approve,
+.btn-reject,
+.btn-success {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 8px 22px -12px rgba(0, 0, 0, 0.7);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* ----------------------------------------------------------- forms --- */
+/* style.css later forces a solid #131c2e; swap it for frosted glass. */
+.form-control,
+.form-select,
+.auth-card .form-control {
+  background-color: rgba(8, 14, 28, 0.38);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-top-color: rgba(255, 255, 255, 0.26);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: var(--lg-blur-soft);
+  -webkit-backdrop-filter: var(--lg-blur-soft);
+  color: #f1f5f9;
+}
+
+.form-control:focus,
+.form-select:focus,
+.auth-card .form-control:focus {
+  background-color: rgba(8, 14, 28, 0.5);
+  border-color: rgba(147, 197, 253, 0.75);
+  box-shadow: 0 0 0 0.22rem rgba(59, 130, 246, 0.25), inset 0 1px 2px rgba(0, 0, 0, 0.25);
+  color: #fff;
+}
+
+/* ---------------------------------------------------------- tables --- */
+.table-portal thead th {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.04));
+  border-bottom-color: rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.table {
+  --bs-table-hover-bg: rgba(147, 197, 253, 0.1);
+}
+
+.table-portal tbody tr:hover > * {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* ------------------------------------------------------------ tabs --- */
+.nav-tabs .nav-link.active {
+  background: linear-gradient(180deg, rgba(96, 165, 250, 0.34), rgba(59, 130, 246, 0.12));
+  border-color: rgba(147, 197, 253, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+/* -------------------------------------------- menus, modals, toasts --- */
+.profile-menu,
+.profile-dropdown-menu,
+.dropdown-menu {
+  background: var(--lg-fill-strong), var(--lg-tint-strong);
+  border: 1px solid var(--lg-edge);
+  border-top-color: var(--lg-edge-top);
+  box-shadow: var(--lg-shadow), var(--lg-inner);
+  backdrop-filter: var(--lg-blur);
+  -webkit-backdrop-filter: var(--lg-blur);
+}
+
+.profile-pill {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05));
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  backdrop-filter: var(--lg-blur-soft);
+  -webkit-backdrop-filter: var(--lg-blur-soft);
+}
+
+/* Modals keep enough tint to read clearly, even on pages where the
+   dark modal backdrop is disabled (user + admin dashboards). */
+.modal-content,
+.profile-modal-content {
+  background: var(--lg-fill-strong), var(--lg-tint-strong);
+  border: 1px solid var(--lg-edge);
+  border-top-color: var(--lg-edge-top);
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.75), var(--lg-inner);
+  backdrop-filter: blur(30px) saturate(190%);
+  -webkit-backdrop-filter: blur(30px) saturate(190%);
+}
+
+.modal-header,
+.modal-footer {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.modal-backdrop.show {
+  background: rgba(5, 10, 22, 0.45);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+}
+
+.alert {
+  border-top-color: rgba(255, 255, 255, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  backdrop-filter: var(--lg-blur-soft);
+  -webkit-backdrop-filter: var(--lg-blur-soft);
+}
+
+.app-toast {
+  backdrop-filter: var(--lg-blur);
+  -webkit-backdrop-filter: var(--lg-blur);
+  box-shadow: 0 20px 44px -20px rgba(0, 0, 0, 0.95), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+/* Badges get a tiny glass highlight. */
+.status-badge,
+.role-badge {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* -------------------------------------------------- accessibility --- */
+@media (prefers-reduced-motion: reduce) {
+  .stat-card,
+  .stat-card:hover { transition: none; transform: none; }
+}
+
+/* Browsers without backdrop-filter: fall back to more solid panels so
+   text never sits on an unreadable see-through surface. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .card,
+  .stat-card,
+  .admin-panel,
+  .admin-topbar,
+  .admin-sidebar,
+  main.container {
+    background: rgba(12, 20, 38, 0.85);
+  }
+  .modal-content,
+  .profile-modal-content,
+  .profile-menu,
+  .profile-dropdown-menu,
+  .dropdown-menu {
+    background: rgba(10, 17, 32, 0.95);
+  }
+}
+
+/* Also make the admin "System Resources & User Breakdown" accordion glass */
+.resource-summary > summary {
+  background: var(--lg-fill), var(--lg-base) !important;
+  border: 1px solid var(--lg-edge) !important;
+  border-top-color: var(--lg-edge-top) !important;
+  box-shadow: var(--lg-shadow), var(--lg-inner) !important;
+  backdrop-filter: var(--lg-blur) !important;
+  -webkit-backdrop-filter: var(--lg-blur) !important;
+}
+
+/* =============================================================
+   MAINTENANCE & FACILITY SHOWCASE MODULE — Glassmorphism UI
+   ============================================================= */
+
+@keyframes maintPulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(245, 158, 11, 0), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  }
+}
+
+@keyframes maintFlashDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.82); }
+}
+
+/* 1. Top Maintenance Notification Banner (Public & User pages) */
+.maint-top-banner {
+  position: relative;
+  z-index: 990;
+  background:
+    linear-gradient(90deg, rgba(245, 158, 11, 0.22) 0%, rgba(239, 68, 68, 0.18) 50%, rgba(59, 130, 246, 0.18) 100%),
+    rgba(10, 17, 32, 0.72);
+  border-bottom: 1px solid rgba(251, 191, 36, 0.4);
+  box-shadow: 0 10px 28px -12px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  backdrop-filter: var(--lg-blur);
+  -webkit-backdrop-filter: var(--lg-blur);
+  padding: 0.6rem 1rem;
+  color: #fef3c7;
+  font-size: 0.86rem;
+}
+
+.maint-top-banner-inner {
+  max-width: 1320px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.maint-banner-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.22rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: rgba(245, 158, 11, 0.28);
+  border: 1px solid rgba(251, 191, 36, 0.65);
+  color: #fde68a;
+  animation: maintPulseGlow 2.4s infinite;
+}
+
+.maint-banner-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fbbf24;
+  box-shadow: 0 0 8px #fbbf24;
+  animation: maintFlashDot 1.2s infinite;
+}
+
+/* 2. Advertisement-Style Facility Showcase Hero Carousel */
+.facility-showcase-section {
+  margin-top: 1.5rem;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  border-radius: 26px;
+  background: var(--lg-fill-strong), rgba(10, 17, 32, 0.44);
+  border: 1px solid var(--lg-edge);
+  border-top-color: var(--lg-edge-top);
+  box-shadow: var(--lg-shadow), var(--lg-inner);
+  backdrop-filter: var(--lg-blur);
+  -webkit-backdrop-filter: var(--lg-blur);
+  position: relative;
+  overflow: hidden;
+}
+
+.showcase-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.15rem;
+}
+
+.showcase-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #7dd3fc;
+  background: rgba(56, 189, 248, 0.14);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+}
+
+.showcase-stage {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: 1.35rem;
+  align-items: stretch;
+}
+
+@media (max-width: 991.98px) {
+  .showcase-stage {
+    grid-template-columns: 1fr;
+  }
+}
+
+.showcase-photo-wrap {
+  position: relative;
+  border-radius: 20px;
+  overflow: hidden;
+  min-height: 330px;
+  background: rgba(5, 10, 22, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 18px 40px -16px rgba(0, 0, 0, 0.75);
+}
+
+.showcase-main-img {
+  width: 100%;
+  height: 100%;
+  min-height: 330px;
+  max-height: 400px;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.45s ease, opacity 0.25s ease;
+}
+
+.showcase-photo-wrap:hover .showcase-main-img {
+  transform: scale(1.03);
+}
+
+.showcase-photo-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(5, 10, 22, 0.35) 0%, transparent 40%, rgba(5, 10, 22, 0.85) 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1rem 1.15rem;
+  pointer-events: none;
+}
+
+.showcase-photo-overlay > * {
+  pointer-events: auto;
+}
+
+.showcase-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.42rem 0.95rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.showcase-status-badge.is-available {
+  background: rgba(16, 185, 129, 0.28);
+  border: 1px solid rgba(52, 211, 153, 0.75);
+  color: #a7f3d0;
+  box-shadow: 0 0 24px rgba(16, 185, 129, 0.4);
+}
+
+.showcase-status-badge.is-maintenance {
+  background: rgba(245, 158, 11, 0.32);
+  border: 1px solid rgba(251, 191, 36, 0.85);
+  color: #fef08a;
+  animation: maintPulseGlow 2s infinite;
+}
+
+.showcase-thumbs {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-top: 0.35rem;
+}
+
+.showcase-thumb-btn {
+  width: 56px;
+  height: 42px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  padding: 0;
+  background: rgba(0, 0, 0, 0.4);
+  opacity: 0.72;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.showcase-thumb-btn.active,
+.showcase-thumb-btn:hover {
+  opacity: 1;
+  border-color: #60a5fa;
+  transform: translateY(-2px);
+}
+
+.showcase-thumb-btn img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.showcase-info-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1.35rem;
+  border-radius: 20px;
+  background: var(--lg-fill), rgba(10, 17, 32, 0.45);
+  border: 1px solid var(--lg-edge);
+  border-top-color: var(--lg-edge-top);
+  box-shadow: var(--lg-inner);
+}
+
+.showcase-maint-box {
+  margin-top: 0.85rem;
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(239, 68, 68, 0.14));
+  border: 1px solid rgba(251, 191, 36, 0.5);
+  color: #fef3c7;
+}
+
+.showcase-avail-box {
+  margin-top: 0.85rem;
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.16), rgba(59, 130, 246, 0.12));
+  border: 1px solid rgba(52, 211, 153, 0.4);
+  color: #d1fae5;
+}
+
+.showcase-dots {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.showcase-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.25);
+  transition: all 0.25s ease;
+  padding: 0;
+}
+
+.showcase-dot.active {
+  width: 28px;
+  background: #60a5fa;
+  box-shadow: 0 0 12px rgba(96, 165, 250, 0.8);
+}
+
+/* 3. Priority Maintenance Announcement Popup Modal (Pre-login & Scroll Alert) */
+.maint-popup-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2100;
+  background: rgba(5, 10, 22, 0.62);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: dropdownFadeIn 0.22s ease forwards;
+}
+
+.maint-popup-backdrop[hidden] {
+  display: none !important;
+}
+
+.maint-popup-card {
+  width: 100%;
+  max-width: 560px;
+  border-radius: 24px;
+  background: var(--lg-fill-strong), rgba(10, 17, 32, 0.88);
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  border-top: 1px solid rgba(254, 240, 138, 0.65);
+  box-shadow: 0 30px 80px -18px rgba(0, 0, 0, 0.85), 0 0 40px -10px rgba(245, 158, 11, 0.35), var(--lg-inner);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  overflow: hidden;
+  color: #f8fafc;
+}
+
+.maint-popup-cover {
+  position: relative;
+  height: 185px;
+  background: #09101f;
+  overflow: hidden;
+}
+
+.maint-popup-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.maint-popup-cover-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(5, 10, 22, 0.25) 0%, rgba(10, 17, 32, 0.92) 100%);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+}
+
+.maint-popup-body {
+  padding: 1.25rem 1.5rem 1.4rem;
+}
+
+.maint-floating-pill {
+  position: fixed;
+  bottom: 1.25rem;
+  left: 1.25rem;
+  z-index: 1045;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 1rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.28), rgba(15, 23, 42, 0.88));
+  border: 1px solid rgba(251, 191, 36, 0.6);
+  color: #fef3c7;
+  font-size: 0.82rem;
+  font-weight: 700;
+  box-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  backdrop-filter: var(--lg-blur);
+  -webkit-backdrop-filter: var(--lg-blur);
+}
+
+.maint-floating-pill:hover {
+  transform: translateY(-2px);
+  color: #fff;
+  border-color: #fde047;
+}
+
+/* 4. Authenticated User Dashboard Rotating Advisory & Showcase Widget */
+.user-maint-widget {
+  border-radius: 22px;
+  background:
+    linear-gradient(135deg, rgba(245, 158, 11, 0.14) 0%, rgba(59, 130, 246, 0.12) 60%, rgba(255, 255, 255, 0.05) 100%),
+    var(--lg-base);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-top-color: rgba(255, 255, 255, 0.38);
+  box-shadow: var(--lg-shadow), var(--lg-inner);
+  backdrop-filter: var(--lg-blur);
+  -webkit-backdrop-filter: var(--lg-blur);
+  padding: 1.15rem 1.35rem;
+  margin-bottom: 1.5rem;
+}
+
+.user-maint-slide {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 1.15rem;
+  align-items: center;
+}
+
+@media (max-width: 767.98px) {
+  .user-maint-slide {
+    grid-template-columns: 1fr;
+  }
+}
+
+.user-maint-photo {
+  width: 100%;
+  height: 138px;
+  object-fit: cover;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* 5. "Under Maintenance" Badges & Disabled Reservation Lock Styling */
+.badge-maintenance {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.32), rgba(239, 68, 68, 0.28)) !important;
+  border: 1px solid rgba(251, 191, 36, 0.75) !important;
+  color: #fef08a !important;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  animation: maintPulseGlow 2.4s infinite;
+}
+
+.lab-status-card.is-maintenance,
+.room-card.is-maintenance {
+  border-color: rgba(251, 191, 36, 0.5) !important;
+  background: linear-gradient(160deg, rgba(245, 158, 11, 0.14), rgba(15, 23, 42, 0.55)) !important;
+}
+
+.maint-lock-banner {
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.22), rgba(245, 158, 11, 0.18));
+  border: 1px solid rgba(251, 191, 36, 0.6);
+  color: #fef2f2;
+  font-size: 0.86rem;
+}
+
+/* 6. Admin Facility Photo Gallery Grid */
+.admin-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.admin-gallery-item {
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--lg-fill), var(--lg-base);
+  border: 1px solid var(--lg-edge);
+  box-shadow: var(--lg-inner);
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-gallery-item img {
+  width: 100%;
+  height: 130px;
+  object-fit: cover;
+}
+

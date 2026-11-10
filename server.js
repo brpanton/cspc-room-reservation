@@ -1,4 +1,4 @@
-﻿/**
+/**
  * CSPC Lab & Room Reservation System - Express entry point.
  *
  *   npm run init-db   (first time only: creates schema + demo data)
@@ -35,6 +35,8 @@ const adminRoutes = require('./routes/admin');
 const supportRoutes = require('./routes/support');
 const profileRoutes = require('./routes/profile');
 const passwordResetRoutes = require('./routes/password-reset');
+const maintenanceRoutes = require('./routes/maintenance');
+const { ensureMaintenanceSchema } = require('./routes/maintenance');
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -81,6 +83,7 @@ app.use(attachUser);
 
 // ------------------------------------------------------------------- routes
 app.use('/api/auth', authRoutes);
+app.use('/api', maintenanceRoutes); // facility-showcase, maintenance advisories, admin maintenance & photo CRUD
 app.use('/api', roomRoutes); // public: buildings, rooms, availability
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/admin', adminRoutes);
@@ -90,8 +93,14 @@ app.use('/api/profile', profileRoutes);
 // for the flow, but same /api/auth prefix as register/login/change-password.
 app.use('/api/auth', passwordResetRoutes);
 
-// Avatars are generated raster image files, stored outside the public source tree.
+// Avatars and facility photos are stored outside the public source tree.
 app.use('/uploads/avatars', express.static(path.join(__dirname, 'uploads', 'avatars'), {
+  fallthrough: false,
+  index: false,
+  dotfiles: 'deny',
+  maxAge: '1d'
+}));
+app.use('/uploads/facilities', express.static(path.join(__dirname, 'uploads', 'facilities'), {
   fallthrough: false,
   index: false,
   dotfiles: 'deny',
@@ -192,7 +201,8 @@ process.on('uncaughtException', (err) => {
 async function start() {
   try {
     await testConnection();
-    console.log('[db] PostgreSQL connection established.');
+    await ensureMaintenanceSchema();
+    console.log('[db] PostgreSQL connection established & maintenance showcase schema ready.');
   } catch (err) {
     console.error('\n[db] Could not connect to PostgreSQL:', err.message);
     console.error('[db] Check your .env settings and make sure PostgreSQL is running.');

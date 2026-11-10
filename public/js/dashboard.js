@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    CSPC Reservation Portal - Student Dashboard
    Clean, responsive, fully data-connected student dashboard.
    ============================================================ */
@@ -186,27 +186,51 @@
         return;
       }
 
-      const topRooms = rooms.slice(0, 6);
-      labStatusEl.innerHTML = '<div class="row g-2">' +
+      const sortedRooms = [...rooms].sort((a, b) => {
+        if (Boolean(a.is_under_maintenance) !== Boolean(b.is_under_maintenance)) {
+          return a.is_under_maintenance ? -1 : 1;
+        }
+        return 0;
+      });
+      const topRooms = sortedRooms.slice(0, 6);
+      labStatusEl.innerHTML = '<div class="row g-3">' +
         topRooms.map((r) => {
-          const occ = r.occupancy_pct != null ? Number(r.occupancy_pct) : 0;
-          const isAvailable = occ < 70;
-          const badgeClass = isAvailable ? 'bg-success' : 'bg-warning';
-          const badgeText = isAvailable ? 'Available' : 'Busy';
-          return '<div class="col-6 col-sm-4 col-lg-4">' +
-            '<div class="card lab-status-card h-100">' +
-            '<div class="card-body p-3">' +
-            '<div class="d-flex justify-content-between align-items-start mb-2">' +
+          const isMaint = Boolean(r.is_under_maintenance);
+          const maint = r.active_maintenance;
+          const occ = r.occupancy_pct != null ? Number(r.occupancy_pct) : ((r.bookings || []).length * 25);
+          const isAvailable = !isMaint && occ < 70;
+          const badgeClass = isMaint ? 'badge-maintenance' : (isAvailable ? 'bg-success' : 'bg-warning');
+          const badgeText = isMaint ? '⚠ Under Maintenance' : (isAvailable ? 'Available' : 'Busy');
+          const untilStr = isMaint && maint && maint.end_time
+            ? new Date(maint.end_time).toLocaleString(getLocale(), { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+            : '';
+          const actionBtn = isMaint
+            ? '<button type="button" class="btn btn-sm btn-outline-secondary w-100 mt-3" disabled title="Reservations disabled during maintenance">🔒 Under Maintenance</button>'
+            : '<a href="/reservation-form.html?building_id=' + encodeURIComponent(r.building_id || '') + '&room_id=' + encodeURIComponent(r.id) + '" class="btn btn-sm btn-cspc w-100 mt-3">+ Reserve Lab</a>';
+
+          return '<div class="col-12 col-sm-6 col-lg-4">' +
+            '<div class="card lab-status-card ' + (isMaint ? 'is-maintenance' : '') + ' h-100">' +
+            '<div class="card-body p-3 d-flex flex-column">' +
+            '<div class="d-flex justify-content-between align-items-start gap-2 mb-1">' +
             '<div class="fw-semibold">' + escapeHtml(r.name || 'Unnamed Room') + '</div>' +
             '<span class="badge ' + badgeClass + ' rounded-pill">' + badgeText + '</span>' +
             '</div>' +
             (r.building_name ? '<div class="text-muted-small mb-2">' + escapeHtml(r.building_name) + '</div>' : '') +
-            '<div class="progress mt-2" style="height: 6px;">' +
-            '<div class="progress-bar ' + (isAvailable ? 'bg-success' : 'bg-warning') + '"' +
-            ' role="progressbar" style="width: ' + occ + '%"' +
-            ' aria-valuenow="' + occ + '" aria-valuemin="0" aria-valuemax="100"></div>' +
-            '</div>' +
-            '<div class="mt-2 text-muted-small">' + occ + '% utilization</div>' +
+            (isMaint
+              ? '<div class="maint-lock-banner mt-auto py-2 px-2 small">' +
+                '<div class="fw-semibold text-warning">' + escapeHtml((maint && maint.title) || 'Scheduled Maintenance') + '</div>' +
+                (untilStr ? '<div class="text-muted-small mt-1">Expected completion: <strong>' + escapeHtml(untilStr) + '</strong></div>' : '') +
+                '</div>'
+              : '<div class="mt-auto">' +
+                '<div class="progress mt-2" style="height: 6px;">' +
+                '<div class="progress-bar ' + (isAvailable ? 'bg-success' : 'bg-warning') + '"' +
+                ' role="progressbar" style="width: ' + Math.min(100, occ) + '%"' +
+                ' aria-valuenow="' + Math.min(100, occ) + '" aria-valuemin="0" aria-valuemax="100"></div>' +
+                '</div>' +
+                '<div class="mt-2 text-muted-small">' + Math.min(100, occ) + '% utilization</div>' +
+                '</div>'
+            ) +
+            actionBtn +
             '</div></div></div>';
         }).join('') + '</div>';
     } catch (err) {
