@@ -260,75 +260,6 @@
   // ==========================================================================
   const SHOWCASE_AUTO_PLAY_MS = 3000;
 
-  // Canonical mapping of campus buildings to their official exterior photos (building category only)
-  const CSPC_BUILDING_PHOTOS = {
-    'CCS BUILDING': {
-      url: '/img/640fd213-b190-4dd5-85ac-f5e48efaa979.jpg',
-      caption: 'College of Computer Studies Facility'
-    },
-    'CAS BUILDING': {
-      url: '/img/86d642c7-aab7-4114-85ec-75a84ae1b8c0.jpg',
-      caption: 'College of Arts and Sciences Building'
-    },
-    'GREENBUILDING': {
-      url: '/img/430ad98a-b78e-4c54-b0fa-803c6eed5ef3.jpg',
-      caption: 'CSPC Green Building'
-    },
-    'GREEN BUILDING': {
-      url: '/img/430ad98a-b78e-4c54-b0fa-803c6eed5ef3.jpg',
-      caption: 'CSPC Green Building'
-    },
-    'ACADEMIC BUILDING II': {
-      url: '/img/6073d9fd-be4f-4d55-bc84-bde51aa8db51.jpg',
-      caption: 'Academic Building II'
-    },
-    'ACADEMIC BUILDING I': {
-      url: '/img/79f0c07c-b23e-4644-9550-536b84c2f5b4.jpg',
-      caption: 'Academic Building I'
-    },
-    'MULTI PURPOSE BUILDING': {
-      url: '/img/fc87102f-d288-4b44-81f1-022acfccb7c6.jpg',
-      caption: 'Multi-Purpose Building & Gymnasium'
-    },
-    'MULTI PORPUSE BUILDING': {
-      url: '/img/fc87102f-d288-4b44-81f1-022acfccb7c6.jpg',
-      caption: 'Multi-Purpose Building & Gymnasium'
-    },
-    'CHS BUILDING': {
-      url: '/img/e4edc818-0707-48a1-87d1-cb81125f6ee4.jpg',
-      caption: 'College of Health Sciences Building'
-    },
-    'CITD BUILDING': {
-      url: '/img/6073d9fd-be4f-4d55-bc84-bde51aa8db51.jpg',
-      caption: 'CITD Building — Campus Complex'
-    },
-    'LSB BUILDING': {
-      url: '/img/79f0c07c-b23e-4644-9550-536b84c2f5b4.jpg',
-      caption: 'Laboratory Science Building'
-    }
-  };
-
-  /**
-   * Enforces that showcase images are strictly in the building category.
-   * Removes indoor equipment or room interior photos and maps to the official building exterior.
-   */
-  function getBuildingCategoryPhoto(lab) {
-    const bName = String(lab.building_name || '').trim().toUpperCase();
-    if (CSPC_BUILDING_PHOTOS[bName]) {
-      return CSPC_BUILDING_PHOTOS[bName];
-    }
-    if (lab.cover_image_url && !/lab\.(jpg|png|webp|heif|heic)/i.test(lab.cover_image_url)) {
-      return {
-        url: lab.cover_image_url,
-        caption: `${lab.building_name || 'CSPC Campus Facility'}`
-      };
-    }
-    return {
-      url: '/img/campus-bg-sm.jpg',
-      caption: `${lab.building_name || 'CSPC Campus Main Building'}`
-    };
-  }
-
   function mountFacilityShowcaseCarousel(
     data,
     {
@@ -341,18 +272,8 @@
   ) {
     if (!anchorEl) return;
 
-    const rawLabs = Array.isArray(data.labs) ? data.labs : [];
-    if (!rawLabs.length) return;
-
-    // Filter and map labs so every slide strictly features its building category photo
-    const labs = rawLabs.map((lab) => {
-      const bPhoto = getBuildingCategoryPhoto(lab);
-      return {
-        ...lab,
-        showcase_photo_url: bPhoto.url,
-        showcase_photo_caption: bPhoto.caption
-      };
-    });
+    const labs = Array.isArray(data.labs) ? data.labs : [];
+    if (!labs.length) return;
 
     let section = document.getElementById(sectionId);
     if (!section) {
@@ -373,10 +294,36 @@
     }
 
     let currentSlide = 0;
+    let currentPhotoIdx = 0;
     let timer = null;
     let isHovered = false;
-    let activeLayerIndex = 0; // 0 or 1
-    let isTransitioning = false;
+
+    function stopAutoRotate() {
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+    }
+
+    function startAutoRotate() {
+      stopAutoRotate();
+      if (labs.length <= 1) return;
+      timer = setInterval(() => {
+        if (isHovered) return;
+        currentSlide = (currentSlide + 1) % labs.length;
+        currentPhotoIdx = 0;
+        render();
+      }, SHOWCASE_AUTO_PLAY_MS);
+    }
+
+    /**
+     * Resets the 3-second countdown timer whenever the user manually clicks
+     * Next, Prev, an indicator dot, or a photo thumbnail so it never skips early.
+     */
+    function resetAutoRotate() {
+      stopAutoRotate();
+      startAutoRotate();
+    }
 
     function buildActionHtml(lab, isMaint) {
       if (viewMode === 'admin') {
@@ -399,271 +346,194 @@
       return `<button type="button" class="btn btn-cspc" data-bs-toggle="modal" data-bs-target="#visitor-login-modal">Sign in to Reserve →</button>`;
     }
 
-    function buildAdvisoryHtml(lab, isMaint, maint) {
-      if (isMaint) {
-        return `
-          <div class="showcase-maint-box">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              <strong class="text-warning">⚠ Active Maintenance Advisory</strong>
-              <span class="badge bg-warning text-dark">${esc(maint?.effective_status || 'Ongoing')}</span>
-            </div>
-            <div class="fw-semibold mb-1">${esc(maint?.title || 'Scheduled Facility Servicing')}</div>
-            <p class="small mb-2">${esc(maint?.description || 'This laboratory is temporarily closed for maintenance.')}</p>
-            <div class="small text-warning">
-              ⏱ Expected Completion: <strong>${esc(fmtDateTime(maint?.end_time))}</strong>
-            </div>
-          </div>`;
-      }
-      return `
-        <div class="showcase-avail-box">
-          <div class="fw-bold text-success mb-1">✓ Ready for Academic &amp; Laboratory Sessions</div>
-          <p class="small mb-0">
-            This facility has no active maintenance advisories and is open for student, faculty, and department reservation requests.
-          </p>
-        </div>`;
-    }
+    function render() {
+      const lab = labs[currentSlide];
+      const photos =
+        Array.isArray(lab.images) && lab.images.length
+          ? lab.images
+          : [{ image_url: lab.image_url || '/img/cs-lab.jpg', caption: lab.name }];
+      if (currentPhotoIdx >= photos.length) currentPhotoIdx = 0;
+      const activePhoto = photos[currentPhotoIdx] || photos[0];
 
-    function buildAmenitiesHtml(lab) {
+      const isMaint = Boolean(lab.is_under_maintenance);
+      const maint = lab.active_maintenance;
       const amenities = [];
       if (lab.capacity) amenities.push(`👥 Seats ${lab.capacity}`);
       if (lab.has_projector) amenities.push('📽️ HD Projector');
       if (lab.has_aircon) amenities.push('❄️ Air-Conditioned');
       if (lab.has_sound) amenities.push('🔊 Sound System');
-      return amenities.map((a) => `<span class="amenity-pill">${esc(a)}</span>`).join('');
-    }
 
-    const subtitleText =
-      viewMode === 'admin'
-        ? 'Live rotating overview of all campus laboratories, equipment tags, and active maintenance advisories.'
-        : isAuthenticated || viewMode === 'user'
-          ? 'Explore campus laboratories and check real-time maintenance status before reserving a space.'
-          : 'Explore campus laboratories before signing in. Rooms undergoing maintenance are flagged in real time.';
+      const subtitleText =
+        viewMode === 'admin'
+          ? 'Live rotating overview of all campus laboratories, equipment tags, and active maintenance advisories.'
+          : isAuthenticated || viewMode === 'user'
+            ? 'Explore campus laboratories and check real-time maintenance status before reserving a space.'
+            : 'Explore campus laboratories before signing in. Rooms undergoing maintenance are flagged in real time.';
 
-    // Render outer shell ONCE so elements persist for seamless cross-fade transitions
-    const initialLab = labs[0];
-    const initialMaint = Boolean(initialLab.is_under_maintenance);
-
-    section.innerHTML = `
-      <div class="showcase-header">
-        <div>
-          <span class="showcase-kicker">✦ Campus Facility Showcase &amp; Live Advisories</span>
-          <h2 class="h4 fw-bold text-white mt-2 mb-1">Featured Laboratories &amp; Real-Time Facility Status</h2>
-          <p class="text-muted-sm mb-0">${subtitleText}</p>
-        </div>
-        <div class="d-flex align-items-center gap-2">
-          <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-50 rounded-pill px-3 py-2">
-            ● ${esc(data.summary?.available_count || 0)} Available
-          </span>
-          <span class="badge badge-maintenance rounded-pill px-3 py-2">
-            ⚠ ${esc(data.summary?.under_maintenance_count || 0)} Under Maintenance
-          </span>
-        </div>
-      </div>
-
-      <div class="showcase-stage">
-        <div class="showcase-photo-wrap ${initialMaint ? 'is-maintenance' : ''}" id="sc-photo-wrap">
-          <img class="showcase-img-layer showcase-layer-0 is-active" id="sc-img-0" src="${esc(initialLab.showcase_photo_url)}" alt="${esc(initialLab.name)}" />
-          <img class="showcase-img-layer showcase-layer-1 is-hidden" id="sc-img-1" src="" alt="" />
-
-          <div class="showcase-photo-overlay">
-            <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
-              <span class="showcase-status-badge ${initialMaint ? 'is-maintenance' : 'is-available'}" id="sc-status-badge">
-                ${initialMaint ? '⚠ Under Maintenance' : '✓ Available for Booking'}
-              </span>
-              <span class="badge bg-dark bg-opacity-75 border border-light border-opacity-25 rounded-pill px-3 py-2" id="sc-building-chip">
-                ${esc(initialLab.building_name)}
-              </span>
-            </div>
-
-            <div>
-              <div class="small text-white-50 mb-1" id="sc-caption">${esc(initialLab.showcase_photo_caption)}</div>
-            </div>
+      section.innerHTML = `
+        <div class="showcase-header">
+          <div>
+            <span class="showcase-kicker">✦ Campus Facility Showcase &amp; Live Advisories</span>
+            <h2 class="h4 fw-bold text-white mt-2 mb-1">Featured Laboratories &amp; Real-Time Facility Status</h2>
+            <p class="text-muted-sm mb-0">${subtitleText}</p>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-50 rounded-pill px-3 py-2">
+              ● ${esc(data.summary?.available_count || 0)} Available
+            </span>
+            <span class="badge badge-maintenance rounded-pill px-3 py-2">
+              ⚠ ${esc(data.summary?.under_maintenance_count || 0)} Under Maintenance
+            </span>
           </div>
         </div>
 
-        <div class="showcase-info-card">
-          <div class="showcase-content-fader" id="sc-info-fader">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <span class="text-info small fw-bold text-uppercase" id="sc-info-building">${esc(initialLab.building_name)}</span>
-              <span class="small text-muted-sm" id="sc-slide-counter">Slide 1 of ${labs.length}</span>
-            </div>
-            <h3 class="h3 fw-bold text-white mb-2" id="sc-title">${esc(initialLab.name)}</h3>
-            <div class="d-flex flex-wrap gap-2 mb-3" id="sc-amenities">
-              ${buildAmenitiesHtml(initialLab)}
-            </div>
-
-            <div id="sc-advisory-wrap">
-              ${buildAdvisoryHtml(initialLab, initialMaint, initialLab.active_maintenance)}
-            </div>
-          </div>
-
-          <div class="mt-4 pt-3 border-top border-light border-opacity-10 d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <div class="d-flex align-items-center gap-2">
-              <button type="button" class="btn btn-sm btn-outline-light" data-showcase-prev="1" aria-label="Previous laboratory">← Prev</button>
-              <div class="showcase-dots" id="sc-dots-wrap">
-                ${labs
-                  .map(
-                    (_, dIdx) =>
-                      `<button type="button" class="showcase-dot ${dIdx === 0 ? 'active' : ''}" data-slide-idx="${dIdx}" aria-label="Slide ${dIdx + 1}"></button>`
-                  )
-                  .join('')}
+        <div class="showcase-stage">
+          <div class="showcase-photo-wrap ${isMaint ? 'is-maintenance' : ''} is-loading" data-glass-label="${isMaint ? 'Under Maintenance' : 'Facility Photo'}" data-glass-sublabel="${esc(lab.name)}">
+            <img class="showcase-main-img" src="${esc(activePhoto.image_url)}" alt="${esc(lab.name)}" />
+            <div class="showcase-photo-overlay">
+              <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
+                <span class="showcase-status-badge ${isMaint ? 'is-maintenance' : 'is-available'}">
+                  ${isMaint ? '⚠ Under Maintenance' : '✓ Available for Booking'}
+                </span>
+                <span class="badge bg-dark bg-opacity-75 border border-light border-opacity-25 rounded-pill px-3 py-2">
+                  ${esc(lab.building_name)}${lab.floor ? ` · ${esc(lab.floor)}` : ''}
+                </span>
               </div>
-              <button type="button" class="btn btn-sm btn-outline-light" data-showcase-next="1" aria-label="Next laboratory">Next →</button>
+
+              <div>
+                <div class="small text-white-50 mb-1">${esc(activePhoto.caption || `${lab.name} — Facility View`)}</div>
+                ${
+                  photos.length > 1
+                    ? `<div class="showcase-thumbs">
+                        ${photos
+                          .map(
+                            (p, pIdx) => `
+                          <button type="button" class="showcase-thumb-btn ${pIdx === currentPhotoIdx ? 'active' : ''}" data-photo-idx="${pIdx}" title="${esc(p.caption || `Photo ${pIdx + 1}`)}">
+                            <img src="${esc(p.image_url)}" alt="" />
+                          </button>`
+                          )
+                          .join('')}
+                       </div>`
+                    : ''
+                }
+              </div>
+            </div>
+          </div>
+
+          <div class="showcase-info-card">
+            <div>
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-info small fw-bold text-uppercase">${esc(lab.building_name)}</span>
+                <span class="small text-muted-sm">Slide ${currentSlide + 1} of ${labs.length}</span>
+              </div>
+              <h3 class="h3 fw-bold text-white mb-2">${esc(lab.name)}</h3>
+              <div class="d-flex flex-wrap gap-2 mb-3">
+                ${amenities.map((a) => `<span class="amenity-pill">${esc(a)}</span>`).join('')}
+              </div>
+
+              ${
+                isMaint
+                  ? `<div class="showcase-maint-box">
+                       <div class="d-flex justify-content-between align-items-center mb-1">
+                         <strong class="text-warning">⚠ Active Maintenance Advisory</strong>
+                         <span class="badge bg-warning text-dark">${esc(maint?.effective_status || 'Ongoing')}</span>
+                       </div>
+                       <div class="fw-semibold mb-1">${esc(maint?.title || 'Scheduled Facility Servicing')}</div>
+                       <p class="small mb-2">${esc(maint?.description || 'This laboratory is temporarily closed for maintenance.')}</p>
+                       <div class="small text-warning">
+                         ⏱ Expected Completion: <strong>${esc(fmtDateTime(maint?.end_time))}</strong>
+                       </div>
+                     </div>`
+                  : `<div class="showcase-avail-box">
+                       <div class="fw-bold text-success mb-1">✓ Ready for Academic &amp; Laboratory Sessions</div>
+                       <p class="small mb-0">
+                         This facility has no active maintenance advisories and is open for student, faculty, and department reservation requests.
+                       </p>
+                     </div>`
+              }
             </div>
 
-            <div id="sc-action-wrap">
-              ${buildActionHtml(initialLab, initialMaint)}
+            <div class="mt-4 pt-3 border-top border-light border-opacity-10 d-flex justify-content-between align-items-center flex-wrap gap-2">
+              <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-outline-light" data-showcase-prev="1" aria-label="Previous laboratory">← Prev</button>
+                <div class="showcase-dots">
+                  ${labs
+                    .map(
+                      (_, dIdx) =>
+                        `<button type="button" class="showcase-dot ${dIdx === currentSlide ? 'active' : ''}" data-slide-idx="${dIdx}" aria-label="Slide ${dIdx + 1}"></button>`
+                    )
+                    .join('')}
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-light" data-showcase-next="1" aria-label="Next laboratory">Next →</button>
+              </div>
+
+              <div>
+                ${buildActionHtml(lab, isMaint)}
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    `;
+      `;
 
-    // Cache DOM references
-    const photoWrap = section.querySelector('#sc-photo-wrap');
-    const layer0 = section.querySelector('#sc-img-0');
-    const layer1 = section.querySelector('#sc-img-1');
-    const statusBadge = section.querySelector('#sc-status-badge');
-    const buildingChip = section.querySelector('#sc-building-chip');
-    const captionEl = section.querySelector('#sc-caption');
-    const infoFader = section.querySelector('#sc-info-fader');
-    const infoBuilding = section.querySelector('#sc-info-building');
-    const slideCounter = section.querySelector('#sc-slide-counter');
-    const titleEl = section.querySelector('#sc-title');
-    const amenitiesEl = section.querySelector('#sc-amenities');
-    const advisoryWrap = section.querySelector('#sc-advisory-wrap');
-    const dotsWrap = section.querySelector('#sc-dots-wrap');
-    const actionWrap = section.querySelector('#sc-action-wrap');
-
-    function applySlide(targetIndex) {
-      if (targetIndex === currentSlide && isTransitioning) return;
-      isTransitioning = true;
-      currentSlide = (targetIndex + labs.length) % labs.length;
-      const lab = labs[currentSlide];
-      const isMaint = Boolean(lab.is_under_maintenance);
-      const maint = lab.active_maintenance;
-
-      // 1. Cross-fade between Layer 0 and Layer 1
-      const nextLayer = activeLayerIndex === 0 ? layer1 : layer0;
-      const prevLayer = activeLayerIndex === 0 ? layer0 : layer1;
-
-      nextLayer.src = lab.showcase_photo_url;
-      nextLayer.alt = lab.name;
-
-      nextLayer.classList.remove('is-hidden', 'is-prev');
-      nextLayer.classList.add('is-active');
-
-      prevLayer.classList.remove('is-active');
-      prevLayer.classList.add('is-prev');
-
-      activeLayerIndex = 1 - activeLayerIndex;
-
-      setTimeout(() => {
-        prevLayer.classList.remove('is-prev');
-        prevLayer.classList.add('is-hidden');
-        isTransitioning = false;
-      }, 850);
-
-      // 2. Soft fade text and update details
-      infoFader.classList.add('is-fading');
-      setTimeout(() => {
-        if (isMaint) {
-          photoWrap.classList.add('is-maintenance');
-          statusBadge.className = 'showcase-status-badge is-maintenance';
-          statusBadge.textContent = '⚠ Under Maintenance';
-        } else {
-          photoWrap.classList.remove('is-maintenance');
-          statusBadge.className = 'showcase-status-badge is-available';
-          statusBadge.textContent = '✓ Available for Booking';
-        }
-
-        buildingChip.textContent = lab.building_name;
-        captionEl.textContent = lab.showcase_photo_caption;
-
-        infoBuilding.textContent = lab.building_name;
-        slideCounter.textContent = `Slide ${currentSlide + 1} of ${labs.length}`;
-        titleEl.textContent = lab.name;
-        amenitiesEl.innerHTML = buildAmenitiesHtml(lab);
-        advisoryWrap.innerHTML = buildAdvisoryHtml(lab, isMaint, maint);
-        actionWrap.innerHTML = buildActionHtml(lab, isMaint);
-
-        // Update indicator dots
-        dotsWrap.querySelectorAll('.showcase-dot').forEach((d, idx) => {
-          d.classList.toggle('active', idx === currentSlide);
+      section.querySelectorAll('[data-photo-idx]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          currentPhotoIdx = Number(btn.getAttribute('data-photo-idx'));
+          render();
+          resetAutoRotate();
         });
+      });
 
-        // Re-bind admin button if present
-        const adminBtn = actionWrap.querySelector('[data-showcase-admin-maint]');
-        if (adminBtn) {
-          adminBtn.addEventListener('click', () => {
-            const navBtn = document.querySelector('.admin-nav-btn[data-target="#pane-maintenance"]');
-            if (navBtn) navBtn.click();
-            const pane = document.getElementById('pane-maintenance');
-            pane?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          });
-        }
+      section.querySelectorAll('[data-slide-idx]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          currentSlide = Number(btn.getAttribute('data-slide-idx'));
+          currentPhotoIdx = 0;
+          render();
+          resetAutoRotate();
+        });
+      });
 
-        infoFader.classList.remove('is-fading');
-      }, 180);
-    }
-
-    function stopAutoRotate() {
-      if (timer) {
-        clearInterval(timer);
-        timer = null;
-      }
-    }
-
-    function startAutoRotate() {
-      stopAutoRotate();
-      if (labs.length <= 1) return;
-      timer = setInterval(() => {
-        if (isHovered) return;
-        applySlide(currentSlide + 1);
-      }, SHOWCASE_AUTO_PLAY_MS);
-    }
-
-    function resetAutoRotate() {
-      stopAutoRotate();
-      startAutoRotate();
-    }
-
-    // Event listeners for dots and prev/next controls
-    section.addEventListener('click', (e) => {
-      const dot = e.target.closest('[data-slide-idx]');
-      if (dot) {
-        const idx = Number(dot.getAttribute('data-slide-idx'));
-        applySlide(idx);
-        resetAutoRotate();
-        return;
-      }
-
-      const prevBtn = e.target.closest('[data-showcase-prev]');
+      const prevBtn = section.querySelector('[data-showcase-prev]');
       if (prevBtn) {
-        applySlide(currentSlide - 1);
-        resetAutoRotate();
-        return;
+        prevBtn.addEventListener('click', () => {
+          currentSlide = (currentSlide - 1 + labs.length) % labs.length;
+          currentPhotoIdx = 0;
+          render();
+          resetAutoRotate();
+        });
       }
 
-      const nextBtn = e.target.closest('[data-showcase-next]');
+      const nextBtn = section.querySelector('[data-showcase-next]');
       if (nextBtn) {
-        applySlide(currentSlide + 1);
-        resetAutoRotate();
-        return;
+        nextBtn.addEventListener('click', () => {
+          currentSlide = (currentSlide + 1) % labs.length;
+          currentPhotoIdx = 0;
+          render();
+          resetAutoRotate();
+        });
       }
-    });
 
-    // Hover to pause & mouseleave to resume
+      const adminMaintBtn = section.querySelector('[data-showcase-admin-maint]');
+      if (adminMaintBtn) {
+        adminMaintBtn.addEventListener('click', () => {
+          const navBtn = document.querySelector('.admin-nav-btn[data-target="#pane-maintenance"]');
+          if (navBtn) navBtn.click();
+          const pane = document.getElementById('pane-maintenance');
+          pane?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      }
+    }
+
+    // Hover to Pause & Mouseleave to Resume 3-second cycle
     section.addEventListener('mouseenter', () => {
       isHovered = true;
       stopAutoRotate();
     });
-
     section.addEventListener('mouseleave', () => {
       isHovered = false;
       resetAutoRotate();
     });
 
+    render();
     startAutoRotate();
   }
 
@@ -713,45 +583,39 @@
     const advisories = Array.isArray(data.announcements) ? data.announcements : [];
     const labs = Array.isArray(data.labs) ? data.labs : [];
 
-    // Combine active maintenance advisories + featured labs into rotating slides (building category photos only)
+    // Combine active maintenance advisories + featured labs into rotating slides
     const slides = [
-      ...advisories.map((a) => {
-        const bPhoto = getBuildingCategoryPhoto({ building_name: a.target_label || a.building_name });
-        return {
-          type: 'maintenance',
-          title: a.title,
-          subtitle: a.target_label,
-          description: a.description,
-          status: a.effective_status || a.status,
-          end_time: a.end_time,
-          image_url: bPhoto.url,
-          room_id: a.room_id,
-          building_id: a.building_id
-        };
-      }),
+      ...advisories.map((a) => ({
+        type: 'maintenance',
+        title: a.title,
+        subtitle: a.target_label,
+        description: a.description,
+        status: a.effective_status || a.status,
+        end_time: a.end_time,
+        image_url: a.showcase_image || '/img/cs-lab.jpg',
+        room_id: a.room_id,
+        building_id: a.building_id
+      })),
       ...labs
         .filter((l) => !l.is_under_maintenance)
         .slice(0, 4)
-        .map((l) => {
-          const bPhoto = getBuildingCategoryPhoto(l);
-          return {
-            type: 'showcase',
-            title: `${l.name} — Open for Reservations`,
-            subtitle: l.building_name,
-            description: `Seats up to ${l.capacity} attendees. Equipped with ${[
-              l.has_projector ? 'Projector' : null,
-              l.has_aircon ? 'Air-Conditioning' : null,
-              l.has_sound ? 'Sound System' : null
-            ]
-              .filter(Boolean)
-              .join(', ') || 'standard laboratory facilities'}.`,
-            status: 'Available',
-            end_time: null,
-            image_url: bPhoto.url,
-            room_id: l.id,
-            building_id: l.building_id
-          };
-        })
+        .map((l) => ({
+          type: 'showcase',
+          title: `${l.name} — Open for Reservations`,
+          subtitle: `${l.building_name}${l.floor ? ` · ${l.floor}` : ''}`,
+          description: `Seats up to ${l.capacity} attendees. Equipped with ${[
+            l.has_projector ? 'Projector' : null,
+            l.has_aircon ? 'Air-Conditioning' : null,
+            l.has_sound ? 'Sound System' : null
+          ]
+            .filter(Boolean)
+            .join(', ') || 'standard laboratory facilities'}.`,
+          status: 'Available',
+          end_time: null,
+          image_url: l.image_url || '/img/it-lab1.jpg',
+          room_id: l.id,
+          building_id: l.building_id
+        }))
     ];
 
     if (!slides.length) return;
@@ -1393,6 +1257,7 @@
 
       if (isUserDashboard) {
         renderUserShowcaseCarousel(showcaseData);
+        renderUserDashboardAdvisoryWidget(showcaseData);
       }
 
       if (isAdminDashboard) {

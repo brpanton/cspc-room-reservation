@@ -107,9 +107,9 @@ async function findConflict(conn, { roomId, date, startTime, endTime, excludeId 
     FROM reservations res
     JOIN users u ON u.id = res.user_id
     WHERE res.room_id = $1
-      AND res.res_date = $2
-      AND res.start_time < $3
-      AND res.end_time > $4
+      AND res.res_date = $2::date
+      AND res.start_time < $3::time
+      AND res.end_time > $4::time
       AND res.status IN ($5, $6)`;
 
   if (excludeId) {
@@ -152,8 +152,9 @@ router.use(requireLogin);
 // ---------------------------------------------------------------- create ---
 router.post('/', async (req, res, next) => {
   if (!requireSession(req, res)) return;
+  let conn;
   try {
-    const conn = await pool.connect();
+    conn = await pool.connect();
     requireFields(req.body, ['room_id', 'res_date', 'start_time', 'end_time', 'purpose']);
 
     const roomId = parseIntInRange(req.body.room_id, { min: 1, fieldName: 'room_id' });
@@ -234,7 +235,7 @@ router.post('/', async (req, res, next) => {
     /* ---- generate transaction code: CSPC-YYYYMMDD-XXXXX ---- */
     const todayStr = date.replace(/-/g, '');
     const { rows: countRows } = await conn.query(
-      `SELECT COUNT(*) AS cnt FROM reservations WHERE res_date = $1`,
+      `SELECT COUNT(*) AS cnt FROM reservations WHERE res_date = $1::date`,
       [date]
     );
     const seq = String(Number(countRows[0]?.cnt || 0) + 1).padStart(5, '0');
@@ -244,9 +245,9 @@ router.post('/', async (req, res, next) => {
       `INSERT INTO reservations
          (room_id, user_id, res_date, start_time, end_time, purpose, attendees, status, transaction_code,
           scheduled_start, scheduled_end, session_status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'Pending', $8,
-               ($3::text || ' ' || $4::text)::timestamp,
-               ($3::text || ' ' || $5::text)::timestamp,
+       VALUES ($1, $2, $3::date, $4::time, $5::time, $6, $7, 'Pending', $8,
+               ($3::date + $4::time)::timestamp,
+               ($3::date + $5::time)::timestamp,
                'Scheduled') RETURNING id`,
       [roomId, req.session.user.id, date, startTime, endTime, purpose, attendees, transactionCode]
     );

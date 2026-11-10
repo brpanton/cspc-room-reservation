@@ -156,11 +156,9 @@ async function ensureMaintenanceSchema() {
       ['CAS BUILDING', '/img/86d642c7-aab7-4114-85ec-75a84ae1b8c0.jpg', 'College of Arts and Sciences Building'],
       ['GREENBUILDING', '/img/430ad98a-b78e-4c54-b0fa-803c6eed5ef3.jpg', 'CSPC Green Building'],
       ['ACADEMIC BUILDING II', '/img/6073d9fd-be4f-4d55-bc84-bde51aa8db51.jpg', 'Academic Building II'],
-      ['ACADEMIC BUILDING I', '/img/79f0c07c-b23e-4644-9550-536b84c2f5b4.jpg', 'Academic Building I'],
       ['MULTI PURPOSE BUILDING', '/img/fc87102f-d288-4b44-81f1-022acfccb7c6.jpg', 'Multi-Purpose Hall & Labs'],
-      ['CHS BUILDING', '/img/e4edc818-0707-48a1-87d1-cb81125f6ee4.jpg', 'College of Health Sciences Building'],
-      ['CITD BUILDING', '/img/6073d9fd-be4f-4d55-bc84-bde51aa8db51.jpg', 'CITD Building Complex'],
-      ['LSB BUILDING', '/img/79f0c07c-b23e-4644-9550-536b84c2f5b4.jpg', 'Laboratory Science Building']
+      ['CITD BUILDING', '/img/cookery-lab.jpg', 'CITD Laboratories & Workshops'],
+      ['LSB BUILDING', '/img/chemistry-lab.jpg', 'Laboratory Science Building']
     ];
     for (const [bName, coverUrl, caption] of buildingCovers) {
       const { rows: bRows } = await pool.query('SELECT id FROM buildings WHERE name = $1 LIMIT 1', [bName]);
@@ -426,8 +424,8 @@ router.get('/facility-showcase', async (req, res, next) => {
         ...shaped,
         showcase_image:
           row.banner_image_url ||
-          row.building_image_url ||
           row.room_image_url ||
+          row.building_image_url ||
           '/img/campus-bg-sm.jpg'
       };
     });
