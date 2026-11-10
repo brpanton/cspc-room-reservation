@@ -203,7 +203,7 @@
     if (activeList.length === 0) {
       container.innerHTML = `
         <div class="text-center py-4 text-muted-small">
-          <div class="fs-3 mb-2">📋</div>
+          <div class="fs-3 mb-2 text-muted"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg></div>
           <div class="fw-bold text-white mb-1">No active reservations right now</div>
           <div class="text-muted-sm mb-3">You don't have any pending or approved bookings scheduled.</div>
           <a href="/reservation-form.html" class="btn btn-sm btn-primary px-3 fw-semibold">+ Request a Room / Lab &rarr;</a>
@@ -216,11 +216,11 @@
       activeList.map((r) => {
         const isApproved = String(r.status || '').toLowerCase() === 'approved';
         const badgeClass = isApproved ? 'bg-success' : 'bg-warning text-dark';
-        const badgeLabel = isApproved ? '✓ Approved' : '⏱ Pending Review';
+        const badgeLabel = isApproved ? 'Approved' : 'Pending Review';
 
         const canEarlyOut = isApproved && r.can_early_checkout !== false;
         const earlyBtnHtml = canEarlyOut
-          ? `<button type="button" class="btn btn-sm btn-warning text-dark fw-bold me-2" data-early-checkout="${r.id}" title="End Session Early">⏱ Check-Out</button>`
+          ? `<button type="button" class="btn btn-sm btn-warning text-dark fw-bold me-2" data-early-checkout="${r.id}" title="End Session Early">Check-Out</button>`
           : '';
 
         const cancelBtnHtml = `
@@ -709,7 +709,7 @@
       upcoming.map((r) => {
         const canEarlyOut = String(r.status || '') === 'Approved' && r.can_early_checkout !== false;
         const earlyBtnHtml = canEarlyOut
-          ? '<div class="mt-2"><button type="button" class="btn btn-sm btn-warning text-dark fw-semibold" data-early-checkout="' + r.id + '">⏱ End Session Early / Check-Out Now</button></div>'
+          ? '<div class="mt-2"><button type="button" class="btn btn-sm btn-warning text-dark fw-semibold" data-early-checkout="' + r.id + '">End Session Early / Check-Out Now</button></div>'
           : '';
         return '<div class="list-group-item list-group-item-action border-0 py-2">' +
           '<div class="d-flex justify-content-between align-items-start">' +
@@ -794,7 +794,7 @@
       if (canEarlyOut) {
         actionBtns =
           '<button type="button" class="btn btn-sm btn-warning text-dark fw-semibold" data-early-checkout="' + r.id + '" title="Finish session early and free laboratory">' +
-          '⏱ Check-Out Now' +
+          'Check-Out Now' +
           '</button>';
       } else if (canCancel) {
         actionBtns = '<button type="button" class="btn btn-sm btn-outline-danger cancel-btn" data-id="' + r.id + '" title="Cancel reservation #' + r.id + '">Cancel</button>';
@@ -805,12 +805,12 @@
       let sessionMetaHtml = '';
       if (status === 'Completed Early' && r.actual_check_out) {
         const outTime = new Date(r.actual_check_out).toLocaleTimeString(getLocale(), { hour: 'numeric', minute: '2-digit' });
-        sessionMetaHtml = '<div class="small text-info mt-1">✓ Checked out early at ' + escapeHtml(outTime) + '</div>';
+        sessionMetaHtml = '<div class="small text-info mt-1">Checked out early at ' + escapeHtml(outTime) + '</div>';
       } else if (status === 'Terminated by Admin') {
         const reasonText = r.termination_reason || r.remarks || 'Session overridden by Administrator';
-        sessionMetaHtml = '<div class="small text-danger fw-semibold mt-1">⚠ Reason: ' + escapeHtml(reasonText) + '</div>';
+        sessionMetaHtml = '<div class="small text-danger fw-semibold mt-1">Reason: ' + escapeHtml(reasonText) + '</div>';
       } else if (r.session_status === 'Active' && status === 'Approved') {
-        sessionMetaHtml = '<div class="small text-success fw-semibold mt-1">● Session Checked-In (Active)</div>';
+        sessionMetaHtml = '<div class="small text-success fw-semibold mt-1">Session Checked-In (Active)</div>';
       }
 
       const requesterName = escapeHtml(user.full_name || 'You');

@@ -71,13 +71,25 @@
   }
 
   // ==========================================================================
-  // 1. TOP MAINTENANCE NOTIFICATION BANNER (Public & User Pages)
+  // 1. SUB-NAVBAR MAINTENANCE & ADVISORY BANNER (Sole Advisory Location)
+  // Positioned directly underneath the main navigation bar.
   // ==========================================================================
   function renderTopBanner(announcements, onOpenModal) {
     if (!Array.isArray(announcements) || !announcements.length) return;
     if (document.getElementById('maint-top-banner')) return;
 
     const primary = announcements[0];
+    const dismissKey = `cspc_subnav_advisory_dismissed_${primary.id}_${primary.updated_at || primary.start_time || ''}`;
+
+    // Respect localStorage/sessionStorage dismissal so user is not repeatedly prompted unless advisory ID/timestamp updates
+    try {
+      if (localStorage.getItem(dismissKey) === 'true' || sessionStorage.getItem(dismissKey) === 'true') {
+        return;
+      }
+    } catch (_) {
+      /* ignore storage access restrictions */
+    }
+
     const banner = document.createElement('div');
     banner.id = 'maint-top-banner';
     banner.className = 'maint-top-banner';
@@ -94,7 +106,7 @@
             <span class="maint-banner-dot"></span>
             ${esc(statusLabel)}
           </span>
-          <strong>${esc(primary.target_label)}:</strong>
+          <strong>${esc(primary.target_label || 'Campus Facilities')}:</strong>
           <span>${esc(primary.title)}</span>
           <span class="text-warning small fw-semibold">(Expected completion: ${esc(fmtDateTime(primary.end_time))})${esc(extraCount)}</span>
         </div>
@@ -107,6 +119,7 @@
       </div>
     `;
 
+    // Position directly underneath the main navbar
     const navHost = document.getElementById('navbar-placeholder');
     if (navHost && navHost.parentNode) {
       navHost.parentNode.insertBefore(banner, navHost.nextSibling);
@@ -118,9 +131,19 @@
     if (viewBtn && typeof onOpenModal === 'function') {
       viewBtn.addEventListener('click', () => onOpenModal());
     }
+
     const closeBtn = banner.querySelector('#maint-banner-close-btn');
     if (closeBtn) {
-      closeBtn.addEventListener('click', () => banner.remove());
+      closeBtn.addEventListener('click', () => {
+        try {
+          localStorage.setItem(dismissKey, 'true');
+          sessionStorage.setItem(dismissKey, 'true');
+        } catch (_) {}
+        banner.style.opacity = '0';
+        banner.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+        banner.style.transform = 'translateY(-6px)';
+        setTimeout(() => banner.remove(), 200);
+      });
     }
   }
 
@@ -180,7 +203,7 @@
                     ? `<button type="button" class="btn btn-sm btn-outline-light" data-maint-prev="1">← Prev</button>
                        <span class="small text-muted-sm">${idx + 1} / ${popups.length}</span>
                        <button type="button" class="btn btn-sm btn-outline-light" data-maint-next="1">Next →</button>`
-                    : `<span class="small text-warning">🔒 Reservations blocked during this window</span>`
+                    : `<span class="small text-warning">Reservations blocked during this window</span>`
                 }
               </div>
               <div class="d-flex gap-2">
@@ -280,6 +303,10 @@
       section = document.createElement('section');
       section.id = sectionId;
       section.className = 'facility-showcase-section mb-4';
+      section.style.background = 'transparent';
+      section.style.border = 'none';
+      section.style.boxShadow = 'none';
+      section.style.padding = '0';
       section.setAttribute('aria-label', 'Featured Laboratories & Live Maintenance Showcase');
 
       if (insertMode === 'before' && anchorEl.parentNode) {
@@ -330,7 +357,7 @@
         return `
           <div class="d-flex flex-wrap gap-2">
             <button type="button" class="btn btn-sm btn-outline-light" data-showcase-admin-maint="${esc(lab.id)}">
-              ⚙ Manage Maintenance
+              Manage Maintenance
             </button>
             <a href="/rooms-status.html" class="btn btn-sm btn-cspc">
               View Room Timetable →
@@ -338,7 +365,7 @@
           </div>`;
       }
       if (isMaint) {
-        return `<button type="button" class="btn btn-outline-secondary" disabled>🔒 Under Maintenance</button>`;
+        return `<button type="button" class="btn btn-outline-secondary" disabled>Under Maintenance</button>`;
       }
       if (isAuthenticated || viewMode === 'user') {
         return `<a href="/reservation-form.html?building_id=${encodeURIComponent(lab.building_id || '')}&room_id=${encodeURIComponent(lab.id)}" class="btn btn-cspc">Reserve Space →</a>`;
@@ -358,10 +385,10 @@
       const isMaint = Boolean(lab.is_under_maintenance);
       const maint = lab.active_maintenance;
       const amenities = [];
-      if (lab.capacity) amenities.push(`👥 Seats ${lab.capacity}`);
-      if (lab.has_projector) amenities.push('📽️ HD Projector');
-      if (lab.has_aircon) amenities.push('❄️ Air-Conditioned');
-      if (lab.has_sound) amenities.push('🔊 Sound System');
+      if (lab.capacity) amenities.push(`Seats: ${lab.capacity}`);
+      if (lab.has_projector) amenities.push('HD Projector');
+      if (lab.has_aircon) amenities.push('Air-Conditioned');
+      if (lab.has_sound) amenities.push('Sound System');
 
       const subtitleText =
         viewMode === 'admin'
@@ -373,7 +400,7 @@
       section.innerHTML = `
         <div class="showcase-header">
           <div>
-            <span class="showcase-kicker">✦ Campus Facility Showcase &amp; Live Advisories</span>
+            <span class="showcase-kicker">Campus Facility Showcase &amp; Live Advisories</span>
             <h2 class="h4 fw-bold text-white mt-2 mb-1">Featured Laboratories &amp; Real-Time Facility Status</h2>
             <p class="text-muted-sm mb-0">${subtitleText}</p>
           </div>
@@ -382,18 +409,18 @@
               ● ${esc(data.summary?.available_count || 0)} Available
             </span>
             <span class="badge badge-maintenance rounded-pill px-3 py-2">
-              ⚠ ${esc(data.summary?.under_maintenance_count || 0)} Under Maintenance
+              ${esc(data.summary?.under_maintenance_count || 0)} Under Maintenance
             </span>
           </div>
         </div>
 
         <div class="showcase-stage">
-          <div class="showcase-photo-wrap ${isMaint ? 'is-maintenance' : ''} is-loading" data-glass-label="${isMaint ? 'Under Maintenance' : 'Facility Photo'}" data-glass-sublabel="${esc(lab.name)}">
+          <div class="showcase-photo-wrap ${isMaint ? 'is-maintenance' : ''}">
             <img class="showcase-main-img" src="${esc(activePhoto.image_url)}" alt="${esc(lab.name)}" />
             <div class="showcase-photo-overlay">
               <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
                 <span class="showcase-status-badge ${isMaint ? 'is-maintenance' : 'is-available'}">
-                  ${isMaint ? '⚠ Under Maintenance' : '✓ Available for Booking'}
+                  ${isMaint ? 'Under Maintenance' : 'Available for Booking'}
                 </span>
                 <span class="badge bg-dark bg-opacity-75 border border-light border-opacity-25 rounded-pill px-3 py-2">
                   ${esc(lab.building_name)}${lab.floor ? ` · ${esc(lab.floor)}` : ''}
@@ -435,17 +462,17 @@
                 isMaint
                   ? `<div class="showcase-maint-box">
                        <div class="d-flex justify-content-between align-items-center mb-1">
-                         <strong class="text-warning">⚠ Active Maintenance Advisory</strong>
+                         <strong class="text-warning">Active Maintenance Advisory</strong>
                          <span class="badge bg-warning text-dark">${esc(maint?.effective_status || 'Ongoing')}</span>
                        </div>
                        <div class="fw-semibold mb-1">${esc(maint?.title || 'Scheduled Facility Servicing')}</div>
                        <p class="small mb-2">${esc(maint?.description || 'This laboratory is temporarily closed for maintenance.')}</p>
                        <div class="small text-warning">
-                         ⏱ Expected Completion: <strong>${esc(fmtDateTime(maint?.end_time))}</strong>
+                         Expected Completion: <strong>${esc(fmtDateTime(maint?.end_time))}</strong>
                        </div>
                      </div>`
                   : `<div class="showcase-avail-box">
-                       <div class="fw-bold text-success mb-1">✓ Ready for Academic &amp; Laboratory Sessions</div>
+                       <div class="fw-bold text-success mb-1">Ready for Academic &amp; Laboratory Sessions</div>
                        <p class="small mb-0">
                          This facility has no active maintenance advisories and is open for student, faculty, and department reservation requests.
                        </p>
@@ -521,6 +548,14 @@
           pane?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });
       }
+
+      // Auto-scroll the dots ribbon container so the active dot stays centered
+      const dotsContainer = section.querySelector('.showcase-dots');
+      const activeDot = section.querySelector('.showcase-dot.active');
+      if (dotsContainer && activeDot) {
+        const dotOffset = activeDot.offsetLeft - (dotsContainer.clientWidth / 2) + (activeDot.clientWidth / 2);
+        dotsContainer.scrollTo({ left: Math.max(0, dotOffset), behavior: 'smooth' });
+      }
     }
 
     // Hover to Pause & Mouseleave to Resume 3-second cycle
@@ -549,8 +584,41 @@
     });
   }
 
+  function renderLoginShowcaseCarousel(data, session) {
+    const authCard = document.getElementById('login-card') || document.querySelector('.auth-card');
+    if (!authCard) return;
+
+    let container = document.getElementById('login-showcase-wrapper');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'login-showcase-wrapper';
+      container.className = 'container pb-4 pt-0';
+      container.style.maxWidth = '1140px';
+      container.style.margin = '0 auto';
+      container.style.paddingTop = '0';
+
+      const authWrap = authCard.closest('.auth-wrap') || authCard.parentElement;
+      if (authWrap && authWrap.parentNode) {
+        authWrap.parentNode.insertBefore(container, authWrap.nextSibling);
+      } else {
+        document.body.appendChild(container);
+      }
+    }
+
+    mountFacilityShowcaseCarousel(data, {
+      sectionId: 'login-facility-showcase-section',
+      anchorEl: container,
+      insertMode: 'append',
+      viewMode: 'public',
+      isAuthenticated: Boolean(session && session.authenticated)
+    });
+  }
+
   function renderUserShowcaseCarousel(data) {
-    const labSection = document.getElementById('laboratory-status')?.closest('section.card');
+    const labSection =
+      document.getElementById('section-lab-search') ||
+      document.getElementById('laboratory-status')?.closest('section.card') ||
+      document.querySelector('main.container > section');
     if (!labSection) return;
     mountFacilityShowcaseCarousel(data, {
       sectionId: 'user-facility-showcase-section',
@@ -562,12 +630,12 @@
   }
 
   function renderAdminShowcaseCarousel(data) {
-    const adminOverview = document.getElementById('admin-overview');
+    const adminOverview = document.getElementById('admin-overview') || document.querySelector('.admin-main');
     if (!adminOverview) return;
     mountFacilityShowcaseCarousel(data, {
       sectionId: 'admin-facility-showcase-section',
       anchorEl: adminOverview,
-      insertMode: 'append',
+      insertMode: 'prepend',
       viewMode: 'admin',
       isAuthenticated: true
     });
@@ -660,9 +728,9 @@
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
               ${
                 isMaint
-                  ? `<span class="small text-warning fw-semibold">⏱ Expected completion: ${esc(fmtDateTime(s.end_time))}</span>
-                     <button type="button" class="btn btn-sm btn-outline-secondary" disabled>🔒 Under Maintenance — Booking Disabled</button>`
-                  : `<span class="small text-success fw-semibold">✓ Available for immediate booking</span>
+                  ? `<span class="small text-warning fw-semibold">Expected completion: ${esc(fmtDateTime(s.end_time))}</span>
+                     <button type="button" class="btn btn-sm btn-outline-secondary" disabled>Under Maintenance — Booking Disabled</button>`
+                  : `<span class="small text-success fw-semibold">Available for immediate booking</span>
                      <a href="/reservation-form.html?building_id=${encodeURIComponent(s.building_id || '')}&room_id=${encodeURIComponent(s.room_id || '')}" class="btn btn-sm btn-cspc">+ Reserve This Lab</a>`
               }
             </div>
@@ -1129,10 +1197,10 @@
               <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top border-secondary border-opacity-25">
                 ${
                   img.is_primary
-                    ? `<span class="badge bg-primary rounded-pill">★ Primary Cover</span>`
+                    ? `<span class="badge bg-primary rounded-pill">Primary Cover</span>`
                     : `<button type="button" class="btn btn-sm btn-outline-light py-0 px-2" data-gal-primary="${img.id}">Set Primary</button>`
                 }
-                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" data-gal-del="${img.id}">✕</button>
+                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" data-gal-del="${img.id}">Delete</button>
               </div>
             </div>
           </div>
@@ -1220,23 +1288,29 @@
       const isHomePage = document.body.classList.contains('portal-home-page') || Boolean(document.getElementById('overview'));
       const isUserDashboard = Boolean(document.getElementById('laboratory-status') && !document.querySelector('.admin-nav'));
       const isAdminDashboard = Boolean(document.querySelector('.admin-nav'));
+      const isLoginPage = Boolean(document.getElementById('login-card') || document.querySelector('.auth-card') || document.getElementById('login-form'));
 
       let openPopupFn = null;
-      if (isHomePage && popups.length) {
+      if (popups.length) {
         openPopupFn = setupPriorityPopupModal(popups);
+      } else if (announcements.length) {
+        openPopupFn = setupPriorityPopupModal(announcements);
       }
 
       if (!isAdminDashboard && announcements.length) {
-        renderTopBanner(announcements, openPopupFn || (() => setupPriorityPopupModal(announcements)()));
+        renderTopBanner(announcements, openPopupFn);
       }
 
       if (isHomePage) {
         renderPublicShowcaseCarousel(showcaseData, openPopupFn, sessionData);
       }
 
+      if (isLoginPage && !isHomePage) {
+        renderLoginShowcaseCarousel(showcaseData, sessionData);
+      }
+
       if (isUserDashboard) {
-        // Redundant laboratory showcase removed from user dashboard.
-        // Only render maintenance advisory if there is an active notice.
+        renderUserShowcaseCarousel(showcaseData);
         if (announcements.length > 0) {
           renderUserDashboardAdvisoryWidget(showcaseData);
         }

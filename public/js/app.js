@@ -14,6 +14,9 @@ const FILIPINO_UI = {
   'Lab & Room Reservation': 'Sistema ng Pagpapareserba ng Lab at Silid',
   'Room and Laboratory Reservation': 'Sistemang Pagpapareserba ng Silid at Laboratoryo',
   'Laboratory/Room Reservation': 'Reserbasyon ng Laboratoryo/Silid',
+  'Laboratory Reservation': 'Reserbasyon ng Laboratoryo',
+  'HORNET': 'HORNET',
+  'Search buildings…': 'Maghanap ng mga gusali…',
   'Dashboard': 'Dashboard', 'Room Status': 'Kalagayan ng mga Silid', 'About Us': 'Tungkol sa Amin',
   'New Reservation': 'Bagong Pagpapareserba', 'Management': 'Pamamahala', 'Help Desk': 'Tanggapan ng Tulong',
   'Log in': 'Mag-log in', 'Login': 'Mag-log in', 'Log out': 'Mag-log out', 'Register': 'Magparehistro',
@@ -782,75 +785,99 @@ const originalConfirm = window.confirm.bind(window);
 window.confirm = (message) => originalConfirm(translatedUiValue(String(message)));
 
 function localizeTextNode(node) {
-  let record = translatedTextNodes.get(node);
-  const current = node.nodeValue;
-  if (!record) {
-    record = { source: current, translated: null };
-    translatedTextNodes.set(node, record);
-  } else if (record.translated !== null && current !== record.translated) {
-    record.source = current;
-  } else if (record.translated === null && current !== record.source) {
-    record.source = current;
-  }
-
-  let next = translatedUiValue(record.source);
-  if (portalLocale === 'fil-PH' && record.source.trim() === 'Open' && node.parentElement?.closest('.calendar-grid')) {
-    next = 'Bakante';
-  }
-  record.translated = next;
-  if (current !== next) node.nodeValue = next;
-}
-
-function localizeAttributes(element) {
-  const names = ['placeholder', 'title', 'aria-label', 'alt'];
-  let records = translatedAttributes.get(element);
-  if (!records) {
-    records = new Map();
-    translatedAttributes.set(element, records);
-  }
-  names.forEach((name) => {
-    if (!element.hasAttribute(name)) return;
-    const current = element.getAttribute(name);
-    let record = records.get(name);
+  try {
+    if (!node || typeof node.nodeValue !== 'string') return;
+    let record = translatedTextNodes.get(node);
+    const current = node.nodeValue;
     if (!record) {
       record = { source: current, translated: null };
-      records.set(name, record);
+      translatedTextNodes.set(node, record);
     } else if (record.translated !== null && current !== record.translated) {
       record.source = current;
     } else if (record.translated === null && current !== record.source) {
       record.source = current;
     }
-    const next = translatedUiValue(record.source);
+
+    let next = translatedUiValue(record.source);
+    if (portalLocale === 'fil-PH' && record.source.trim() === 'Open' && node.parentElement?.closest('.calendar-grid')) {
+      next = 'Bakante';
+    }
     record.translated = next;
-    if (current !== next) element.setAttribute(name, next);
-  });
+    if (current !== next) node.nodeValue = next;
+  } catch {
+    /* safely ignore disconnected node access */
+  }
+}
+
+function localizeAttributes(element) {
+  try {
+    if (!element || !element.getAttribute) return;
+    const names = ['placeholder', 'title', 'aria-label', 'alt'];
+    let records = translatedAttributes.get(element);
+    if (!records) {
+      records = new Map();
+      translatedAttributes.set(element, records);
+    }
+    names.forEach((name) => {
+      if (!element.hasAttribute(name)) return;
+      const current = element.getAttribute(name);
+      let record = records.get(name);
+      if (!record) {
+        record = { source: current, translated: null };
+        records.set(name, record);
+      } else if (record.translated !== null && current !== record.translated) {
+        record.source = current;
+      } else if (record.translated === null && current !== record.source) {
+        record.source = current;
+      }
+      const next = translatedUiValue(record.source);
+      record.translated = next;
+      if (current !== next) element.setAttribute(name, next);
+    });
+  } catch {
+    /* safely ignore */
+  }
 }
 
 function localizeTree(root = document.documentElement) {
-  if (!root) return;
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-    acceptNode(node) {
-      const parent = node.parentElement;
-      if (!parent || /^(SCRIPT|STYLE|NOSCRIPT|CODE|PRE)$/.test(parent.tagName)) return NodeFilter.FILTER_REJECT;
-      return NodeFilter.FILTER_ACCEPT;
+  try {
+    if (!root) return;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        const parent = node.parentElement;
+        if (!parent || /^(SCRIPT|STYLE|NOSCRIPT|CODE|PRE)$/.test(parent.tagName)) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    let node;
+    while ((node = walker.nextNode())) localizeTextNode(node);
+    if (root.nodeType === Node.ELEMENT_NODE) {
+      localizeAttributes(root);
+      root.querySelectorAll('*').forEach(localizeAttributes);
     }
-  });
-  let node;
-  while ((node = walker.nextNode())) localizeTextNode(node);
-  if (root.nodeType === Node.ELEMENT_NODE) {
-    localizeAttributes(root);
-    root.querySelectorAll('*').forEach(localizeAttributes);
+    document.documentElement.lang = portalLocale === 'fil-PH' ? 'fil' : 'en';
+    const title = document.querySelector('title');
+    if (title && title.firstChild) localizeTextNode(title.firstChild);
+  } catch (err) {
+    console.warn('[Language] localizeTree error:', err);
   }
-  document.documentElement.lang = portalLocale === 'fil-PH' ? 'fil' : 'en';
-  const title = document.querySelector('title');
-  if (title && title.firstChild) localizeTextNode(title.firstChild);
 }
 
 function setPortalLocale(locale) {
   portalLocale = locale === 'fil-PH' ? 'fil-PH' : 'en-US';
-  localStorage.setItem(PORTAL_LOCALE_KEY, portalLocale);
-  localizeTree();
-  document.dispatchEvent(new CustomEvent('portal-locale-change', { detail: { locale: portalLocale } }));
+  try {
+    localStorage.setItem(PORTAL_LOCALE_KEY, portalLocale);
+  } catch {}
+  try {
+    localizeTree();
+  } catch (err) {
+    console.warn('[Language] Localization error:', err);
+  }
+  try {
+    document.dispatchEvent(new CustomEvent('portal-locale-change', { detail: { locale: portalLocale } }));
+  } catch (err) {
+    console.warn('[Language] Locale change event error:', err);
+  }
 }
 
 const portalLocalizationObserver = new MutationObserver((records) => {
@@ -1133,7 +1160,7 @@ function renderNavbar(user, active) {
     ? `          <div class="dropdown-section">
             <div class="dropdown-section-title">Administration</div>
             <button type="button" class="dropdown-item" id="menu-add-admin">
-              <span class="item-icon">➕</span>
+              <span class="item-icon">+</span>
               <span class="item-label">Add New Admin Account</span>
             </button>
           </div>
@@ -1141,32 +1168,58 @@ function renderNavbar(user, active) {
     : `          <hr class="dropdown-divider" />`;
 
   const userArea = user
-    ? `\n      <div class="user-profile-wrapper d-inline-flex align-items-center gap-0 position-relative" id="user-profile-wrapper">\n        <button type="button" class="profile-pill" id="profile-pill" aria-haspopup="true" aria-expanded="false">\n          <span class="avatar-circle" id="profile-avatar">${avatarInitial}</span>\n          <span class="profile-name" id="profile-name">${escapeHtml(user.full_name || 'User')}</span>\n          <span class="role-badge" id="profile-role">${String(user.role || 'STUDENT').toUpperCase()}</span>\n          <span class="dropdown-arrow">▼</span>\n        </button>\n        <div class="profile-dropdown-menu" id="profile-dropdown-menu" hidden>\n          <div class="dropdown-section">\n            <div class="dropdown-section-title">Your Account</div>\n            <button type="button" class="dropdown-item" id="menu-account-settings">\n              <span class="item-icon">⚙️</span>\n              <span class="item-label">Account Settings</span>\n            </button>\n            <button type="button" class="dropdown-item" id="menu-change-password">\n              <span class="item-icon">🔒</span>\n              <span class="item-label">Change Password</span>\n            </button>\n          </div>\n${adminSectionNewStyle}\n          <button type="button" class="dropdown-item dropdown-item-danger" id="menu-logout">\n            <span class="item-icon">🚪</span>\n            <span class="item-label">Log Out</span>\n          </button>\n        </div>\n      </div>`
-      : isPublicLanding
-        ? `
-        <button class="btn btn-sm btn-outline-light" id="visitor-login-trigger" type="button" data-bs-toggle="modal" data-bs-target="#visitor-login-modal">Log in</button>
-        <button class="btn btn-sm btn-light" id="visitor-register-trigger" type="button" data-bs-toggle="modal" data-bs-target="#visitor-register-modal">Register</button>`
-        : `
-        <a class="btn btn-sm btn-outline-light" href="/?auth=login">Log in</a>
-        <a class="btn btn-sm btn-light" href="/?auth=register">Register</a>`;
+    ? `\n      <div class="user-profile-wrapper d-inline-flex align-items-center gap-0 position-relative" id="user-profile-wrapper">\n        <button type="button" class="profile-pill" id="profile-pill" aria-haspopup="true" aria-expanded="false">\n          <span class="avatar-circle" id="profile-avatar">${avatarInitial}</span>\n          <span class="profile-name" id="profile-name">${escapeHtml(user.full_name || 'User')}</span>\n          <span class="role-badge" id="profile-role">${String(user.role || 'STUDENT').toUpperCase()}</span>\n          <span class="dropdown-arrow">▼</span>\n        </button>\n        <div class="profile-dropdown-menu" id="profile-dropdown-menu" hidden>\n          <div class="dropdown-section">\n            <div class="dropdown-section-title">Your Account</div>\n            <button type="button" class="dropdown-item" id="menu-account-settings">\n              <span class="item-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>\n              <span class="item-label">Account Settings</span>\n            </button>\n            <button type="button" class="dropdown-item" id="menu-change-password">\n              <span class="item-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>\n              <span class="item-label">Change Password</span>\n            </button>\n          </div>\n${adminSectionNewStyle}\n          <button type="button" class="dropdown-item dropdown-item-danger" id="menu-logout">\n            <span class="item-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>\n            <span class="item-label">Log Out</span>\n          </button>\n        </div>\n      </div>`
+    : isPublicLanding
+      ? `
+      <div class="d-inline-flex align-items-center gap-2">
+        <button class="btn btn-sm btn-outline-light nav-auth-btn" id="visitor-login-trigger" type="button" data-bs-toggle="modal" data-bs-target="#visitor-login-modal">Log in</button>
+        <button class="btn btn-sm btn-light nav-auth-btn" id="visitor-register-trigger" type="button" data-bs-toggle="modal" data-bs-target="#visitor-register-modal">Register</button>
+      </div>`
+      : `
+      <div class="d-inline-flex align-items-center gap-2">
+        <a class="btn btn-sm btn-outline-light nav-auth-btn" href="/?auth=login">Log in</a>
+        <a class="btn btn-sm btn-light nav-auth-btn" href="/?auth=register">Register</a>
+      </div>`;
 
   const savedLocale = localStorage.getItem('portal-locale') || 'en-US';
+  const isFil = savedLocale === 'fil-PH';
+  const checkMarkSvg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
   const languageControl = `
-    <label class="language-picker" title="Select language">
-      <span class="language-picker-icon" aria-hidden="true">文</span>
-      <select id="portal-language-select" aria-label="Select language">
-        <option value="en-US"${savedLocale === 'en-US' ? ' selected' : ''} title="English (United States)">EN</option>
-        <option value="fil-PH"${savedLocale === 'fil-PH' ? ' selected' : ''} title="Filipino (Philippines)">FIL</option>
+    <div class="language-dropdown-wrapper position-relative d-inline-flex align-items-center me-2" id="language-dropdown-wrapper">
+      <button type="button" class="language-dropdown-toggle" id="language-dropdown-toggle" aria-haspopup="true" aria-expanded="false" title="Select language">
+        <span class="language-picker-icon" aria-hidden="true">文</span>
+        <span class="language-current-label" id="language-current-label">${isFil ? 'FIL' : 'EN'}</span>
+        <span class="language-dropdown-arrow" aria-hidden="true">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </span>
+      </button>
+      <div class="language-dropdown-menu" id="language-dropdown-menu" role="menu" hidden>
+        <button type="button" class="language-menu-item${!isFil ? ' active' : ''}" data-locale="en-US" role="menuitem">
+          <span class="lang-code">EN</span>
+          <span class="lang-name">English</span>
+          <span class="lang-check">${!isFil ? checkMarkSvg : ''}</span>
+        </button>
+        <button type="button" class="language-menu-item${isFil ? ' active' : ''}" data-locale="fil-PH" role="menuitem">
+          <span class="lang-code">FIL</span>
+          <span class="lang-name">Filipino</span>
+          <span class="lang-check">${isFil ? checkMarkSvg : ''}</span>
+        </button>
+      </div>
+      <select id="portal-language-select" aria-label="Select language" style="display:none !important;" tabindex="-1">
+        <option value="en-US"${!isFil ? ' selected' : ''}>EN</option>
+        <option value="fil-PH"${isFil ? ' selected' : ''}>FIL</option>
       </select>
-    </label>`;
+    </div>`;
 
   host.innerHTML = `
     <nav class="navbar navbar-expand-lg navbar-dark portal-navbar${navLinks ? '' : ' portal-navbar-slim'}">
       <div class="container portal-nav-inner">
-        <a class="navbar-brand navbar-brand-hornet" href="${user && user.role === 'admin' ? '/admin-dashboard.html' : user ? '/dashboard.html' : '/#overview'}">
-          <img class="cspc-logo hornet-logo" src="/img/hornet-logo.jpg"
-               alt="HORNET logo" />
-          <span class="brand-text"><span class="brand-title">Laboratory/Room Reservation</span></span>
+        <a class="navbar-brand navbar-brand-hornet me-lg-3" href="${user && user.role === 'admin' ? '/admin-dashboard.html' : user ? '/dashboard.html' : '/#overview'}">
+          <img class="cspc-logo hornet-logo" src="/img/hornet-logo.jpg" alt="HORNET logo" />
+          <span class="brand-text">
+            <span class="brand-title brand-main">HORNET</span>
+            <span class="brand-sub">Laboratory Reservation</span>
+          </span>
         </a>
         ${navLinks ? `
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
@@ -1176,18 +1229,18 @@ function renderNavbar(user, active) {
         </button>
         <div class="collapse navbar-collapse portal-nav-collapse" id="portalNav">
           <ul class="navbar-nav portal-nav-links mb-2 mb-lg-0 ${user ? 'portal-nav-authenticated' : 'portal-nav-public'}">${navLinks}</ul>
-          <div class="navbar-search d-flex align-items-center">
-            <div class="search-wrapper position-relative" style="max-width: 340px; width: 100%;">
+          <div class="navbar-search mx-lg-auto d-flex align-items-center">
+            <div class="search-wrapper position-relative">
               <input type="search" id="building-search" class="building-search-input" placeholder="Search buildings…" aria-label="Search buildings" autocomplete="off" />
               <span class="search-icon" aria-hidden="true">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
               </span>
               <div id="building-search-results" class="building-search-dropdown"></div>
             </div>
           </div>
-          <div class="navbar-account-area portal-nav-utility d-flex align-items-center">${languageControl}${userArea}</div>
+          <div class="navbar-account-area portal-nav-utility ms-lg-auto d-flex align-items-center">${languageControl}${userArea}</div>
         </div>` : `
-        <div class="navbar-account-area portal-nav-utility portal-nav-utility-slim d-flex align-items-center">${languageControl}${userArea}</div>`}
+        <div class="navbar-account-area portal-nav-utility portal-nav-utility-slim ms-auto d-flex align-items-center">${languageControl}${userArea}</div>`}
       </div>
     </nav>`;
 
@@ -1407,7 +1460,7 @@ function renderNavbar(user, active) {
                 <div class="avatar-preview-wrapper" style="flex:0 0 auto;">
                   <img class="avatar-preview-img" id="profile-avatar-preview-img" src="" alt="Profile preview" width="80" height="80" style="border-radius:50%;object-fit:cover;background:#eee;" hidden />
                   <span class="avatar-preview-initials" id="profile-avatar-preview-initials" style="font-size:1.75rem;font-weight:700;color:#666;display:inline-flex;align-items:center;justify-content:center;width:80px;height:80px;border-radius:50%;background:#eee;">?</span>
-                  <button type="button" class="avatar-upload-btn" style="margin-top:0.5rem;" aria-label="Change profile photo" title="Change profile photo">📷</button>
+                  <button type="button" class="avatar-upload-btn" style="margin-top:0.5rem;" aria-label="Change profile photo" title="Change profile photo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
                   <input type="file" id="profile-avatar-input" class="avatar-upload-input d-none" accept="image/*" />
                 </div>
                 <p class="form-text mb-0" style="margin-left:0.5rem;">Upload a JPG or PNG (max 2 MB).</p>
@@ -1485,7 +1538,7 @@ function renderNavbar(user, active) {
         previewInitials.hidden = true;
       });
 
-      // Clicking the 📷 button opens the file picker
+      // Clicking the camera button opens the file picker
       const avatarBtn = document.querySelector('.avatar-upload-btn');
       avatarBtn?.addEventListener('click', () => {
         avatarInput?.click();
@@ -1700,6 +1753,126 @@ function renderNavbar(user, active) {
     });
   })();
 
+  /* ------------------------------------ language dropdown switcher (delegation) ---
+     Handles #language-dropdown-toggle / #language-dropdown-menu via document delegation
+     so it seamlessly operates regardless of dynamic navbar injection or page transitions.
+     -------------------------------------------------------------------------- */
+  (function initLanguageDropdownDelegation() {
+    function getWrapper() {
+      return document.getElementById('language-dropdown-wrapper');
+    }
+    function getToggle() {
+      return document.getElementById('language-dropdown-toggle');
+    }
+    function getMenu() {
+      return document.getElementById('language-dropdown-menu');
+    }
+    function getLabel() {
+      return document.getElementById('language-current-label');
+    }
+
+    function openLangDropdown() {
+      const toggle = getToggle();
+      const menu = getMenu();
+      if (!toggle || !menu) return;
+      menu.removeAttribute('hidden');
+      menu.classList.add('show');
+      toggle.classList.add('active');
+      toggle.setAttribute('aria-expanded', 'true');
+    }
+
+    function closeLangDropdown() {
+      const toggle = getToggle();
+      const menu = getMenu();
+      if (!toggle || !menu) return;
+      menu.setAttribute('hidden', '');
+      menu.classList.remove('show');
+      toggle.classList.remove('active');
+      toggle.setAttribute('aria-expanded', 'false');
+    }
+
+    function syncActiveLanguage(locale) {
+      const isFil = locale === 'fil-PH';
+      const label = getLabel();
+      if (label) {
+        label.textContent = isFil ? 'FIL' : 'EN';
+      }
+      const select = document.getElementById('portal-language-select');
+      if (select && select.value !== locale) {
+        select.value = locale;
+      }
+      const menu = getMenu();
+      if (menu) {
+        menu.querySelectorAll('.language-menu-item').forEach((item) => {
+          const itemLocale = item.getAttribute('data-locale');
+          const isCurrent = itemLocale === locale;
+          item.classList.toggle('active', isCurrent);
+          const checkEl = item.querySelector('.lang-check');
+          if (checkEl) {
+            checkEl.innerHTML = isCurrent
+              ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>'
+              : '';
+          }
+        });
+      }
+    }
+
+    document.addEventListener('click', (e) => {
+      const toggle = getToggle();
+      const menu = getMenu();
+      const wrapper = getWrapper();
+      if (!wrapper || !toggle || !menu) return;
+
+      // 1. Toggle button clicked
+      if (toggle.contains(e.target)) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (menu.classList.contains('show') || !menu.hasAttribute('hidden')) {
+          closeLangDropdown();
+        } else {
+          openLangDropdown();
+        }
+        return;
+      }
+
+      // 2. Language item selected
+      const item = e.target.closest('.language-menu-item');
+      if (item && wrapper.contains(item)) {
+        e.preventDefault();
+        e.stopPropagation();
+        const selectedLocale = item.getAttribute('data-locale') || 'en-US';
+        syncActiveLanguage(selectedLocale);
+        closeLangDropdown();
+        try {
+          setPortalLocale(selectedLocale);
+          if (typeof toastOk === 'function') {
+            toastOk(selectedLocale === 'fil-PH' ? 'Wika: Filipino' : 'Language: English');
+          }
+        } catch (err) {
+          console.error('[Language] Failed to set portal locale:', err);
+        }
+        return;
+      }
+
+      // 3. Clicked outside wrapper while open -> close
+      if (!wrapper.contains(e.target)) {
+        closeLangDropdown();
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeLangDropdown();
+      }
+    });
+
+    // Synchronize UI whenever portal-locale-change fires from anywhere
+    document.addEventListener('portal-locale-change', (e) => {
+      const loc = (e.detail && e.detail.locale) || localStorage.getItem(PORTAL_LOCALE_KEY) || 'en-US';
+      syncActiveLanguage(loc);
+    });
+  })();
+
   /* ------------------------------------------- security / change password --- */
 
   const securityMenuItem = document.getElementById('security-settings-menu-item');
@@ -1785,7 +1958,7 @@ function renderNavbar(user, active) {
         if (!input) return;
         const show = input.type === 'password';
         input.type = show ? 'text' : 'password';
-        btn.textContent = show ? '🙈' : '👁';
+        btn.textContent = show ? 'Hide' : 'Show';
         btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
       });
     });
@@ -2252,7 +2425,7 @@ function renderGlassImage({
  */
 (function initGlobalGlassImageSystem() {
   function ensureFallbackInsideContainer(container, img) {
-    if (!container) return;
+    if (!container || container.classList.contains('showcase-photo-wrap')) return;
     if (!container.querySelector('.glass-img-fallback')) {
       const isMaint =
         container.classList.contains('is-maintenance') ||
@@ -2280,6 +2453,10 @@ function renderGlassImage({
     if (container) {
       container.classList.remove('is-loading', 'is-broken');
       container.classList.add('is-loaded');
+      const fallback = container.querySelector('.glass-img-fallback');
+      if (fallback && container.classList.contains('showcase-photo-wrap')) {
+        fallback.remove();
+      }
     }
   }
 

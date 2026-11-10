@@ -385,6 +385,9 @@ CREATE TABLE IF NOT EXISTS advisories (
   id                  SERIAL PRIMARY KEY,
   title               VARCHAR(200) NOT NULL,
   message             TEXT         NOT NULL,
+  target_scope        VARCHAR(160) NOT NULL DEFAULT 'All',
+  start_time          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  end_time            TIMESTAMP    NOT NULL,
   expected_completion TIMESTAMP    DEFAULT NULL,
   type                VARCHAR(50)  NOT NULL DEFAULT 'maintenance'
                       CHECK (type IN ('maintenance', 'scheduled', 'warning', 'info', 'emergency')),
@@ -395,5 +398,6 @@ CREATE TABLE IF NOT EXISTS advisories (
 );
 
 CREATE INDEX IF NOT EXISTS idx_advisories_is_active           ON advisories(is_active);
+CREATE INDEX IF NOT EXISTS idx_advisories_schedule_window     ON advisories(start_time, end_time);
 CREATE INDEX IF NOT EXISTS idx_advisories_expected_completion ON advisories(expected_completion);
 CREATE INDEX IF NOT EXISTS idx_advisories_updated_at          ON advisories(updated_at DESC);

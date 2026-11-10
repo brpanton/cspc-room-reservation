@@ -393,44 +393,111 @@ router.get('/facility-showcase', async (req, res, next) => {
 
     const enrichedRooms = await enrichRoomsWithMaintenance(roomRows);
 
-    // Sort so rooms under maintenance or with rich photos appear prominently in showcase
-    const showcaseLabs = [...enrichedRooms]
-      .sort((a, b) => {
+    // Group laboratories: CCS Building first, then remaining buildings in randomized order
+    const ccsRooms = [];
+    const otherBuildingsMap = {};
+
+    enrichedRooms.forEach((r) => {
+      const bName = String(r.building_name || '').trim();
+      if (bName.toUpperCase().includes('CCS')) {
+        ccsRooms.push(r);
+      } else {
+        if (!otherBuildingsMap[bName]) {
+          otherBuildingsMap[bName] = [];
+        }
+        otherBuildingsMap[bName].push(r);
+      }
+    });
+
+    // 1. CCS Building rooms first (prioritize rooms under maintenance, then natural name sort)
+    ccsRooms.sort((a, b) => {
+      if (a.is_under_maintenance !== b.is_under_maintenance) {
+        return a.is_under_maintenance ? -1 : 1;
+      }
+      return String(a.name).localeCompare(String(b.name));
+    });
+
+    // 2. Random other buildings next (shuffle building sequence so buildings appear in random order)
+    const otherBuildingNames = Object.keys(otherBuildingsMap);
+    for (let i = otherBuildingNames.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [otherBuildingNames[i], otherBuildingNames[j]] = [otherBuildingNames[j], otherBuildingNames[i]];
+    }
+
+    const otherRooms = [];
+    otherBuildingNames.forEach((bName) => {
+      const bRooms = otherBuildingsMap[bName];
+      bRooms.sort((a, b) => {
         if (a.is_under_maintenance !== b.is_under_maintenance) {
           return a.is_under_maintenance ? -1 : 1;
         }
-        const aHasImg = a.images && a.images.length ? 0 : 1;
-        const bHasImg = b.images && b.images.length ? 0 : 1;
-        return aHasImg - bHasImg || String(a.name).localeCompare(String(b.name));
-      })
-      .slice(0, 12)
-      .map((r) => ({
-        ...r,
-        status_badge: r.is_under_maintenance ? 'Under Maintenance' : 'Available'
-      }));
-
-    const { rows: maintRows } = await pool.query(
-      `SELECT m.*, r.name AS room_name, r.floor AS room_floor, r.image_url AS room_image_url,
-              b.name AS building_name, b.cover_image_url AS building_image_url
-       FROM maintenance_logs m
-       LEFT JOIN rooms r ON r.id = m.room_id
-       LEFT JOIN buildings b ON b.id = COALESCE(m.building_id, r.building_id)
-       WHERE m.status IN ('Scheduled', 'Ongoing')
-         AND m.end_time > NOW()
-       ORDER BY CASE WHEN m.status = 'Ongoing' THEN 0 ELSE 1 END, m.start_time ASC`
-    );
-
-    const announcements = maintRows.map((row) => {
-      const shaped = shapeMaintenanceRow(row);
-      return {
-        ...shaped,
-        showcase_image:
-          row.banner_image_url ||
-          row.room_image_url ||
-          row.building_image_url ||
-          '/img/campus-bg-sm.jpg'
-      };
+        return String(a.name).localeCompare(String(b.name));
+      });
+      otherRooms.push(...bRooms);
     });
+
+    // 3. Combine: ALL laboratories listed, starting in CCS Building, with random buildings next
+    const allShowcaseRooms = [...ccsRooms, ...otherRooms];
+
+    const showcaseLabs = allShowcaseRooms.map((r) => ({
+      ...r,
+      status_badge: r.is_under_maintenance ? 'Under Maintenance' : 'Available'
+    }));
+
+    const [{ rows: maintRows }, { rows: advRows }] = await Promise.all([
+      pool.query(
+        `SELECT m.*, r.name AS room_name, r.floor AS room_floor, r.image_url AS room_image_url,
+                b.name AS building_name, b.cover_image_url AS building_image_url
+         FROM maintenance_logs m
+         LEFT JOIN rooms r ON r.id = m.room_id
+         LEFT JOIN buildings b ON b.id = COALESCE(m.building_id, r.building_id)
+         WHERE m.status IN ('Scheduled', 'Ongoing')
+           AND m.start_time <= NOW()
+           AND NOW() <= m.end_time
+         ORDER BY CASE WHEN m.status = 'Ongoing' THEN 0 ELSE 1 END, m.start_time ASC`
+      ),
+      pool.query(
+        `SELECT id, title, message AS description, target_scope, start_time,
+                COALESCE(end_time, expected_completion) AS end_time,
+                type, is_active, updated_at
+         FROM advisories
+         WHERE is_active = TRUE
+           AND start_time <= NOW()
+           AND NOW() <= COALESCE(end_time, expected_completion)
+         ORDER BY updated_at DESC, id DESC`
+      ).catch(() => ({ rows: [] }))
+    ]);
+
+    const systemAnnouncements = advRows.map((adv) => ({
+      id: `adv-${adv.id}`,
+      target_type: 'system',
+      target_label: adv.target_scope || 'Campus Advisory',
+      title: adv.title,
+      description: adv.description,
+      status: 'Scheduled',
+      effective_status: 'Scheduled',
+      start_time: adv.start_time,
+      end_time: adv.end_time,
+      is_currently_active: true,
+      display_mode: 'both',
+      showcase_image: '/img/campus-bg-sm.jpg',
+      updated_at: adv.updated_at
+    }));
+
+    const announcements = [
+      ...systemAnnouncements,
+      ...maintRows.map((row) => {
+        const shaped = shapeMaintenanceRow(row);
+        return {
+          ...shaped,
+          showcase_image:
+            row.banner_image_url ||
+            row.room_image_url ||
+            row.building_image_url ||
+            '/img/campus-bg-sm.jpg'
+        };
+      })
+    ];
 
     const priorityPopups = announcements.filter(
       (a) => a.display_mode === 'popup' || a.display_mode === 'both'

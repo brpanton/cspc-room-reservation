@@ -347,10 +347,10 @@ setInterval(() => {
         `;
       }
       if (canForceTerminate) {
-        actions += `<button class="btn btn-sm btn-warning text-dark fw-semibold ms-1" data-force-terminate="${r.id}" title="Override / Force Terminate Active Lab Session #${r.id}">⚡ Override / Force End</button>`;
+        actions += `<button class="btn btn-sm btn-warning text-dark fw-semibold ms-1" data-force-terminate="${r.id}" title="Override / Force Terminate Active Lab Session #${r.id}">Override / Force End</button>`;
       }
       if (canCancel) {
-        actions += `<button class="btn btn-sm btn-reject ms-1" data-action="cancel" data-id="${r.id}" title="Cancel reservation #${r.id}">✕ Cancel</button>`;
+        actions += `<button class="btn btn-sm btn-reject ms-1" data-action="cancel" data-id="${r.id}" title="Cancel reservation #${r.id}">Cancel</button>`;
       }
       if (!actions) actions = '<span class="text-muted-sm">-</span>';
 
@@ -361,14 +361,14 @@ setInterval(() => {
       let sessionMeta = '';
       if (r.status === 'Completed Early' && r.actual_check_out) {
         const outStr = new Date(r.actual_check_out).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-        sessionMeta = `<div class="small text-info mt-1">✓ Vacated early at ${escapeHtml(outStr)}</div>`;
+        sessionMeta = `<div class="small text-info mt-1">Vacated early at ${escapeHtml(outStr)}</div>`;
       } else if (r.status === 'Terminated by Admin') {
-        sessionMeta = `<div class="small text-danger fw-semibold mt-1">⚠ Override: ${escapeHtml(r.termination_reason || r.remarks || 'Terminated by Admin')}</div>`;
+        sessionMeta = `<div class="small text-danger fw-semibold mt-1">Override: ${escapeHtml(r.termination_reason || r.remarks || 'Terminated by Admin')}</div>`;
       } else if (r.session_status === 'Active' && r.status === 'Approved') {
-        sessionMeta = `<div class="small text-success fw-semibold mt-1">● Checked-In (Active Session)</div>`;
+        sessionMeta = `<div class="small text-success fw-semibold mt-1">Checked-In (Active Session)</div>`;
       }
 
-      const viewTicketBtn = `<button class="btn btn-sm btn-outline-primary btn-view-ticket" data-id="${r.id}" title="View Ticket">🎫 Ticket</button>`;
+      const viewTicketBtn = `<button class="btn btn-sm btn-outline-primary btn-view-ticket" data-id="${r.id}" title="View Ticket">Ticket</button>`;
 
       return `
         <tr data-row-id="${r.id}">

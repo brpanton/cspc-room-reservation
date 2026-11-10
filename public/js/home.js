@@ -821,9 +821,9 @@
 
       if (bdEquipmentGrid) {
         const eqItems = [];
-        if (equipment.projector > 0) eqItems.push('<div class="building-equipment-item"><span class="building-equipment-icon">📽️</span><span>Projector (' + equipment.projector + ' rooms)</span></div>');
-        if (equipment.aircon > 0) eqItems.push('<div class="building-equipment-item"><span class="building-equipment-icon">❄️</span><span>Air Conditioning (' + equipment.aircon + ' rooms)</span></div>');
-        if (equipment.sound > 0) eqItems.push('<div class="building-equipment-item"><span class="building-equipment-icon">🔊</span><span>Sound System (' + equipment.sound + ' rooms)</span></div>');
+        if (equipment.projector > 0) eqItems.push('<div class="building-equipment-item"><span>Projector (' + equipment.projector + ' rooms)</span></div>');
+        if (equipment.aircon > 0) eqItems.push('<div class="building-equipment-item"><span>Air Conditioning (' + equipment.aircon + ' rooms)</span></div>');
+        if (equipment.sound > 0) eqItems.push('<div class="building-equipment-item"><span>Sound System (' + equipment.sound + ' rooms)</span></div>');
         bdEquipmentGrid.innerHTML = eqItems.length ? eqItems.join('') : '<div class="text-muted-sm">No specific equipment listed.</div>';
       }
 
@@ -1322,9 +1322,9 @@
 
 /* Equipment icon labels mapped to room boolean fields. */
 const EQUIPMENT_ICONS = [
-  { key: 'has_projector', label: 'Projector', icon: '📽️' },
-  { key: 'has_aircon',      label: 'AirCon',      icon: '❄️' },
-  { key: 'has_sound',       label: 'Sound System',icon: '🔊' }
+  { key: 'has_projector', label: 'Projector', icon: '' },
+  { key: 'has_aircon',      label: 'AirCon',      icon: '' },
+  { key: 'has_sound',       label: 'Sound System',icon: '' }
 ];
 
 /** Occupancy % for today: minutes booked / minutes in operating day (7am-7pm = 720 min). */

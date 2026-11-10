@@ -29,6 +29,9 @@ async function ensureAdvisorySchema() {
       id                  SERIAL PRIMARY KEY,
       title               VARCHAR(200) NOT NULL,
       message             TEXT         NOT NULL,
+      target_scope        VARCHAR(160) NOT NULL DEFAULT 'All',
+      start_time          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      end_time            TIMESTAMP    DEFAULT NULL,
       expected_completion TIMESTAMP    DEFAULT NULL,
       type                VARCHAR(50)  NOT NULL DEFAULT 'maintenance',
       is_active           BOOLEAN      NOT NULL DEFAULT TRUE,
@@ -37,7 +40,17 @@ async function ensureAdvisorySchema() {
       updated_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
+    ALTER TABLE advisories
+      ADD COLUMN IF NOT EXISTS target_scope VARCHAR(160) NOT NULL DEFAULT 'All',
+      ADD COLUMN IF NOT EXISTS start_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS end_time TIMESTAMP DEFAULT NULL;
+
+    UPDATE advisories
+    SET end_time = expected_completion
+    WHERE end_time IS NULL AND expected_completion IS NOT NULL;
+
     CREATE INDEX IF NOT EXISTS idx_advisories_is_active           ON advisories(is_active);
+    CREATE INDEX IF NOT EXISTS idx_advisories_schedule_window     ON advisories(start_time, end_time);
     CREATE INDEX IF NOT EXISTS idx_advisories_expected_completion ON advisories(expected_completion);
     CREATE INDEX IF NOT EXISTS idx_advisories_updated_at          ON advisories(updated_at DESC);
   `);
@@ -45,7 +58,8 @@ async function ensureAdvisorySchema() {
 
 // ============================================================================
 // 1. PUBLIC ENDPOINT: GET /api/advisory/active
-// Returns the currently active advisory for display before and after login.
+// Returns the currently active advisory for display in the sub-navbar banner.
+// Query enforces: is_active = TRUE AND start_time <= NOW() AND NOW() <= end_time
 // ============================================================================
 router.get('/advisory/active', async (req, res) => {
   try {
@@ -54,14 +68,22 @@ router.get('/advisory/active', async (req, res) => {
         id,
         title,
         message,
+        message AS description,
+        target_scope AS "targetScope",
+        target_scope AS target_label,
+        start_time AS "startTime",
+        start_time,
+        COALESCE(end_time, expected_completion) AS "endTime",
+        COALESCE(end_time, expected_completion) AS end_time,
         type,
-        expected_completion AS "expectedCompletion",
         is_active AS "isActive",
+        is_active,
         created_at AS "createdAt",
         updated_at AS "updatedAt"
       FROM advisories
       WHERE is_active = TRUE
-        AND (expected_completion IS NULL OR expected_completion > NOW())
+        AND start_time <= NOW()
+        AND NOW() <= COALESCE(end_time, expected_completion)
       ORDER BY updated_at DESC, id DESC
       LIMIT 1
     `);
@@ -95,7 +117,9 @@ router.get('/advisory/active', async (req, res) => {
  *  - id                 (optional, for update/toggle)
  *  - title              (string, required for create)
  *  - message            (string, required for create)
- *  - expectedCompletion (timestamp string or null)
+ *  - target_scope       (string, e.g. "CCS Building", "All")
+ *  - start_time         (timestamp, default NOW())
+ *  - end_time           (timestamp, expected completion)
  *  - type               ('maintenance' | 'scheduled' | 'warning' | 'info' | 'emergency')
  *  - isActive           (boolean, default true)
  *  - deactivateOthers   (boolean, default true when activating)
@@ -106,6 +130,12 @@ router.post('/admin/advisory', requireAdmin, async (req, res) => {
       id,
       title,
       message,
+      target_scope,
+      targetScope,
+      start_time,
+      startTime,
+      end_time,
+      endTime,
       expectedCompletion,
       type = 'maintenance',
       isActive = true,
@@ -118,12 +148,20 @@ router.post('/admin/advisory', requireAdmin, async (req, res) => {
     const cleanType = String(type || 'maintenance').toLowerCase();
     const resolvedType = validTypes.includes(cleanType) ? cleanType : 'maintenance';
 
-    let parsedCompletion = null;
-    if (expectedCompletion) {
-      const d = new Date(expectedCompletion);
-      if (!isNaN(d.getTime())) {
-        parsedCompletion = d.toISOString();
-      }
+    const resolvedScope = String(target_scope || targetScope || 'All').trim();
+
+    let parsedStart = new Date().toISOString();
+    const rawStart = start_time || startTime;
+    if (rawStart) {
+      const ds = new Date(rawStart);
+      if (!isNaN(ds.getTime())) parsedStart = ds.toISOString();
+    }
+
+    let parsedEnd = null;
+    const rawEnd = end_time || endTime || expectedCompletion;
+    if (rawEnd) {
+      const de = new Date(rawEnd);
+      if (!isNaN(de.getTime())) parsedEnd = de.toISOString();
     }
 
     // --- CASE A: UPDATE OR TOGGLE EXISTING ADVISORY ---
@@ -148,8 +186,10 @@ router.post('/admin/advisory', requireAdmin, async (req, res) => {
       // Allow partial updating (e.g. if only toggling isActive)
       const newTitle = title !== undefined ? String(title).trim() : existing.title;
       const newMessage = message !== undefined ? String(message).trim() : existing.message;
+      const newScope = (target_scope !== undefined || targetScope !== undefined) ? resolvedScope : existing.target_scope;
+      const newStart = rawStart !== undefined ? parsedStart : existing.start_time;
+      const newEnd = rawEnd !== undefined ? parsedEnd : (existing.end_time || existing.expected_completion);
       const newType = type !== undefined ? resolvedType : existing.type;
-      const newCompletion = expectedCompletion !== undefined ? parsedCompletion : existing.expected_completion;
 
       if (!newTitle || !newMessage) {
         return res.status(400).json({ error: 'Advisory title and message cannot be empty.' });
@@ -159,17 +199,24 @@ router.post('/admin/advisory', requireAdmin, async (req, res) => {
         `UPDATE advisories
          SET title = $1,
              message = $2,
-             expected_completion = $3,
-             type = $4,
-             is_active = $5,
+             target_scope = $3,
+             start_time = $4,
+             end_time = $5,
+             expected_completion = $5,
+             type = $6,
+             is_active = $7,
              updated_at = CURRENT_TIMESTAMP
-         WHERE id = $6
-         RETURNING id, title, message, type,
+         WHERE id = $8
+         RETURNING id, title, message, target_scope,
+                   target_scope AS "targetScope",
+                   start_time AS "startTime",
+                   end_time AS "endTime",
                    expected_completion AS "expectedCompletion",
+                   type,
                    is_active AS "isActive",
                    created_at AS "createdAt",
                    updated_at AS "updatedAt"`,
-        [newTitle, newMessage, newCompletion, newType, boolActive, targetId]
+        [newTitle, newMessage, newScope, newStart, newEnd, newType, boolActive, targetId]
       );
 
       return res.json({
@@ -186,6 +233,10 @@ router.post('/admin/advisory', requireAdmin, async (req, res) => {
     if (!message || !String(message).trim()) {
       return res.status(400).json({ error: 'Advisory message is required.' });
     }
+    if (!parsedEnd) {
+      // Default end time to 4 hours from start if not supplied
+      parsedEnd = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
+    }
 
     // When activating a new advisory, optionally deactivate currently active advisories
     if (boolActive && deactivateOthers) {
@@ -193,17 +244,23 @@ router.post('/admin/advisory', requireAdmin, async (req, res) => {
     }
 
     const inserted = await pool.query(
-      `INSERT INTO advisories (title, message, expected_completion, type, is_active, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, title, message, type,
+      `INSERT INTO advisories (title, message, target_scope, start_time, end_time, expected_completion, type, is_active, created_by)
+       VALUES ($1, $2, $3, $4, $5, $5, $6, $7, $8)
+       RETURNING id, title, message, target_scope,
+                 target_scope AS "targetScope",
+                 start_time AS "startTime",
+                 end_time AS "endTime",
                  expected_completion AS "expectedCompletion",
+                 type,
                  is_active AS "isActive",
                  created_at AS "createdAt",
                  updated_at AS "updatedAt"`,
       [
         String(title).trim(),
         String(message).trim(),
-        parsedCompletion,
+        resolvedScope,
+        parsedStart,
+        parsedEnd,
         resolvedType,
         boolActive,
         req.user ? req.user.id : null
@@ -232,8 +289,12 @@ async function listAdvisories(req, res) {
         a.id,
         a.title,
         a.message,
+        a.target_scope,
+        a.target_scope AS "targetScope",
+        a.start_time AS "startTime",
+        a.end_time AS "endTime",
+        COALESCE(a.end_time, a.expected_completion) AS "expectedCompletion",
         a.type,
-        a.expected_completion AS "expectedCompletion",
         a.is_active AS "isActive",
         a.created_at AS "createdAt",
         a.updated_at AS "updatedAt",

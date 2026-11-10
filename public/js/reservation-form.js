@@ -147,7 +147,7 @@
       roomSel.innerHTML = rooms.length
         ? '<option value="">Select a room...</option>' +
           rooms.map((r) => {
-            const maintTag = r.is_under_maintenance ? ' [⚠ UNDER MAINTENANCE]' : '';
+            const maintTag = r.is_under_maintenance ? ' [UNDER MAINTENANCE]' : '';
             return `<option value="${r.id}">${escapeHtml(r.name)}${r.floor ? ` · ${escapeHtml(r.floor)}` : ''} - ${escapeHtml(ROOM_TYPE_LABELS[r.room_type] || r.room_type)}, seats ${r.capacity}${maintTag}</option>`;
           }).join('')
         : '<option value="">No active rooms in this building</option>';
@@ -235,11 +235,11 @@
             })
           : 'TBD';
         submitBtn.disabled = true;
-        submitBtn.textContent = '🔒 Under Maintenance — Booking Disabled';
+        submitBtn.textContent = 'Under Maintenance — Booking Disabled';
         previewPanel.innerHTML = `
           <div class="maint-lock-banner">
             <div class="d-flex justify-content-between align-items-center mb-2">
-              <span class="badge badge-maintenance rounded-pill">⚠ Under Maintenance</span>
+              <span class="badge badge-maintenance rounded-pill">Under Maintenance</span>
               <span class="small text-warning fw-semibold">Until ${escapeHtml(untilStr)}</span>
             </div>
             <div class="fw-bold mb-1">${escapeHtml(blockingMaint.title || 'Scheduled Maintenance')}</div>

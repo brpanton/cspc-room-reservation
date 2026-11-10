@@ -9,7 +9,7 @@
  *     - Immediate In-App Alert Popup Modal (#session-terminated-alert-modal) + Top Alert Banner
  *       when an Admin force-terminates the user's session
  *  2. Admin Control Panel (admin-dashboard.html):
- *     - "⚡ Override / Force End" action modal (#admin-force-terminate-modal) with required
+ *     - "Override / Force End" action modal (#admin-force-terminate-modal) with required
  *       "Reason for Termination" and post-termination room status ('Available' vs 'Under Maintenance')
  *     - Real-time "Lab Vacated Early" Admin Alert Banner when a user checks out early
  *     - Dedicated "Session Overrides & Logs" sidebar tab (#pane-session-overrides)
@@ -135,7 +135,7 @@
     wrapper.className = 'portal-notif-wrapper position-relative d-inline-flex align-items-center me-2';
     wrapper.innerHTML = `
       <button type="button" class="portal-notif-btn" id="portal-notif-btn" aria-label="Notifications" title="Session & Override Notifications">
-        <span class="portal-notif-icon" aria-hidden="true">🔔</span>
+        <span class="portal-notif-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></span>
         <span class="portal-notif-badge" id="portal-notif-badge" hidden>0</span>
       </button>
       <div class="portal-notif-drawer" id="portal-notif-drawer" hidden>
@@ -228,10 +228,10 @@
             ? 'bg-info text-dark'
             : 'bg-success text-white';
         const pillLabel = isTerminated
-          ? '⚡ Terminated by Admin'
+          ? 'Terminated by Admin'
           : isEarlyOut
-            ? '⏱ Early Check-Out'
-            : '● Session Alert';
+            ? 'Early Check-Out'
+            : 'Session Alert';
 
         return `
           <div class="portal-notif-item ${n.is_read ? '' : 'is-unread'}" data-notif-id="${n.id}">
@@ -253,7 +253,7 @@
               ${
                 !n.is_read
                   ? `<button type="button" class="btn btn-sm btn-outline-light py-0 px-2" style="font-size:0.7rem;" data-mark-read="${n.id}">Acknowledge</button>`
-                  : `<span class="small text-muted-sm" style="font-size:0.68rem;">✓ Read</span>`
+                  : `<span class="small text-muted-sm" style="font-size:0.68rem;">Read</span>`
               }
             </div>
           </div>
@@ -319,7 +319,7 @@
           <div class="session-override-footer">
             <button type="button" class="btn btn-outline-light btn-sm" data-close-early-checkout="1">Keep Session Active</button>
             <button type="submit" class="btn btn-warning text-dark fw-bold btn-sm px-3" id="early-checkout-submit-btn">
-              ⏱ Confirm Early Check-Out
+              Confirm Early Check-Out
             </button>
           </div>
         </form>
@@ -363,7 +363,7 @@
         toastErr(err.message);
       } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = '⏱ Confirm Early Check-Out';
+        submitBtn.textContent = 'Confirm Early Check-Out';
       }
     });
 
@@ -458,20 +458,20 @@
                             ${esc(r.building_name)} · Reservation <strong>#${esc(r.id)}</strong> (${esc(r.transaction_code || 'N/A')})
                           </div>
                           <div class="small text-white mt-1">
-                            📅 <strong>${esc(fmtDate(r.res_date))}</strong> &nbsp;|&nbsp;
-                            🕒 <strong>${esc(fmtTime(r.start_time))} – ${esc(fmtTime(r.end_time))}</strong>
+                            <strong>${esc(fmtDate(r.res_date))}</strong> &nbsp;|&nbsp;
+                            <strong>${esc(fmtTime(r.start_time))} – ${esc(fmtTime(r.end_time))}</strong>
                           </div>
                         </div>
                         <div class="d-flex flex-wrap gap-2 align-items-center">
                           ${
                             !isCheckedIn
                               ? `<button type="button" class="btn btn-sm btn-outline-info" data-session-checkin="${r.id}">
-                                   ✓ Check In Now
+                                   Check In Now
                                  </button>`
                               : ''
                           }
                           <button type="button" class="btn btn-sm btn-warning text-dark fw-bold" data-early-checkout="${r.id}">
-                            ⏱ End Session Early / Check-Out Now
+                            End Session Early / Check-Out Now
                           </button>
                         </div>
                       </div>
@@ -519,7 +519,7 @@
       <div class="session-override-dialog is-terminated-alert" role="alertdialog" aria-modal="true" aria-labelledby="term-alert-title">
         <div class="session-override-header is-terminated">
           <div class="d-flex align-items-center gap-2">
-            <span class="fs-4" aria-hidden="true">🚨</span>
+            <span class="fs-4 text-warning d-inline-flex align-items-center" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></span>
             <div>
               <span class="session-override-kicker text-warning">Immediate Session Override Alert</span>
               <h4 class="h5 fw-bold text-white mb-0" id="term-alert-title">Your Lab Session Was Cut Short by Admin</h4>
@@ -593,7 +593,7 @@
     banner.innerHTML = `
       <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
         <div class="d-flex align-items-start gap-3">
-          <span class="fs-4 mt-1" aria-hidden="true">⚠️</span>
+          <span class="fs-4 mt-1 text-warning d-inline-flex align-items-center" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></span>
           <div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
               <span class="badge bg-danger">Terminated by Admin</span>
@@ -648,10 +648,10 @@
             <div class="mb-2">
               <span class="d-block small text-muted-sm mb-1">Quick-Select Override Reason:</span>
               <div class="d-flex flex-wrap gap-1" id="admin-term-reason-chips">
-                <button type="button" class="btn btn-xs btn-outline-info py-1 px-2" style="font-size:0.74rem;" data-reason-chip="Sudden unscheduled facility or equipment maintenance required immediately.">🔧 Sudden Maintenance</button>
-                <button type="button" class="btn btn-xs btn-outline-warning py-1 px-2" style="font-size:0.74rem;" data-reason-chip="Campus emergency / safety drill requiring immediate evacuation of the laboratory.">🚨 Emergency / Safety</button>
-                <button type="button" class="btn btn-xs btn-outline-danger py-1 px-2" style="font-size:0.74rem;" data-reason-chip="Laboratory protocol or usage policy violation observed during the session.">⚠ Protocol Violation</button>
-                <button type="button" class="btn btn-xs btn-outline-light py-1 px-2" style="font-size:0.74rem;" data-reason-chip="Power or network outage affecting workstations in this laboratory.">⚡ Power / Network Outage</button>
+                <button type="button" class="btn btn-xs btn-outline-info py-1 px-2" style="font-size:0.74rem;" data-reason-chip="Sudden unscheduled facility or equipment maintenance required immediately.">Sudden Maintenance</button>
+                <button type="button" class="btn btn-xs btn-outline-warning py-1 px-2" style="font-size:0.74rem;" data-reason-chip="Campus emergency / safety drill requiring immediate evacuation of the laboratory.">Emergency / Safety</button>
+                <button type="button" class="btn btn-xs btn-outline-danger py-1 px-2" style="font-size:0.74rem;" data-reason-chip="Laboratory protocol or usage policy violation observed during the session.">Protocol Violation</button>
+                <button type="button" class="btn btn-xs btn-outline-light py-1 px-2" style="font-size:0.74rem;" data-reason-chip="Power or network outage affecting workstations in this laboratory.">Power / Network Outage</button>
               </div>
             </div>
 
@@ -669,8 +669,8 @@
                   Set Laboratory Status Immediately After Termination
                 </label>
                 <select class="form-select form-select-sm" id="admin-term-room-status">
-                  <option value="Available">🟢 Available — Free laboratory immediately for other bookings</option>
-                  <option value="Under Maintenance">🟠 Under Maintenance — Lock laboratory &amp; publish Ongoing Maintenance alert</option>
+                  <option value="Available">Available — Free laboratory immediately for other bookings</option>
+                  <option value="Under Maintenance">Under Maintenance — Lock laboratory &amp; publish Ongoing Maintenance alert</option>
                 </select>
               </div>
               <div class="col-sm-4" id="admin-term-maint-hours-wrap" hidden>
@@ -682,7 +682,7 @@
           <div class="session-override-footer">
             <button type="button" class="btn btn-outline-light btn-sm" data-close-admin-term="1">Cancel</button>
             <button type="submit" class="btn btn-danger fw-bold btn-sm px-3" id="admin-term-submit-btn">
-              ⚡ Force Terminate &amp; Notify User
+              Force Terminate &amp; Notify User
             </button>
           </div>
         </form>
@@ -752,7 +752,7 @@
         toastErr(err.message);
       } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = '⚡ Force Terminate & Notify User';
+        submitBtn.textContent = 'Force Terminate & Notify User';
       }
     });
 
@@ -819,7 +819,7 @@
     banner.innerHTML = `
       <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
         <div class="d-flex align-items-start gap-3">
-          <span class="fs-4 mt-1" aria-hidden="true">⏱️</span>
+          <span class="fs-4 mt-1 text-info d-inline-flex align-items-center" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></span>
           <div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
               <span class="badge bg-info text-dark fw-bold">Lab Vacated Early</span>
@@ -879,7 +879,7 @@
     navBtn.type = 'button';
     navBtn.className = 'admin-nav-btn';
     navBtn.setAttribute('data-target', '#pane-session-overrides');
-    navBtn.innerHTML = '⚡ Session Overrides';
+    navBtn.innerHTML = 'Session Overrides';
 
     // Insert right after Reservations button
     const firstBtn = adminNav.querySelector('.admin-nav-btn');
@@ -930,8 +930,8 @@
           </div>
           <div class="btn-group btn-group-sm" role="group" id="session-log-filter-group">
             <button type="button" class="btn btn-outline-secondary active" data-log-filter="">All Events</button>
-            <button type="button" class="btn btn-outline-secondary" data-log-filter="EARLY_CHECKOUT">⏱ Early Check-Outs</button>
-            <button type="button" class="btn btn-outline-secondary" data-log-filter="ADMIN_TERMINATED">⚡ Admin Terminations</button>
+            <button type="button" class="btn btn-outline-secondary" data-log-filter="EARLY_CHECKOUT">Early Check-Outs</button>
+            <button type="button" class="btn btn-outline-secondary" data-log-filter="ADMIN_TERMINATED">Admin Terminations</button>
           </div>
         </div>
         <div class="table-responsive">
@@ -1028,7 +1028,7 @@
                 </td>
                 <td class="text-end">
                   <button type="button" class="btn btn-sm btn-warning text-dark fw-bold" data-force-terminate="${r.id}">
-                    ⚡ Override / Force End
+                    Override / Force End
                   </button>
                 </td>
               </tr>
@@ -1062,14 +1062,14 @@
         const isTerminated = l.event_type === 'ADMIN_TERMINATED';
         const isEarlyOut = l.event_type === 'EARLY_CHECKOUT';
         const badgeHtml = isTerminated
-          ? '<span class="badge rounded-pill bg-danger">⚡ Terminated by Admin</span>'
+          ? '<span class="badge rounded-pill bg-danger">Terminated by Admin</span>'
           : isEarlyOut
-            ? '<span class="badge rounded-pill bg-info text-dark">⏱ User Early Check-Out</span>'
+            ? '<span class="badge rounded-pill bg-info text-dark">User Early Check-Out</span>'
             : `<span class="badge rounded-pill bg-secondary">${esc(l.event_type)}</span>`;
 
         const roomAfterBadge =
           l.room_after_status === 'Under Maintenance'
-            ? '<span class="badge badge-maintenance">⚠ Under Maintenance</span>'
+            ? '<span class="badge badge-maintenance">Under Maintenance</span>'
             : '<span class="badge bg-success">Available</span>';
 
         return `
@@ -1190,7 +1190,7 @@
           renderAdminEarlyCheckoutBanner(latestEarlyOut);
           if (!poppedEarlyCheckoutIds.has(Number(latestEarlyOut.id))) {
             markNotifPopped(latestEarlyOut.id);
-            toastOk(`⏱ Lab Vacated Early: ${latestEarlyOut.room_name} by ${latestEarlyOut.user_name || 'User'}`);
+            toastOk(`Lab Vacated Early: ${latestEarlyOut.room_name} by ${latestEarlyOut.user_name || 'User'}`);
             if (typeof window.PortalRefreshAdminDashboard === 'function') {
               window.PortalRefreshAdminDashboard();
             }
@@ -1227,7 +1227,7 @@
               renderAdminEarlyCheckoutBanner(payload.notification);
               markNotifPopped(payload.notification.id);
               toastOk(
-                `⏱ Early Check-Out: ${payload.room_name} vacated by ${payload.user_name} (Reservation #${payload.notification.reservation_id})`
+                `Early Check-Out: ${payload.room_name} vacated by ${payload.user_name} (Reservation #${payload.notification.reservation_id})`
               );
               if (typeof window.PortalRefreshAdminDashboard === 'function') {
                 window.PortalRefreshAdminDashboard();

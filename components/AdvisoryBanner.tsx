@@ -3,49 +3,54 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
 export interface AdvisoryData {
-  id: number;
+  id: number | string;
   title: string;
   message: string;
-  expectedCompletion: string | null;
-  type: 'maintenance' | 'scheduled' | 'warning' | 'info' | 'emergency' | string;
-  isActive: boolean;
+  description?: string;
+  targetScope?: string;
+  target_label?: string;
+  startTime?: string;
+  start_time?: string;
+  endTime?: string;
+  end_time?: string;
+  expectedCompletion?: string | null;
+  type?: string;
+  isActive?: boolean;
+  is_active?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  updated_at?: string;
 }
 
-export interface AdvisoryBannerProps {
+export interface SubNavbarAdvisoryBannerProps {
   endpoint?: string;
   className?: string;
   onDismiss?: () => void;
-  onLoad?: (advisory: AdvisoryData | null) => void;
-  pollIntervalMs?: number; // Optional background polling interval
+  pollIntervalMs?: number;
 }
 
 /**
- * AdvisoryBanner Component
+ * SubNavbarAdvisoryBanner Component (Sole Advisory Location)
  *
- * Dynamically fetches active maintenance and scheduled advisories from `/api/advisory/active`
- * and displays an alert banner at the top of the header.
+ * Positioned directly underneath the main navigation bar.
+ * Dynamically queries active scheduled maintenance and system advisories.
  *
- * Features:
- * - Real-time fetch on mount + optional background polling.
- * - Session-based dismissal persistence (tracks advisory ID + updatedAt).
- * - Contextual color schemes (Maintenance, Warning/Emergency, Scheduled/Info).
- * - Live remaining time countdown calculation for expected completion.
- * - Full accessibility compliance (role="alert", aria-live="polite").
+ * Requirements:
+ * 1. Only renders if: is_active === true AND start_time <= current_time <= end_time.
+ * 2. Remembers user dismissal via localStorage/sessionStorage so users aren't repeatedly prompted.
+ * 3. Includes "View Advisory" action button that opens the comprehensive advisory modal.
  */
 export default function AdvisoryBanner({
   endpoint = '/api/advisory/active',
   className = '',
   onDismiss,
-  onLoad,
   pollIntervalMs = 60000,
-}: AdvisoryBannerProps) {
+}: SubNavbarAdvisoryBannerProps) {
   const [advisory, setAdvisory] = useState<AdvisoryData | null>(null);
   const [isDismissed, setIsDismissed] = useState<boolean>(false);
+  const [showModal, setShowModal] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Fetch active advisory from public API
   const fetchActiveAdvisory = useCallback(async () => {
     try {
       const res = await fetch(endpoint, {
@@ -54,223 +59,223 @@ export default function AdvisoryBanner({
 
       if (!res.ok) {
         setAdvisory(null);
-        if (onLoad) onLoad(null);
         return;
       }
 
       const data = await res.json();
-      if (data && data.active && data.advisory) {
-        const item: AdvisoryData = data.advisory;
-        setAdvisory(item);
+      const raw = data?.advisory || (Array.isArray(data?.announcements) && data.announcements[0]) || null;
 
-        // Check if user has already dismissed this exact revision in this browser session
-        const dismissKey = `cspc_advisory_dismissed_${item.id}_${item.updatedAt || item.createdAt || ''}`;
-        const alreadyDismissed = sessionStorage.getItem(dismissKey) === 'true';
-        setIsDismissed(alreadyDismissed);
-
-        if (onLoad) onLoad(item);
-      } else {
+      if (!raw) {
         setAdvisory(null);
-        if (onLoad) onLoad(null);
+        return;
       }
+
+      // Check active flag
+      const activeFlag = raw.isActive ?? raw.is_active ?? true;
+      if (!activeFlag) {
+        setAdvisory(null);
+        return;
+      }
+
+      // Check scheduling window: start_time <= now <= end_time
+      const now = Date.now();
+      const rawStart = raw.startTime || raw.start_time;
+      const rawEnd = raw.endTime || raw.end_time || raw.expectedCompletion;
+
+      const startMs = rawStart ? new Date(rawStart).getTime() : 0;
+      const endMs = rawEnd ? new Date(rawEnd).getTime() : Infinity;
+
+      if (now < startMs || now > endMs) {
+        setAdvisory(null);
+        return;
+      }
+
+      const item: AdvisoryData = {
+        ...raw,
+        targetScope: raw.targetScope || raw.target_label || 'Campus Facilities',
+        startTime: rawStart,
+        endTime: rawEnd,
+        message: raw.message || raw.description || '',
+      };
+
+      setAdvisory(item);
+
+      // Check dismissal state in localStorage/sessionStorage
+      const dismissKey = `cspc_subnav_advisory_dismissed_${item.id}_${item.updatedAt || item.updated_at || item.startTime || ''}`;
+      const dismissed =
+        typeof window !== 'undefined' &&
+        (localStorage.getItem(dismissKey) === 'true' || sessionStorage.getItem(dismissKey) === 'true');
+
+      setIsDismissed(dismissed);
     } catch (err) {
-      console.warn('[AdvisoryBanner] Could not retrieve active advisory:', err);
+      console.warn('[SubNavbarAdvisory] Could not fetch advisory:', err);
       setAdvisory(null);
-      if (onLoad) onLoad(null);
     } finally {
       setIsLoading(false);
     }
-  }, [endpoint, onLoad]);
+  }, [endpoint]);
 
   useEffect(() => {
     fetchActiveAdvisory();
 
-    // Background poll for newly published or toggled advisories
     if (pollIntervalMs && pollIntervalMs > 0) {
       const timer = setInterval(fetchActiveAdvisory, pollIntervalMs);
       return () => clearInterval(timer);
     }
   }, [fetchActiveAdvisory, pollIntervalMs]);
 
-  // Handle dismiss action
   const handleClose = () => {
     if (advisory) {
-      const dismissKey = `cspc_advisory_dismissed_${advisory.id}_${advisory.updatedAt || advisory.createdAt || ''}`;
+      const dismissKey = `cspc_subnav_advisory_dismissed_${advisory.id}_${advisory.updatedAt || advisory.updated_at || advisory.startTime || ''}`;
       try {
+        localStorage.setItem(dismissKey, 'true');
         sessionStorage.setItem(dismissKey, 'true');
       } catch (_) {
-        /* storage may fail in restricted/private modes */
+        /* storage may fail in restricted/private browsing modes */
       }
     }
     setIsDismissed(true);
     if (onDismiss) onDismiss();
   };
 
-  if (isLoading || isDismissed || !advisory || !advisory.isActive) {
+  if (isLoading || isDismissed || !advisory) {
     return null;
   }
 
-  // Format the expected completion date and calculate remaining duration
-  let completionFormatted: string | null = null;
-  let remainingText: string | null = null;
-  if (advisory.expectedCompletion) {
-    const compDate = new Date(advisory.expectedCompletion);
-    if (!isNaN(compDate.getTime())) {
-      completionFormatted = compDate.toLocaleDateString(undefined, {
-        weekday: 'short',
+  // Format completion timestamp
+  let formattedEndTime = 'TBD';
+  if (advisory.endTime) {
+    const d = new Date(advisory.endTime);
+    if (!isNaN(d.getTime())) {
+      formattedEndTime = d.toLocaleDateString(undefined, {
         month: 'short',
         day: 'numeric',
         hour: 'numeric',
         minute: '2-digit',
       });
-
-      const diffMs = compDate.getTime() - Date.now();
-      if (diffMs > 0) {
-        const hours = Math.floor(diffMs / (1000 * 60 * 60));
-        const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-        if (hours > 24) {
-          const days = Math.round(hours / 24);
-          remainingText = `~${days} day${days > 1 ? 's' : ''} remaining`;
-        } else if (hours > 0) {
-          remainingText = `~${hours}h ${minutes}m remaining`;
-        } else {
-          remainingText = `~${minutes}m remaining`;
-        }
-      } else {
-        remainingText = 'Wrapping up now';
-      }
     }
   }
 
-  // Visual styling variants based on advisory.type
-  const typeKey = String(advisory.type || 'maintenance').toLowerCase();
-
-  let bannerStyle = {
-    bg: 'bg-gradient-to-r from-amber-950/90 via-[#1a140a]/95 to-amber-950/90',
-    border: 'border-amber-500/40',
-    glow: 'shadow-[0_4px_24px_rgba(245,158,11,0.15)]',
-    badgeBg: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
-    titleColor: 'text-amber-100',
-    textColor: 'text-amber-200/90',
-    pillBg: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-    closeColor: 'text-amber-400 hover:text-white hover:bg-amber-500/20',
-    label: 'Maintenance Advisory',
-    icon: (
-      <svg className="w-4 h-4 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-      </svg>
-    ),
-  };
-
-  if (typeKey === 'emergency' || typeKey === 'warning') {
-    bannerStyle = {
-      bg: 'bg-gradient-to-r from-rose-950/90 via-[#200a0d]/95 to-rose-950/90',
-      border: 'border-rose-500/40',
-      glow: 'shadow-[0_4px_24px_rgba(244,63,94,0.18)]',
-      badgeBg: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
-      titleColor: 'text-rose-100',
-      textColor: 'text-rose-200/90',
-      pillBg: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
-      closeColor: 'text-rose-400 hover:text-white hover:bg-rose-500/20',
-      label: typeKey === 'emergency' ? 'Critical Notice' : 'System Advisory',
-      icon: (
-        <svg className="w-4 h-4 text-rose-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="10" />
-          <line x1="12" y1="8" x2="12" y2="12" />
-          <line x1="12" y1="16" x2="12.01" y2="16" />
-        </svg>
-      ),
-    };
-  } else if (typeKey === 'scheduled' || typeKey === 'info') {
-    bannerStyle = {
-      bg: 'bg-gradient-to-r from-blue-950/90 via-[#0b162b]/95 to-blue-950/90',
-      border: 'border-blue-500/40',
-      glow: 'shadow-[0_4px_24px_rgba(59,130,246,0.18)]',
-      badgeBg: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
-      titleColor: 'text-blue-100',
-      textColor: 'text-slate-300',
-      pillBg: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
-      closeColor: 'text-blue-400 hover:text-white hover:bg-blue-500/20',
-      label: typeKey === 'scheduled' ? 'Scheduled Downtime' : 'Campus Notice',
-      icon: (
-        <svg className="w-4 h-4 text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="10" />
-          <polyline points="12 6 12 12 16 14" />
-        </svg>
-      ),
-    };
+  let formattedStartTime = 'Immediate';
+  if (advisory.startTime) {
+    const ds = new Date(advisory.startTime);
+    if (!isNaN(ds.getTime())) {
+      formattedStartTime = ds.toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+    }
   }
 
+  const isOngoing = advisory.type === 'emergency' || advisory.type === 'ongoing';
+
   return (
-    <div
-      role="alert"
-      aria-live="polite"
-      className={`relative w-full z-50 border-b backdrop-blur-md transition-all duration-300 ${bannerStyle.bg} ${bannerStyle.border} ${bannerStyle.glow} ${className}`}
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-        <div className="flex items-start sm:items-center justify-between gap-3">
-          {/* Advisory Icon & Content */}
-          <div className="flex items-start sm:items-center gap-3 flex-1 min-w-0">
-            {bannerStyle.icon}
+    <>
+      {/* Sub-Navbar Banner Bar (Directly underneath main navigation) */}
+      <aside
+        role="region"
+        aria-label="Facility maintenance advisory"
+        className={`w-full z-30 border-b border-amber-500/30 bg-gradient-to-r from-amber-950/70 via-[#101828]/90 to-amber-950/70 backdrop-blur-md px-4 py-2 text-xs text-slate-100 transition-all ${className}`}
+      >
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 flex-wrap">
+          {/* Advisory Scope & Title */}
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+              {isOngoing ? 'Ongoing Maintenance' : 'Scheduled Advisory'}
+            </span>
 
-            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 flex-wrap min-w-0">
-              <span
-                className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase border ${bannerStyle.badgeBg}`}
-              >
-                {bannerStyle.label}
-              </span>
+            <strong className="font-semibold text-white truncate">
+              {advisory.targetScope}:
+            </strong>
 
-              <h3 className={`text-sm font-semibold truncate ${bannerStyle.titleColor}`}>
-                {advisory.title}
-              </h3>
+            <span className="text-slate-200 truncate">{advisory.title}</span>
 
-              <span className="hidden sm:inline text-slate-500 text-xs">•</span>
-
-              <p className={`text-xs ${bannerStyle.textColor} line-clamp-2 sm:line-clamp-1`}>
-                {advisory.message}
-              </p>
-            </div>
+            <span className="text-amber-300 font-mono text-[11px] font-medium">
+              (Expected completion: {formattedEndTime})
+            </span>
           </div>
 
-          {/* Expected Completion Pill & Dismiss Close Button */}
-          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-            {completionFormatted && (
-              <div
-                className={`hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-medium border ${bannerStyle.pillBg}`}
-                title={`Expected Resolution: ${completionFormatted}`}
-              >
-                <span>Until {completionFormatted}</span>
-                {remainingText && (
-                  <span className="opacity-80 text-[10px]">({remainingText})</span>
-                )}
-              </div>
-            )}
-
+          {/* Action buttons: View Advisory & Close */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowModal(true)}
+              className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-white/10 hover:bg-white/20 text-white border border-white/20 transition focus:outline-none focus:ring-1 focus:ring-white"
+            >
+              View Advisory
+            </button>
             <button
               type="button"
               onClick={handleClose}
-              aria-label="Dismiss advisory banner"
-              title="Dismiss for this session"
-              className={`p-1.5 rounded-lg text-sm transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-blue-500 ${bannerStyle.closeColor}`}
+              aria-label="Dismiss banner"
+              title="Dismiss advisory"
+              className="p-1 rounded text-slate-400 hover:text-white hover:bg-white/10 transition leading-none text-base"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              &times;
             </button>
           </div>
         </div>
+      </aside>
 
-        {/* Mobile View: Expected Completion row */}
-        {completionFormatted && (
-          <div className="mt-1.5 pt-1.5 border-t border-white/5 md:hidden flex items-center justify-between text-[11px] text-slate-300">
-            <span>Expected Completion:</span>
-            <span className="font-mono font-semibold text-white">
-              {completionFormatted} {remainingText ? `(${remainingText})` : ''}
-            </span>
+      {/* Detailed Advisory Modal (triggered by "View Advisory") */}
+      {showModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setShowModal(false)}
+        >
+          <div
+            className="w-full max-w-lg bg-[#0c1427] border border-amber-500/40 rounded-2xl p-6 shadow-2xl shadow-black/80 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <span className="inline-block px-2.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40 mb-1.5">
+                  {advisory.targetScope}
+                </span>
+                <h3 className="text-base font-bold text-white">{advisory.title}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="text-slate-400 hover:text-white text-lg p-1"
+                aria-label="Close dialog"
+              >
+                &times;
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-line bg-slate-900/60 p-3.5 rounded-xl border border-slate-800">
+              {advisory.message || 'No additional details provided for this maintenance window.'}
+            </p>
+
+            <div className="grid grid-cols-2 gap-3 text-xs bg-slate-900/40 p-3 rounded-xl border border-slate-800">
+              <div>
+                <span className="text-slate-400 block text-[11px]">Start Window:</span>
+                <span className="text-slate-200 font-mono font-medium">{formattedStartTime}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[11px]">Expected Completion:</span>
+                <span className="text-amber-300 font-mono font-medium">{formattedEndTime}</span>
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="px-4 py-1.5 text-xs font-semibold rounded-xl bg-blue-600 hover:bg-blue-500 text-white transition"
+              >
+                Close
+              </button>
+            </div>
           </div>
-        )}
-      </div>
-    </div>
+        </div>
+      )}
+    </>
   );
 }
-

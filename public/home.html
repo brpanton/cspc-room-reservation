@@ -23,11 +23,11 @@
         <div class="home-hero-actions">
           <button class="btn btn-cspc btn-lg" id="home-primary-action" type="button" data-bs-toggle="modal" data-bs-target="#visitor-login-modal">Sign in to get started <span aria-hidden="true">→</span></button>
         </div>
-        <div class="home-trust-note"><span aria-hidden="true">✦</span> Designed for students, faculty, custodians, and administrators</div>
+        <div class="home-trust-note"><span aria-hidden="true">&bull;</span> Designed for students, faculty, custodians, and administrators</div>
       </div>
       <div class="home-hero-visual" id="hero-visual" aria-label="Live learning spaces preview">
         <div class="home-visual-card" id="hero-card">
-          <div class="home-floating-chip chip-top" tabindex="0"><span>✓</span><b id="hero-rooms-count">12+ Rooms Available Now</b><span class="chip-tooltip" id="hero-rooms-tooltip">Live preview loading…</span></div>
+          <div class="home-floating-chip chip-top" tabindex="0"><span class="chip-dot" aria-hidden="true"></span><b id="hero-rooms-count">12+ Rooms Available Now</b><span class="chip-tooltip" id="hero-rooms-tooltip">Live preview loading…</span></div>
           <div class="home-visual-topline"><span>ROOM AVAILABILITY</span><span class="home-live-dot"><span class="home-pulse-dot" aria-hidden="true"></span>LIVE</span></div>
           <div class="home-visual-room"><div><strong>Learning spaces</strong></div></div>
           <a class="home-visual-cta home-visual-cta-primary" href="/rooms-status.html">Explore room status <span aria-hidden="true">→</span></a>
@@ -91,7 +91,7 @@
         <div><h2>Request a space</h2><p>Send your reservation details for staff review.</p></div>
       </article>
       <article class="home-feature-card">
-        <span class="home-feature-icon">✓</span>
+        <span class="home-feature-icon">&check;</span>
         <div><h2>Track every request</h2><p>Follow approval updates from your dashboard.</p></div>
       </article>
     </section>
@@ -173,7 +173,7 @@
 
     <section class="home-feedback-strip" aria-label="User feedback">
       <button class="home-feedback-link" type="button" data-bs-toggle="modal" data-bs-target="#experience-feedback-modal">
-        <span class="home-feedback-icon" aria-hidden="true">📣</span>
+        <span class="home-feedback-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
         <span>Help us improve <b class="home-feedback-brand">Hornet</b> by sending your experience feedback</span>
       </button>
     </section>
@@ -182,9 +182,9 @@
       <div class="home-footer-column home-footer-contact">
         <h3>Contact us</h3>
         <div class="home-contact-actions" aria-label="Contact channels">
-          <button type="button" aria-label="Website" class="home-contact-btn">◌</button>
-          <button type="button" aria-label="Phone" class="home-contact-btn">☎</button>
-          <button type="button" aria-label="Email" class="home-contact-btn">✉</button>
+          <button type="button" aria-label="Website" class="home-contact-btn">Web</button>
+          <button type="button" aria-label="Phone" class="home-contact-btn">Tel</button>
+          <button type="button" aria-label="Email" class="home-contact-btn">Mail</button>
         </div>
 
         <div class="home-social-block">
@@ -291,9 +291,9 @@
           <div class="building-section mb-4">
             <h3 class="building-section-title">Equipment &amp; Facilities</h3>
             <div class="building-equipment-grid" id="bd-equipment-grid">
-              <div class="building-equipment-item"><span class="building-equipment-icon">📽️</span><span>Projector</span></div>
-              <div class="building-equipment-item"><span class="building-equipment-icon">❄️</span><span>Air Conditioning</span></div>
-              <div class="building-equipment-item"><span class="building-equipment-icon">🔊</span><span>Sound System</span></div>
+              <div class="building-equipment-item"><span>Projector</span></div>
+              <div class="building-equipment-item"><span>Air Conditioning</span></div>
+              <div class="building-equipment-item"><span>Sound System</span></div>
             </div>
           </div>
 
@@ -732,7 +732,7 @@
                   <div class="avatar-preview-wrapper" style="flex:0 0 auto;">
                     <img class="avatar-preview-img" id="profile-avatar-preview-img" src="" alt="Profile preview" width="80" height="80" style="border-radius:50%;object-fit:cover;background:#eee;" hidden />
                     <span class="avatar-preview-initials" id="profile-avatar-preview-initials" style="font-size:1.75rem;font-weight:700;color:#666;display:inline-flex;align-items:center;justify-content:center;width:80px;height:80px;border-radius:50%;background:#eee;">?</span>
-                    <button type="button" class="avatar-upload-btn" style="margin-top:0.5rem;" aria-label="Change profile photo" title="Change profile photo">📷</button>
+                    <button type="button" class="avatar-upload-btn" style="margin-top:0.5rem;" aria-label="Change profile photo" title="Change profile photo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
                     <input type="file" id="profile-avatar-input" class="avatar-upload-input d-none" accept="image/*" />
                   </div>
                   <p class="form-text mb-0" style="margin-left:0.5rem;">Upload a JPG or PNG (max 2 MB).</p>
@@ -824,7 +824,6 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/js/app.js?v=20261110-nav1"></script>
   <script src="/js/cookie-consent.js"></script>
-  <script src="/js/advisory-banner.js?v=20261110-adv1"></script>
   <script src="/js/home.js?v=20261110-nav1"></script>
   <script src="/js/maintenance-showcase.js?v=20261110-nav1"></script>
 </body>

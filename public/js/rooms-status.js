@@ -95,7 +95,7 @@
     const maintAlertHtml = isMaint
       ? `<div class="maint-lock-banner mt-3">
            <div class="d-flex justify-content-between align-items-center mb-1">
-             <span class="badge badge-maintenance rounded-pill">⚠ Under Maintenance</span>
+             <span class="badge badge-maintenance rounded-pill">Under Maintenance</span>
              ${untilStr ? `<span class="small text-warning">Until ${escapeHtml(untilStr)}</span>` : ''}
            </div>
            <div class="fw-semibold small">${escapeHtml((maint && maint.title) || 'Scheduled Facility Maintenance')}</div>
@@ -118,7 +118,7 @@
         : '<p class="text-info fw-semibold mb-0 mt-3">Free the whole day</p>';
 
     const actionHtml = isMaint
-      ? `<button type="button" class="btn btn-sm btn-outline-secondary w-100 mt-3" disabled>🔒 Under Maintenance — Booking Disabled</button>`
+      ? `<button type="button" class="btn btn-sm btn-outline-secondary w-100 mt-3" disabled>Under Maintenance — Booking Disabled</button>`
       : `<a href="/reservation-form.html?building_id=${encodeURIComponent(room.building_id || '')}&room_id=${encodeURIComponent(room.id)}" class="btn btn-sm btn-cspc w-100 mt-3">+ Reserve this space</a>`;
 
     const cardStateClass = isMaint
