@@ -18,6 +18,14 @@ const { requireFields, parseDate, todayIso } = require('../middleware/validate')
 
 const router = express.Router();
 
+// Reject non-numeric :id values up front (e.g. /api/reservations/abc) with a
+// clean 404 instead of letting PostgreSQL throw 'invalid input syntax for
+// type integer' and surfacing it as a 500.
+router.param('id', (req, res, next, id) => {
+  if (/^\d+$/.test(String(id))) return next();
+  return res.status(404).json({ error: 'Not found.' });
+});
+
 /** Statuses that occupy a room. Rejected/Cancelled requests free the slot. */
 const BLOCKING_STATUSES = ['Pending', 'Approved'];
 

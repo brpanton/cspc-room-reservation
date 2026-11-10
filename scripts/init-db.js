@@ -20,11 +20,24 @@ const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
-const DB_NAME = process.env.DB_NAME || 'cspc_reservation';
+const { sslFor } = require('../db');
+
+if (!process.env.DATABASE_URL) {
+  console.error('[init-db] DATABASE_URL is not set in .env.');
+  process.exit(1);
+}
+
+// The app (db.js) connects to exactly DATABASE_URL, so the schema must be
+// applied to that same database. We parse the target database name from the
+// URL and, if it doesn't exist yet, create it via the "postgres" maintenance DB.
+const targetUrl = new URL(process.env.DATABASE_URL);
+const DB_NAME = decodeURIComponent(targetUrl.pathname.replace(/^\//, '')) || 'postgres';
+const maintenanceUrl = new URL(process.env.DATABASE_URL);
+maintenanceUrl.pathname = '/postgres';
 
 const rootPool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  connectionString: maintenanceUrl.toString(),
+  ssl: sslFor(process.env.DATABASE_URL)
 });
 
 /**
@@ -127,12 +140,13 @@ async function main() {
     }
   } finally {
     root.release();
+    await rootPool.end();
   }
 
   // ---- 1. Schema -------------------------------------------------------
   const appPool = new Pool({
-    connectionString: `${process.env.DATABASE_URL.replace(/\/[^\/]+$/, `/${DB_NAME}`)}`,
-    ssl: { rejectUnauthorized: false }
+    connectionString: process.env.DATABASE_URL,
+    ssl: sslFor(process.env.DATABASE_URL)
   });
 
   const schemaPath = path.join(__dirname, '..', 'schema.sql');

@@ -29,6 +29,14 @@ const {
 
 const router = express.Router();
 
+// Reject non-numeric :id values up front (e.g. /api/reservations/abc) with a
+// clean 404 instead of letting PostgreSQL throw 'invalid input syntax for
+// type integer' and surfacing it as a 500.
+router.param('id', (req, res, next, id) => {
+  if (/^\d+$/.test(String(id))) return next();
+  return res.status(404).json({ error: 'Not found.' });
+});
+
 router.use(requireAdmin);
 
 /** PostgreSQL error -> friendly HTTP response. */
@@ -201,7 +209,7 @@ router.get('/rooms', async (req, res, next) => {
       where += ` AND r.building_id = $${params.length + 1}`;
       params.push(Number(req.query.building_id));
     }
-    if (req.query.include_inactive !== '1') where += ' AND r.is_active = 1';
+    if (req.query.include_inactive !== '1') where += ' AND r.is_active = TRUE';
 
     const { rows } = await pool.query(
       `SELECT r.id, r.name, r.room_type, r.capacity, r.floor, r.image_url,

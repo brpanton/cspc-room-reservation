@@ -258,7 +258,8 @@ router.post('/login', async (req, res, next) => {
     } catch (countErr) {
       // Older DBs without the login_count column still work: fall back to
       // comparing the creation date (brand-new account ~= first login).
-      if (countErr.code === '42P01') {
+      // 42703 = undefined_column (the column is missing, not the table).
+      if (countErr.code === '42703' || countErr.code === '42P01') {
         const createdAt = rows[0].created_at ? new Date(rows[0].created_at).getTime() : 0;
         loginCount = Date.now() - createdAt < 5 * 60 * 1000 ? 1 : 2;
       } else {
@@ -287,7 +288,10 @@ router.post('/login', async (req, res, next) => {
     const requiresPasswordChange = user.role === 'admin' && user.must_change_password;
 
     const fullName = String(user.full_name || '').trim();
-    const firstName = fullName.split(/\s+/)[0] || 'there';
+    // Skip honorifics so "Ms. Ana Bautista" greets "Ana", not "Ms.".
+    const HONORIFICS = /^(mr|mrs|ms|miss|dr|prof|engr|atty|sir|maam|ma'am)\.?$/i;
+    const nameParts = fullName.split(/\s+/).filter(Boolean);
+    const firstName = nameParts.find((part) => !HONORIFICS.test(part)) || nameParts[0] || 'there';
     const greeting = `Hi, ${firstName}!`;
     res.json({
       message: requiresPasswordChange
