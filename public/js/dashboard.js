@@ -110,7 +110,14 @@
   const snapshotEl = document.getElementById('room-snapshot');
   const activityEl = document.getElementById('activity-feed');
 
-  const state = { status: '', items: [] };
+  const state = {
+    status: '',
+    items: [],
+    allRooms: [],
+    searchQuery: '',
+    filterChip: '',
+    timelineDate: todayIso()
+  };
 
   /* ------------------------------------------------------------- clock --- */
   function updateDashboardClock() {
@@ -173,69 +180,285 @@
     if (statEls.rejected) statEls.rejected.textContent = stats.rejected;
   }
 
-  /* ------------------------------------------------ laboratory status --- */
+  /* -------------------------------------------------------------
+     1. ACTIVE RESERVATIONS TRACKER
+     Cards showing pending / approved bookings with direct Cancel
+     ------------------------------------------------------------- */
+  function renderActiveReservationsTracker(items) {
+    const container = document.getElementById('active-reservations-container');
+    const countEl = document.getElementById('active-tracker-count');
+    if (!container) return;
+
+    const activeList = (items || []).filter((r) => {
+      const s = String(r.status || '').toLowerCase();
+      return s === 'pending' || s === 'approved';
+    });
+
+    if (countEl) {
+      countEl.textContent = activeList.length;
+    }
+
+    if (activeList.length === 0) {
+      container.innerHTML = `
+        <div class="text-center py-4 text-muted-small">
+          <div class="fs-3 mb-2">📋</div>
+          <div class="fw-bold text-white mb-1">No active reservations right now</div>
+          <div class="text-muted-sm mb-3">You don't have any pending or approved bookings scheduled.</div>
+          <a href="/reservation-form.html" class="btn btn-sm btn-primary px-3 fw-semibold">+ Request a Room / Lab &rarr;</a>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = '<div class="row g-3">' +
+      activeList.map((r) => {
+        const isApproved = String(r.status || '').toLowerCase() === 'approved';
+        const badgeClass = isApproved ? 'bg-success' : 'bg-warning text-dark';
+        const badgeLabel = isApproved ? '✓ Approved' : '⏱ Pending Review';
+
+        const canEarlyOut = isApproved && r.can_early_checkout !== false;
+        const earlyBtnHtml = canEarlyOut
+          ? `<button type="button" class="btn btn-sm btn-warning text-dark fw-bold me-2" data-early-checkout="${r.id}" title="End Session Early">⏱ Check-Out</button>`
+          : '';
+
+        const cancelBtnHtml = `
+          <button type="button" class="btn btn-sm btn-outline-danger btn-cancel-active" data-id="${r.id}" title="Cancel reservation #${r.id}">
+            Cancel Request
+          </button>
+        `;
+
+        return `
+          <div class="col-12 col-md-6 col-lg-4">
+            <div class="card h-100 p-3 shadow-sm d-flex flex-column justify-content-between" style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 14px;">
+              <div>
+                <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                  <div>
+                    <div class="small text-primary fw-bold text-uppercase" style="font-size: 0.75rem;">${escapeHtml(r.building_name || 'CSPC Campus')}</div>
+                    <div class="fw-bold text-white fs-6 mt-0.5">${escapeHtml(r.room_name || 'Room')}</div>
+                  </div>
+                  <span class="badge ${badgeClass} rounded-pill px-2.5 py-1 fw-bold">${badgeLabel}</span>
+                </div>
+                <div class="small text-muted-sm border-top border-secondary-subtle pt-2 mb-2">
+                  <div class="mb-1"><span class="text-secondary">Date:</span> <strong class="text-light">${formatDateShort(r.res_date)}</strong></div>
+                  <div class="mb-1"><span class="text-secondary">Time:</span> <strong class="text-info">${formatTime(r.start_time)} – ${formatTime(r.end_time)}</strong></div>
+                  <div class="mb-1 text-truncate"><span class="text-secondary">Purpose:</span> <em>${escapeHtml(r.purpose || 'Academic session')}</em></div>
+                  <div><span class="text-secondary">Attendees:</span> <span class="text-light">${r.attendees != null ? r.attendees : 1} persons</span></div>
+                </div>
+              </div>
+              <div class="d-flex justify-content-between align-items-center pt-2 border-top border-secondary-subtle mt-2">
+                <span class="text-muted-small font-monospace">#${r.id}</span>
+                <div class="d-flex align-items-center">
+                  ${earlyBtnHtml}
+                  ${cancelBtnHtml}
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('') + '</div>';
+
+    // Bind cancel click handlers
+    container.querySelectorAll('.btn-cancel-active').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = Number(btn.getAttribute('data-id'));
+        const reservation = (state.items || []).find((r) => r.id === id);
+        if (!reservation) return;
+
+        if (!window.confirm('Cancel reservation request #' + id + ' for "' + (reservation.room_name || 'Room') + '"?')) {
+          return;
+        }
+
+        busy(btn, true, 'Cancelling…');
+        try {
+          await api('/api/reservations/' + id + '/cancel', { method: 'PATCH' });
+          toastOk('Reservation #' + id + ' cancelled.');
+          if (P.broadcastAvailabilityChange) P.broadcastAvailabilityChange();
+          await loadReservations();
+        } catch (err) {
+          toastError(err.message || 'Could not cancel reservation.');
+        } finally {
+          busy(btn, false);
+        }
+      });
+    });
+  }
+
+  /* -------------------------------------------------------------
+     2. QUICK LAB SEARCH & FILTER
+     Instant search bar + fast filter chips for labs
+     ------------------------------------------------------------- */
+  function renderFilteredLabCards() {
+    if (!labStatusEl) return;
+    const rooms = state.allRooms || [];
+    const query = (state.searchQuery || '').trim().toLowerCase();
+    const chip = state.filterChip || '';
+
+    const filtered = rooms.filter((r) => {
+      const name = String(r.name || '').toLowerCase();
+      const bName = String(r.building_name || '').toLowerCase();
+      const rType = String(r.type || r.room_type || '').toLowerCase();
+      const matchesSearch = !query || name.includes(query) || bName.includes(query) || rType.includes(query);
+      if (!matchesSearch) return false;
+
+      if (!chip) return true;
+      if (chip === 'available') {
+        const occ = r.occupancy_pct != null ? Number(r.occupancy_pct) : 0;
+        return occ < 70 && !r.is_under_maintenance;
+      }
+      return rType.includes(chip.toLowerCase()) || name.toLowerCase().includes(chip.toLowerCase());
+    });
+
+    const countEl = document.getElementById('lab-match-count');
+    if (countEl) {
+      countEl.textContent = `(${filtered.length} labs found)`;
+    }
+
+    if (filtered.length === 0) {
+      labStatusEl.innerHTML = `
+        <div class="text-center text-muted-small py-4">
+          No laboratories match your filter. Try clearing your search query or selecting "All Labs".
+        </div>
+      `;
+      return;
+    }
+
+    const displayRooms = filtered.slice(0, 6);
+    labStatusEl.innerHTML = '<div class="row g-3">' +
+      displayRooms.map((r) => {
+        const isMaint = Boolean(r.is_under_maintenance);
+        const maint = r.active_maintenance;
+        const occ = r.occupancy_pct != null ? Number(r.occupancy_pct) : ((r.bookings || []).length * 25);
+        const isAvailable = !isMaint && occ < 70;
+        const badgeClass = isMaint ? 'badge-maintenance' : (isAvailable ? 'bg-success' : 'bg-warning');
+        const badgeText = isMaint ? '⚠ Maintenance' : (isAvailable ? 'Available' : 'Busy');
+        const actionBtn = isMaint
+          ? '<button type="button" class="btn btn-sm btn-outline-secondary w-100 mt-3" disabled>🔒 Under Maintenance</button>'
+          : `<a href="/reservation-form.html?building_id=${encodeURIComponent(r.building_id || '')}&room_id=${encodeURIComponent(r.id)}" class="btn btn-sm btn-cspc w-100 mt-3">+ Reserve Lab</a>`;
+
+        return `
+          <div class="col-12 col-sm-6 col-lg-4">
+            <div class="card lab-status-card ${isMaint ? 'is-maintenance' : ''} h-100 p-3 d-flex flex-column justify-content-between">
+              <div>
+                <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
+                  <div class="fw-bold text-white fs-6">${escapeHtml(r.name || 'Room')}</div>
+                  <span class="badge ${badgeClass} rounded-pill">${badgeText}</span>
+                </div>
+                ${r.building_name ? `<div class="text-muted-small mb-2">${escapeHtml(r.building_name)}</div>` : ''}
+                <div class="d-flex justify-content-between small text-muted-sm mt-2">
+                  <span>Capacity: <strong>${r.capacity || 40} seats</strong></span>
+                  <span>Usage: <strong>${Math.min(100, Math.round(occ))}%</strong></span>
+                </div>
+                <div class="progress mt-2" style="height: 6px;">
+                  <div class="progress-bar ${isAvailable ? 'bg-success' : 'bg-warning'}" style="width: ${Math.min(100, occ)}%;"></div>
+                </div>
+              </div>
+              ${actionBtn}
+            </div>
+          </div>
+        `;
+      }).join('') + '</div>';
+  }
+
   async function loadLabStatus() {
     if (!labStatusEl) return;
-    labStatusEl.innerHTML = '<div class="text-muted-small d-flex justify-content-center py-3">Loading campus lab status&hellip;</div>';
     try {
       const date = todayIso();
       const data = await api('/api/availability?date=' + date);
-      const rooms = data.rooms || [];
-      if (rooms.length === 0) {
-        labStatusEl.innerHTML = '<div class="text-center text-muted-small py-3">No campus labs/rooms found.</div>';
-        return;
-      }
-
-      const sortedRooms = [...rooms].sort((a, b) => {
-        if (Boolean(a.is_under_maintenance) !== Boolean(b.is_under_maintenance)) {
-          return a.is_under_maintenance ? -1 : 1;
-        }
-        return 0;
-      });
-      const topRooms = sortedRooms.slice(0, 6);
-      labStatusEl.innerHTML = '<div class="row g-3">' +
-        topRooms.map((r) => {
-          const isMaint = Boolean(r.is_under_maintenance);
-          const maint = r.active_maintenance;
-          const occ = r.occupancy_pct != null ? Number(r.occupancy_pct) : ((r.bookings || []).length * 25);
-          const isAvailable = !isMaint && occ < 70;
-          const badgeClass = isMaint ? 'badge-maintenance' : (isAvailable ? 'bg-success' : 'bg-warning');
-          const badgeText = isMaint ? '⚠ Under Maintenance' : (isAvailable ? 'Available' : 'Busy');
-          const untilStr = isMaint && maint && maint.end_time
-            ? new Date(maint.end_time).toLocaleString(getLocale(), { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-            : '';
-          const actionBtn = isMaint
-            ? '<button type="button" class="btn btn-sm btn-outline-secondary w-100 mt-3" disabled title="Reservations disabled during maintenance">🔒 Under Maintenance</button>'
-            : '<a href="/reservation-form.html?building_id=' + encodeURIComponent(r.building_id || '') + '&room_id=' + encodeURIComponent(r.id) + '" class="btn btn-sm btn-cspc w-100 mt-3">+ Reserve Lab</a>';
-
-          return '<div class="col-12 col-sm-6 col-lg-4">' +
-            '<div class="card lab-status-card ' + (isMaint ? 'is-maintenance' : '') + ' h-100">' +
-            '<div class="card-body p-3 d-flex flex-column">' +
-            '<div class="d-flex justify-content-between align-items-start gap-2 mb-1">' +
-            '<div class="fw-semibold">' + escapeHtml(r.name || 'Unnamed Room') + '</div>' +
-            '<span class="badge ' + badgeClass + ' rounded-pill">' + badgeText + '</span>' +
-            '</div>' +
-            (r.building_name ? '<div class="text-muted-small mb-2">' + escapeHtml(r.building_name) + '</div>' : '') +
-            (isMaint
-              ? '<div class="maint-lock-banner mt-auto py-2 px-2 small">' +
-                '<div class="fw-semibold text-warning">' + escapeHtml((maint && maint.title) || 'Scheduled Maintenance') + '</div>' +
-                (untilStr ? '<div class="text-muted-small mt-1">Expected completion: <strong>' + escapeHtml(untilStr) + '</strong></div>' : '') +
-                '</div>'
-              : '<div class="mt-auto">' +
-                '<div class="progress mt-2" style="height: 6px;">' +
-                '<div class="progress-bar ' + (isAvailable ? 'bg-success' : 'bg-warning') + '"' +
-                ' role="progressbar" style="width: ' + Math.min(100, occ) + '%"' +
-                ' aria-valuenow="' + Math.min(100, occ) + '" aria-valuemin="0" aria-valuemax="100"></div>' +
-                '</div>' +
-                '<div class="mt-2 text-muted-small">' + Math.min(100, occ) + '% utilization</div>' +
-                '</div>'
-            ) +
-            actionBtn +
-            '</div></div></div>';
-        }).join('') + '</div>';
+      state.allRooms = data.rooms || [];
+      renderFilteredLabCards();
     } catch (err) {
       console.error('[dashboard lab] Error:', err.message);
       labStatusEl.innerHTML = '<div class="text-center text-muted-small py-3">Could not load laboratory status.</div>';
+    }
+  }
+
+  /* -------------------------------------------------------------
+     3. REAL-TIME SCHEDULE / TIMELINE VIEW
+     Daily hourly slot matrix (8:00 AM - 5:00 PM)
+     ------------------------------------------------------------- */
+  async function renderRealTimeTimeline(targetDate) {
+    const container = document.getElementById('timeline-schedule-container');
+    const dateDisplay = document.getElementById('timeline-date-display');
+    const datePicker = document.getElementById('timeline-date-picker');
+    if (!container) return;
+
+    const date = targetDate || state.timelineDate || todayIso();
+    state.timelineDate = date;
+
+    if (datePicker && datePicker.value !== date) {
+      datePicker.value = date;
+    }
+
+    if (dateDisplay) {
+      const today = todayIso();
+      if (date === today) {
+        dateDisplay.textContent = 'Today (' + formatDateShort(date) + ')';
+      } else {
+        dateDisplay.textContent = formatDateShort(date);
+      }
+    }
+
+    container.innerHTML = '<div class="text-center text-muted-small py-3">Loading schedule for ' + escapeHtml(date) + '&hellip;</div>';
+
+    try {
+      const data = await api('/api/availability?date=' + date);
+      const rooms = (data.rooms || []).slice(0, 5);
+
+      if (rooms.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted-small py-4">No rooms scheduled on this date.</div>';
+        return;
+      }
+
+      const hours = [8, 9, 10, 11, 12, 13, 14, 15, 16]; // 8 AM to 5 PM
+      let html = '<div class="table-responsive">';
+      html += '<table class="table table-sm table-dark table-bordered mb-0 align-middle text-center small">';
+      html += '<thead><tr><th class="text-start" style="width: 170px;">Laboratory</th>';
+      hours.forEach((h) => {
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const displayH = h % 12 || 12;
+        html += `<th style="width: 58px; font-size: 0.72rem;">${displayH} ${ampm}</th>`;
+      });
+      html += '</tr></thead><tbody>';
+
+      rooms.forEach((r) => {
+        const bookings = r.bookings || [];
+        html += '<tr>';
+        html += `<td class="text-start"><div class="fw-semibold text-truncate text-white" style="max-width: 160px;">${escapeHtml(r.name)}</div><div class="text-muted-small" style="font-size: 0.7rem;">${escapeHtml(r.building_name || '')}</div></td>`;
+
+        hours.forEach((h) => {
+          const isBooked = bookings.some((b) => {
+            const startH = parseInt(String(b.start_time).split(':')[0], 10);
+            const endH = parseInt(String(b.end_time).split(':')[0], 10);
+            return h >= startH && h < endH;
+          });
+
+          if (r.is_under_maintenance) {
+            html += '<td class="bg-warning-subtle text-warning fw-semibold" style="font-size: 0.7rem;" title="Maintenance">Maint</td>';
+          } else if (isBooked) {
+            html += '<td class="bg-primary text-white fw-semibold" style="font-size: 0.7rem;" title="Booked">Busy</td>';
+          } else {
+            html += '<td class="bg-success-subtle text-success fw-semibold" style="font-size: 0.7rem;" title="Available">Open</td>';
+          }
+        });
+        html += '</tr>';
+      });
+
+      html += '</tbody></table></div>';
+      html += `
+        <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top border-secondary-subtle small text-muted-sm">
+          <div class="d-flex gap-3">
+            <span><span class="badge bg-success-subtle text-success border border-success-subtle me-1">Open</span> Available</span>
+            <span><span class="badge bg-primary text-white me-1">Busy</span> Booked</span>
+            <span><span class="badge bg-warning-subtle text-warning me-1">Maint</span> Maintenance</span>
+          </div>
+          <span class="text-muted-small">8 AM – 5 PM</span>
+        </div>
+      `;
+
+      container.innerHTML = html;
+    } catch (err) {
+      console.error('[timeline] Error:', err);
+      container.innerHTML = '<div class="text-center text-muted-small py-3">Could not load timetable for this date.</div>';
     }
   }
 
@@ -378,9 +601,11 @@
 
       state.items = items;
       renderStats(computeStats(items));
+      renderActiveReservationsTracker(items);
       renderActivityFeed(items);
       renderRoomSnapshot(items);
       await loadLabStatus();
+      await renderRealTimeTimeline(state.timelineDate || todayIso());
       renderTable(items);
     } catch (err) {
       console.error('[dashboard reservations] Error:', err.message);
@@ -490,19 +715,71 @@
   /* ------------------------------------------------------ filters ------- */
   function initFilters() {
     const filterGroup = document.getElementById('status-filters');
-    if (!filterGroup) return;
-    filterGroup.querySelectorAll('button').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        filterGroup.querySelectorAll('button').forEach((b) => b.classList.remove('active'));
-        btn.classList.add('active');
-        state.status = btn.getAttribute('data-status') || '';
-        renderTable(state.items);
+    if (filterGroup) {
+      filterGroup.querySelectorAll('button').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          filterGroup.querySelectorAll('button').forEach((b) => b.classList.remove('active'));
+          btn.classList.add('active');
+          state.status = btn.getAttribute('data-status') || '';
+          renderTable(state.items);
+        });
       });
-    });
+    }
+
+    // Quick Lab Search input
+    const labSearchInput = document.getElementById('quick-lab-search');
+    if (labSearchInput) {
+      labSearchInput.addEventListener('input', (e) => {
+        state.searchQuery = e.target.value;
+        renderFilteredLabCards();
+      });
+    }
+
+    // Quick Lab Filter Chips
+    const chipContainer = document.getElementById('lab-filter-chips');
+    if (chipContainer) {
+      chipContainer.querySelectorAll('.chip-filter').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          chipContainer.querySelectorAll('.chip-filter').forEach((b) => b.classList.remove('active'));
+          btn.classList.add('active');
+          state.filterChip = btn.getAttribute('data-type') || '';
+          renderFilteredLabCards();
+        });
+      });
+    }
+
+    // Real-Time Schedule timeline date controls
+    const btnToday = document.getElementById('timeline-btn-today');
+    const btnTomorrow = document.getElementById('timeline-btn-tomorrow');
+    const picker = document.getElementById('timeline-date-picker');
+
+    if (btnToday) {
+      btnToday.addEventListener('click', () => {
+        const today = todayIso();
+        state.timelineDate = today;
+        renderRealTimeTimeline(today);
+      });
+    }
+
+    if (btnTomorrow) {
+      btnTomorrow.addEventListener('click', () => {
+        const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+        state.timelineDate = tomorrow;
+        renderRealTimeTimeline(tomorrow);
+      });
+    }
+
+    if (picker) {
+      picker.addEventListener('change', (e) => {
+        if (e.target.value) {
+          state.timelineDate = e.target.value;
+          renderRealTimeTimeline(e.target.value);
+        }
+      });
+    }
 
     const tab = queryParam('tab');
-    if (tab) {
-      // Case-insensitive match: URL param 'pending' vs HTML attr 'Pending'
+    if (tab && filterGroup) {
       let btn = filterGroup.querySelector('button[data-status="' + tab + '"]');
       if (!btn) {
         btn = Array.from(filterGroup.querySelectorAll('button')).find(

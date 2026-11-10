@@ -581,42 +581,21 @@
     if (!labSection) return;
 
     const advisories = Array.isArray(data.announcements) ? data.announcements : [];
-    const labs = Array.isArray(data.labs) ? data.labs : [];
+    // Only display widget on user dashboard if there is an active maintenance notice
+    if (!advisories.length) return;
 
-    // Combine active maintenance advisories + featured labs into rotating slides
-    const slides = [
-      ...advisories.map((a) => ({
-        type: 'maintenance',
-        title: a.title,
-        subtitle: a.target_label,
-        description: a.description,
-        status: a.effective_status || a.status,
-        end_time: a.end_time,
-        image_url: a.showcase_image || '/img/cs-lab.jpg',
-        room_id: a.room_id,
-        building_id: a.building_id
-      })),
-      ...labs
-        .filter((l) => !l.is_under_maintenance)
-        .slice(0, 4)
-        .map((l) => ({
-          type: 'showcase',
-          title: `${l.name} — Open for Reservations`,
-          subtitle: `${l.building_name}${l.floor ? ` · ${l.floor}` : ''}`,
-          description: `Seats up to ${l.capacity} attendees. Equipped with ${[
-            l.has_projector ? 'Projector' : null,
-            l.has_aircon ? 'Air-Conditioning' : null,
-            l.has_sound ? 'Sound System' : null
-          ]
-            .filter(Boolean)
-            .join(', ') || 'standard laboratory facilities'}.`,
-          status: 'Available',
-          end_time: null,
-          image_url: l.image_url || '/img/it-lab1.jpg',
-          room_id: l.id,
-          building_id: l.building_id
-        }))
-    ];
+    // Show only real maintenance advisories, without redundant showcase slides
+    const slides = advisories.map((a) => ({
+      type: 'maintenance',
+      title: a.title,
+      subtitle: a.target_label,
+      description: a.description,
+      status: a.effective_status || a.status,
+      end_time: a.end_time,
+      image_url: a.showcase_image || '/img/cs-lab.jpg',
+      room_id: a.room_id,
+      building_id: a.building_id
+    }));
 
     if (!slides.length) return;
 
@@ -1256,8 +1235,11 @@
       }
 
       if (isUserDashboard) {
-        renderUserShowcaseCarousel(showcaseData);
-        renderUserDashboardAdvisoryWidget(showcaseData);
+        // Redundant laboratory showcase removed from user dashboard.
+        // Only render maintenance advisory if there is an active notice.
+        if (announcements.length > 0) {
+          renderUserDashboardAdvisoryWidget(showcaseData);
+        }
       }
 
       if (isAdminDashboard) {
