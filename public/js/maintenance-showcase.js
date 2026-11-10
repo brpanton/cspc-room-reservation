@@ -258,12 +258,13 @@
   // ==========================================================================
   // 3. PUBLIC LANDING PAGE: ADVERTISEMENT-STYLE FACILITY SHOWCASE CAROUSEL
   // ==========================================================================
-  function renderPublicShowcaseCarousel(data, openPopupFn) {
+  function renderPublicShowcaseCarousel(data, openPopupFn, session) {
     const heroSection = document.getElementById('overview');
     if (!heroSection) return;
 
     const labs = Array.isArray(data.labs) ? data.labs : [];
     if (!labs.length) return;
+    const isAuthenticated = Boolean(session && session.authenticated);
 
     let section = document.getElementById('facility-showcase-section');
     if (!section) {
@@ -301,7 +302,11 @@
             <span class="showcase-kicker">✦ Campus Facility Showcase &amp; Live Advisories</span>
             <h2 class="h4 fw-bold text-white mt-2 mb-1">Featured Laboratories &amp; Real-Time Facility Status</h2>
             <p class="text-muted-sm mb-0">
-              Explore campus laboratories before signing in. Rooms undergoing maintenance are flagged in real time.
+              ${
+                isAuthenticated
+                  ? 'Explore campus laboratories and check real-time maintenance status before reserving a space.'
+                  : 'Explore campus laboratories before signing in. Rooms undergoing maintenance are flagged in real time.'
+              }
             </p>
           </div>
           <div class="d-flex align-items-center gap-2">
@@ -399,7 +404,9 @@
                 ${
                   isMaint
                     ? `<button type="button" class="btn btn-outline-secondary" disabled>🔒 Under Maintenance</button>`
-                    : `<button type="button" class="btn btn-cspc" data-bs-toggle="modal" data-bs-target="#visitor-login-modal">Sign in to Reserve →</button>`
+                    : isAuthenticated
+                      ? `<a href="/reservation-form.html?building_id=${encodeURIComponent(lab.building_id || '')}&room_id=${encodeURIComponent(lab.id)}" class="btn btn-cspc">Reserve Space →</a>`
+                      : `<button type="button" class="btn btn-cspc" data-bs-toggle="modal" data-bs-target="#visitor-login-modal">Sign in to Reserve →</button>`
                 }
               </div>
             </div>
@@ -531,8 +538,9 @@
             <span class="small text-muted-sm">Slide ${idx + 1} of ${slides.length}</span>
           </div>
           <div class="d-flex align-items-center gap-2">
-            <button type="button" class="btn btn-sm btn-outline-light py-0 px-2" id="user-adv-prev">←</button>
-            <button type="button" class="btn btn-sm btn-outline-light py-0 px-2" id="user-adv-next">→</button>
+            <button type="button" class="btn btn-sm btn-outline-light py-0 px-2" id="user-adv-prev" title="Previous slide">←</button>
+            <button type="button" class="btn btn-sm btn-outline-light py-0 px-2" id="user-adv-next" title="Next slide">→</button>
+            <button type="button" class="btn-glass-close" id="user-adv-close" aria-label="Dismiss advisory widget" title="Close">&times;</button>
           </div>
         </div>
         <div class="user-maint-slide">
@@ -561,6 +569,9 @@
       widget.querySelector('#user-adv-next')?.addEventListener('click', () => {
         idx = (idx + 1) % slides.length;
         draw();
+      });
+      widget.querySelector('#user-adv-close')?.addEventListener('click', () => {
+        widget.hidden = true;
       });
     }
 
@@ -623,6 +634,10 @@
         </div>
 
         <div class="card-body border-bottom border-secondary border-opacity-25" id="admin-maint-form-wrap" hidden>
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="fw-semibold text-info small text-uppercase">Schedule / Edit Maintenance Notice</span>
+            <button type="button" class="btn-glass-close" id="admin-maint-close-x" aria-label="Close maintenance form" title="Close">&times;</button>
+          </div>
           <form id="admin-maint-form" enctype="multipart/form-data">
             <input type="hidden" id="maint-edit-id" value="" />
             <div class="row g-3">
@@ -815,6 +830,9 @@
     });
 
     pane.querySelector('#admin-maint-cancel-btn').addEventListener('click', () => {
+      formWrap.hidden = true;
+    });
+    pane.querySelector('#admin-maint-close-x')?.addEventListener('click', () => {
       formWrap.hidden = true;
     });
 
@@ -1080,7 +1098,12 @@
   // ==========================================================================
   async function boot() {
     try {
-      const showcaseData = await fetchJson('/api/facility-showcase');
+      const [showcaseData, sessionData] = await Promise.all([
+        fetchJson('/api/facility-showcase'),
+        window.Portal && typeof window.Portal.getSession === 'function'
+          ? window.Portal.getSession().catch(() => ({ authenticated: false }))
+          : fetchJson('/api/session').catch(() => ({ authenticated: false }))
+      ]);
       const popups = showcaseData.priority_popups || [];
       const announcements = showcaseData.announcements || [];
 
@@ -1098,7 +1121,7 @@
       }
 
       if (isHomePage) {
-        renderPublicShowcaseCarousel(showcaseData, openPopupFn);
+        renderPublicShowcaseCarousel(showcaseData, openPopupFn, sessionData);
       }
 
       if (isUserDashboard) {

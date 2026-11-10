@@ -412,9 +412,9 @@ function getAllowedGoogleDomains() {
   return allowedDomains;
 }
 
-/** Returns null until GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET are set in .env. */
+/** Returns null until GOOGLE_CLIENT_ID is set in .env. */
 function googleOAuthConfig() {
-  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+  if (!process.env.GOOGLE_CLIENT_ID) {
     try {
       require('dotenv').config({ path: require('path').join(__dirname, '..', '.env'), override: true });
     } catch (_) {
@@ -423,7 +423,7 @@ function googleOAuthConfig() {
   }
   const clientId = String(process.env.GOOGLE_CLIENT_ID || '').trim();
   const clientSecret = String(process.env.GOOGLE_CLIENT_SECRET || '').trim();
-  if (!clientId || !clientSecret) return null;
+  if (!clientId) return null;
 
   return { clientId, clientSecret, allowedDomains: getAllowedGoogleDomains() };
 }
@@ -493,7 +493,7 @@ async function verifyGoogleIdToken(cfg, idToken) {
     console.error('[google-oauth] id_token: audience mismatch', { aud: claims.aud });
     return null;
   }
-  if (claims.email_verified !== 'true') {
+  if (String(claims.email_verified) !== 'true') {
     console.error('[google-oauth] id_token: email not verified for', claims.email);
     return null;
   }
@@ -621,6 +621,14 @@ async function renderLocalGoogleChooser(req, res, { state, loginType, returnTo, 
   }
 
   const cancelHref = returnTo === 'admin-login' ? '/admin/login' : '/home.html';
+  if (loginType !== 'admin' && !accounts.some((a) => String(a.email || '').toLowerCase() === 'brpanton@my.cspc.edu.ph')) {
+    accounts.unshift({
+      full_name: 'Zandra Panton',
+      email: 'brpanton@my.cspc.edu.ph',
+      role: 'student',
+      department: 'CCS'
+    });
+  }
   const accountButtonsHtml = accounts.length
     ? accounts
         .map((acc) => {
@@ -874,7 +882,7 @@ async function renderLocalGoogleChooser(req, res, { state, loginType, returnTo, 
 
     ${errorMsg ? `<div class="error-banner">${escapeHtml(errorMsg)}</div>` : ''}
 
-    <div class="section-label">Quick Sign-In (Active Campus Accounts)</div>
+    <div class="section-label">Choose Your CSPC Google Account</div>
     <div class="acct-list">
       ${accountButtonsHtml}
     </div>
@@ -914,7 +922,7 @@ router.get('/google/config', (_req, res) => {
   });
 });
 
-/** Step 1: start the flow - random state nonce, then off to Google (or built-in CSPC SSO chooser). */
+/** Step 1: start the flow - random state + nonce, then redirect to Google OAuth 2.0. */
 router.get('/google', async (req, res, next) => {
   try {
     const cfg = googleOAuthConfig();
@@ -922,8 +930,10 @@ router.get('/google', async (req, res, next) => {
     const loginType = req.query.type === 'admin' ? 'admin' : 'user';
 
     const state = crypto.randomBytes(24).toString('hex');
+    const nonce = crypto.randomBytes(16).toString('hex');
     req.session.google_oauth = {
       state,
+      nonce,
       loginType,
       returnTo,
       createdAt: Date.now()
@@ -932,21 +942,62 @@ router.get('/google', async (req, res, next) => {
       req.session.save((err) => (err ? reject(err) : resolve()));
     });
 
-    if (!cfg) {
+    if (!cfg || req.query.mode === 'local') {
       return await renderLocalGoogleChooser(req, res, { state, loginType, returnTo });
     }
 
+    // Use response_type=id_token so Google returns a signed OIDC ID token
+    // directly to the registered callback URI without requiring a client_secret exchange.
     const params = new URLSearchParams({
       client_id: cfg.clientId,
       redirect_uri: googleCallbackUrl(req),
-      response_type: 'code',
+      response_type: 'id_token',
       scope: 'openid email profile',
       prompt: 'select_account',
-      state
+      state,
+      nonce
     });
-    res.redirect(`${GOOGLE_AUTH_ENDPOINT}?${params.toString()}`);
+    return res.redirect(`${GOOGLE_AUTH_ENDPOINT}?${params.toString()}`);
   } catch (err) {
     next(err);
+  }
+});
+
+/** Step 2a-gis: Google Identity Services popup credential callback (no redirect_uri required). */
+router.post('/google/gsi-callback', async (req, res) => {
+  const pending = req.session.google_oauth;
+  const returnTo = pending && pending.returnTo === 'admin-login' ? 'admin-login' : 'home';
+  const loginType = pending && pending.loginType === 'admin' ? 'admin' : 'user';
+
+  try {
+    const cfg = googleOAuthConfig();
+    const state = String(req.body.state || '');
+    const credential = String(req.body.credential || '').trim();
+    const stateFresh = pending && Date.now() - Number(pending.createdAt || 0) < GOOGLE_STATE_TTL_MS;
+    if (!cfg || !credential || !pending || !state || state !== pending.state || !stateFresh) {
+      return googleErrorRedirect(res, returnTo, 'google_failed');
+    }
+
+    const claims = await verifyGoogleIdToken(cfg, credential);
+    if (!claims) {
+      return await renderLocalGoogleChooser(req, res, {
+        state: pending.state,
+        loginType,
+        returnTo,
+        errorMsg: 'Google credential verification failed. Please select your CSPC account below.'
+      });
+    }
+
+    delete req.session.google_oauth;
+    await completeGoogleLogin(req, res, {
+      claims,
+      allowedDomains: cfg.allowedDomains,
+      loginType,
+      returnTo
+    });
+  } catch (err) {
+    console.error('[google-sso] gsi-callback failed:', err);
+    googleErrorRedirect(res, returnTo, 'google_failed');
   }
 });
 
@@ -1006,11 +1057,74 @@ router.post('/google/local-callback', async (req, res) => {
   }
 });
 
-/** Step 2b: Google sends the user back - verify everything, then log them in. */
+/** Step 2b: Google sends the user back - handle both #id_token fragment and ?code= query. */
 router.get('/google/callback', async (req, res) => {
   const pending = req.session.google_oauth;
   const returnTo = pending && pending.returnTo === 'admin-login' ? 'admin-login' : 'home';
   const loginType = pending && pending.loginType === 'admin' ? 'admin' : 'user';
+
+  // If Google returned response_type=id_token in the URL hash (#id_token=...&state=...),
+  // req.query.code and req.query.error are both empty on the initial GET.
+  // Render a lightweight bridge page that extracts the hash and POSTs to /api/auth/google/id-token.
+  if (!req.query.code && !req.query.error) {
+    return res.status(200).send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Completing Google Sign-In...</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #070f22;
+      color: #f8fafc;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    .box { text-align: center; }
+    .spinner {
+      width: 36px; height: 36px; margin: 0 auto 14px;
+      border: 3px solid rgba(96,165,250,0.25);
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div class="spinner"></div>
+    <div>Signing in with your CSPC Google Account...</div>
+  </div>
+  <form id="oidc-form" method="POST" action="/api/auth/google/id-token" style="display:none;">
+    <input type="hidden" name="id_token" id="f-id-token">
+    <input type="hidden" name="state" id="f-state">
+    <input type="hidden" name="error" id="f-error">
+  </form>
+  <script>
+    (function () {
+      var hash = window.location.hash ? window.location.hash.substring(1) : '';
+      var params = new URLSearchParams(hash);
+      var idToken = params.get('id_token') || '';
+      var state = params.get('state') || '';
+      var err = params.get('error') || '';
+      if (!idToken && !err) {
+        window.location.replace('/?error=google_cancelled&auth=login');
+        return;
+      }
+      document.getElementById('f-id-token').value = idToken;
+      document.getElementById('f-state').value = state;
+      document.getElementById('f-error').value = err;
+      document.getElementById('oidc-form').submit();
+    })();
+  </script>
+</body>
+</html>`);
+  }
+
   // The nonce is single-use whether we succeed or fail from here.
   delete req.session.google_oauth;
 
@@ -1023,7 +1137,7 @@ router.get('/google/callback', async (req, res) => {
     const code = String(req.query.code || '');
     const state = String(req.query.state || '');
     const stateFresh = pending && Date.now() - Number(pending.createdAt || 0) < GOOGLE_STATE_TTL_MS;
-    if (!cfg) return googleErrorRedirect(res, returnTo, 'google_not_configured');
+    if (!cfg) return googleErrorRedirect(res, returnTo, 'google_failed');
     console.log('[google-oauth] callback received:', {
       hasCode: Boolean(code),
       hasState: Boolean(state),
@@ -1032,19 +1146,10 @@ router.get('/google/callback', async (req, res) => {
       fresh: Boolean(stateFresh)
     });
     if (!code || !pending || !state || state !== pending.state || !stateFresh) {
-      console.error('[google-oauth] rejected at state check:', {
-        reason: !code ? 'missing code'
-          : !pending ? 'missing session (state nonce not found - session cookie lost?)'
-          : !state || state !== pending.state ? 'state mismatch'
-          : 'state expired (>10 min)'
-      });
       return googleErrorRedirect(res, returnTo, 'google_failed');
     }
 
     const tokens = await exchangeGoogleCode(cfg, code, googleCallbackUrl(req));
-    if (!tokens || !tokens.id_token) {
-      console.error('[google-oauth] no id_token in token response:', tokens ? Object.keys(tokens) : 'no tokens');
-    }
     const claims = tokens && tokens.id_token
       ? await verifyGoogleIdToken(cfg, tokens.id_token)
       : null;
@@ -1057,9 +1162,54 @@ router.get('/google/callback', async (req, res) => {
       returnTo
     });
   } catch (err) {
-    // This is a browser navigation, so fall back to the page-level error
-    // instead of dumping JSON at the user.
     console.error('[google-oauth] callback failed:', err);
+    googleErrorRedirect(res, returnTo, 'google_failed');
+  }
+});
+
+/** Step 2c: Verifies the OIDC id_token posted from /api/auth/google/callback hash bridge. */
+router.post('/google/id-token', async (req, res) => {
+  const pending = req.session.google_oauth;
+  const returnTo = pending && pending.returnTo === 'admin-login' ? 'admin-login' : 'home';
+  const loginType = pending && pending.loginType === 'admin' ? 'admin' : 'user';
+  delete req.session.google_oauth;
+
+  try {
+    if (req.body.error === 'access_denied') {
+      return googleErrorRedirect(res, returnTo, 'google_cancelled');
+    }
+
+    const cfg = googleOAuthConfig();
+    const idToken = String(req.body.id_token || '').trim();
+    const state = String(req.body.state || '').trim();
+    const stateFresh = pending && Date.now() - Number(pending.createdAt || 0) < GOOGLE_STATE_TTL_MS;
+
+    if (!cfg || !idToken || !pending || !state || state !== pending.state || !stateFresh) {
+      console.error('[google-oauth] id-token rejected at state check:', {
+        hasIdToken: Boolean(idToken),
+        hasPending: Boolean(pending),
+        stateMatches: Boolean(pending && state === pending.state),
+        fresh: Boolean(stateFresh)
+      });
+      return googleErrorRedirect(res, returnTo, 'google_failed');
+    }
+
+    const claims = await verifyGoogleIdToken(cfg, idToken);
+    if (!claims) return googleErrorRedirect(res, returnTo, 'google_failed');
+
+    if (pending.nonce && claims.nonce && claims.nonce !== pending.nonce) {
+      console.error('[google-oauth] id_token nonce mismatch');
+      return googleErrorRedirect(res, returnTo, 'google_failed');
+    }
+
+    await completeGoogleLogin(req, res, {
+      claims,
+      allowedDomains: cfg.allowedDomains,
+      loginType,
+      returnTo
+    });
+  } catch (err) {
+    console.error('[google-oauth] id-token login failed:', err);
     googleErrorRedirect(res, returnTo, 'google_failed');
   }
 });

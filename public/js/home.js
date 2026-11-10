@@ -56,6 +56,22 @@
     primaryAction.outerHTML = `<a class="btn btn-cspc btn-lg" id="home-primary-action" href="${session.user.role === 'admin' ? '/admin-dashboard.html' : '/dashboard.html'}">${session.user.role === 'admin' ? 'Open admin dashboard →' : 'Open your dashboard →'}</a>`;
   }
 
+  // Update "How it works" CTA button and footer login status when signed in
+  const howStartBtn = document.querySelector('.home-how-actions [data-bs-target="#visitor-login-modal"]');
+  if (session.authenticated && howStartBtn) {
+    howStartBtn.outerHTML = `<a class="btn btn-cspc" href="${session.user.role === 'admin' ? '/admin-dashboard.html' : '/reservation-form.html'}">${session.user.role === 'admin' ? 'Open Admin Dashboard →' : 'Reserve a Space →'}</a>`;
+  }
+
+  const footerStatusEl = document.querySelector('.home-footer-status');
+  if (footerStatusEl) {
+    if (session.authenticated && session.user) {
+      const dashHref = session.user.role === 'admin' ? '/admin-dashboard.html' : '/dashboard.html';
+      footerStatusEl.innerHTML = `<h3>Signed in as <strong>${P.escapeHtml(session.user.full_name || session.user.email)}</strong> · <a href="${dashHref}">Dashboard</a></h3>`;
+    } else {
+      footerStatusEl.innerHTML = `<h3>You are not logged in. <a href="#" data-bs-toggle="modal" data-bs-target="#visitor-login-modal" aria-label="Log in">(Log in)</a></h3>`;
+    }
+  }
+
   const loginModalEl = document.getElementById('visitor-login-modal');
   const registerModalEl = document.getElementById('visitor-register-modal');
   const loginModal = loginModalEl ? new bootstrap.Modal(loginModalEl) : null;
@@ -512,13 +528,21 @@
   if (query.has('logged_out')) P.toastInfo('You have been logged out.');
   const GOOGLE_ERROR_MESSAGES = {
     google_cancelled: ['Google sign-in was cancelled. You can try again or use your school ID instead.', 'warning'],
-    google_not_configured: ['Google sign-in is not configured yet. Please use your school ID and password until the SSO provider is set up.', 'warning'],
     google_domain: ['Please sign in with your official CSPC Google account (@cspc.edu.ph or @my.cspc.edu.ph).', 'danger'],
     google_inactive: ['This account has been deactivated. Please contact the administrator.', 'danger'],
     google_forbidden: ['Access denied. Administrator privileges are required.', 'danger'],
     google_failed: ['Google sign-in could not be completed. Please log in with your school ID and password.', 'danger']
   };
   const googleErrorCode = query.get('error');
+  if (googleErrorCode) {
+    // Clean the ?error=... query param from the address bar so refreshing the page doesn't re-trigger the alert.
+    try {
+      const cleanUrl = new URL(window.location.href);
+      cleanUrl.searchParams.delete('error');
+      cleanUrl.searchParams.delete('email');
+      window.history.replaceState({}, '', cleanUrl.pathname + (cleanUrl.search || '') + (cleanUrl.hash || ''));
+    } catch { /* ignore */ }
+  }
   const googleError = GOOGLE_ERROR_MESSAGES[googleErrorCode];
   if (googleError) {
     loginModal?.show();
@@ -1253,7 +1277,7 @@
     return `
       <div class="card bg-dark/20 border-secondary/30 rounded-3 mb-4">
         <div class="card-body py-3">
-          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
             <div>
               <span class="availability-meta text-muted-small d-block">Date</span>
               <h6 class="mb-0 text-light">${P.escapeHtml(P.formatDate(date))}</h6>
@@ -1264,6 +1288,15 @@
             <div class="text-end">
               <span class="availability-meta text-muted-small d-block">Building</span>
               <h6 class="mb-0 text-light">${P.escapeHtml(buildingName || 'All buildings')}</h6>
+            </div>
+            <div class="d-flex align-items-center gap-2 ms-auto">
+              <button type="button" class="btn-glass-back" data-close-availability aria-label="Back to search">
+                <span aria-hidden="true">&larr;</span>
+                <span>Back</span>
+              </button>
+              <button type="button" class="btn-glass-close" data-close-availability aria-label="Close availability results" title="Close">
+                &times;
+              </button>
             </div>
           </div>
         </div>
@@ -1640,10 +1673,13 @@ function statusCard(room, dateValue, slot, remark) {
       // Summary chips
       searchResult.hidden = false;
       searchResult.innerHTML =
+        `<div class="d-flex flex-wrap align-items-center justify-content-between gap-2">` +
         `<div class="home-search-summary" role="status" aria-live="polite">` +
         `<span class="home-search-summary-chip available"><strong>${availableCount}</strong> Available</span>` +
         `<span class="home-search-summary-chip limited"><strong>${limitedCount}</strong> Limited</span>` +
         `<span class="home-search-summary-chip occupied"><strong>${occupiedCount}</strong> Occupied</span>` +
+        `</div>` +
+        `<button type="button" class="btn-glass-close" data-close-availability aria-label="Dismiss search results" title="Close">&times;</button>` +
         `</div>` +
         `<p class="mb-1 text-muted-sm">${rooms.length} total room(s) ${when} on <strong>${P.escapeHtml(P.formatDate(date))}</strong> in <strong>${P.escapeHtml(buildingName)}</strong>.</p>`;
 
@@ -1668,6 +1704,15 @@ function statusCard(room, dateValue, slot, remark) {
 
   /* Click anywhere on a room card to open the reservation form pre-filled */
   document.addEventListener('click', (e) => {
+    const closeAvailBtn = e.target.closest('[data-close-availability]');
+    if (closeAvailBtn) {
+      e.preventDefault();
+      if (availabilityView) availabilityView.hidden = true;
+      if (searchResult) searchResult.hidden = true;
+      document.getElementById('search-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
     const card = e.target.closest('.clickable-room-card');
     if (!card) return;
     // Don't navigate if clicking the Reserve Room button itself (it already links)

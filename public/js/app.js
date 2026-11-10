@@ -1930,6 +1930,39 @@ function broadcastAvailabilityChange() {
   }
 }
 
+function goBack(fallbackUrl = '/') {
+  try {
+    if (document.referrer && window.history.length > 1) {
+      const refUrl = new URL(document.referrer, window.location.origin);
+      if (refUrl.origin === window.location.origin && refUrl.href !== window.location.href) {
+        window.history.back();
+        return;
+      }
+    }
+  } catch {}
+  redirectTo(fallbackUrl || '/');
+}
+
+document.addEventListener('click', (event) => {
+  const backBtn = event.target.closest('[data-page-back]');
+  if (backBtn) {
+    event.preventDefault();
+    const fallback = backBtn.getAttribute('data-fallback') || '/';
+    goBack(fallback);
+    return;
+  }
+  const closeBtn = event.target.closest('[data-page-close]');
+  if (closeBtn) {
+    event.preventDefault();
+    const closeHref = closeBtn.getAttribute('data-close-href') || '';
+    if (closeHref) {
+      goBack(closeHref);
+    } else {
+      goBack('/');
+    }
+  }
+});
+
 window.Portal = {
   setLocale: setPortalLocale,
   getLocale: currentUiLocale,
@@ -1937,6 +1970,7 @@ window.Portal = {
   getSession,
   requireRole,
   redirectTo,
+  goBack,
   renderNavbar,
   roleBadge,
   statusBadge,

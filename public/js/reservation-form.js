@@ -13,6 +13,10 @@
   if (!user) return;
   renderNavbar(user, 'reserve');
 
+  const defaultDashboard = user.role === 'admin' ? '/admin-dashboard.html' : '/dashboard.html';
+  document.querySelectorAll('[data-page-back]').forEach((el) => el.setAttribute('data-fallback', defaultDashboard));
+  document.querySelectorAll('[data-page-close]').forEach((el) => el.setAttribute('data-close-href', defaultDashboard));
+
   const form = document.getElementById('reservation-form');
   const alertBox = document.getElementById('form-alert');
   const buildingSel = document.getElementById('building_id');
@@ -100,10 +104,24 @@
       ).join('');
     updateBuildingBackground();
 
-    // Auto-select pre-filled building from query params
+    // If room_id was provided without building_id, resolve building_id automatically
+    if (!window.__rfqBuildingId && window.__rfqRoomId) {
+      try {
+        const allRoomsData = await api('/api/rooms');
+        const matchedRoom = (allRoomsData.rooms || []).find(
+          (r) => String(r.id) === String(window.__rfqRoomId)
+        );
+        if (matchedRoom && matchedRoom.building_id) {
+          window.__rfqBuildingId = String(matchedRoom.building_id);
+        }
+      } catch {}
+    }
+
+    // Auto-select pre-filled building & room from query params
     if (window.__rfqBuildingId) {
       buildingSel.value = String(window.__rfqBuildingId);
-      loadRooms(window.__rfqBuildingId, window.__rfqRoomId);
+      updateBuildingBackground();
+      await loadRooms(window.__rfqBuildingId, window.__rfqRoomId);
     }
   } catch (err) {
     buildingSel.innerHTML = '<option value="">Could not load buildings</option>';

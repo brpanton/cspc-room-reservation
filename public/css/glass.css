@@ -1075,4 +1075,82 @@ html body:not(.lg-off) .portal-navbar .nav-link.active {
   -webkit-backdrop-filter: blur(20px);
 }
 
+/* ==========================================================================
+   PAGE & FEATURE BACK / CLOSE (✕) NAVIGATION CONTROLS
+   ========================================================================== */
+.page-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.btn-glass-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.42rem 0.95rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #f8fafc;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.btn-glass-back:hover,
+.btn-glass-back:focus-visible {
+  color: #ffffff;
+  background: rgba(37, 99, 235, 0.65);
+  border-color: rgba(147, 197, 253, 0.65);
+  transform: translateX(-2px);
+  text-decoration: none;
+}
+
+.btn-glass-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #e2e8f0;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  flex-shrink: 0;
+}
+
+.btn-glass-close:hover,
+.btn-glass-close:focus-visible {
+  color: #ffffff;
+  background: rgba(239, 68, 68, 0.72);
+  border-color: rgba(252, 165, 165, 0.7);
+  transform: scale(1.06);
+  text-decoration: none;
+}
+
+.auth-card-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.15rem 0;
+}
+
+
 

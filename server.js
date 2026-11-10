@@ -7,6 +7,7 @@
  * Serves the static frontend from /public and a JSON API under /api.
  */
 const path = require('path');
+const { execSync } = require('child_process');
 require('dotenv').config({ path: path.join(__dirname, '.env'), override: true });
 
 const express = require('express');
@@ -200,6 +201,39 @@ process.on('uncaughtException', (err) => {
 });
 
 // -------------------------------------------------------------------- start
+/**
+ * Automatically frees port `port` on Windows if a stale node.exe process from
+ * an earlier session is still holding it, so `npm start` always runs the
+ * latest server code and .env configuration.
+ */
+function freeStalePortOnWindows(port) {
+  if (process.platform !== 'win32') return;
+  try {
+    const out = execSync(`netstat -ano`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    const pids = new Set();
+    const portSuffix = `:${port}`;
+    for (const line of out.split(/\r?\n/)) {
+      if (!/LISTENING/i.test(line)) continue;
+      const parts = line.trim().split(/\s+/);
+      const localAddr = parts[1] || '';
+      const pid = Number(parts[parts.length - 1]);
+      if (localAddr.endsWith(portSuffix) && pid && pid !== process.pid) {
+        pids.add(pid);
+      }
+    }
+    for (const pid of pids) {
+      try {
+        console.log(`[server] Terminating stale process (PID ${pid}) holding port ${port}...`);
+        execSync(`taskkill /F /PID ${pid}`, { stdio: 'ignore' });
+      } catch (_) {
+        /* ignore */
+      }
+    }
+  } catch (_) {
+    /* ignore */
+  }
+}
+
 async function start() {
   try {
     await testConnection();
@@ -213,10 +247,13 @@ async function start() {
     process.exit(1);
   }
 
+  freeStalePortOnWindows(PORT);
+
   app.listen(PORT, () => {
     console.log(`\n  CSPC Reservation Portal`);
     console.log(`  ------------------------------------------`);
     console.log(`  Running at http://localhost:${PORT}`);
+    console.log(`  Google SSO: ${process.env.GOOGLE_CLIENT_ID ? 'Live Google OAuth 2.0 Active' : 'Built-in CSPC Account Chooser Active'}`);
     console.log(`  ------------------------------------------\n`);
   });
 }
