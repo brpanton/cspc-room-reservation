@@ -33,10 +33,10 @@ const BLOCKING_STATUSES = ['Pending', 'Approved'];
 router.get('/buildings', async (req, res, next) => {
   try {
     const { rows } = await pool.query(
-      `SELECT b.id, b.name, b.location, COUNT(r.id) AS room_count
+      `SELECT b.id, b.name, b.building_code, b.location, b.cover_image_url, b.cover_image_url AS image_url, COUNT(r.id) AS room_count
        FROM buildings b
        LEFT JOIN rooms r ON r.building_id = b.id AND r.is_active = TRUE
-       GROUP BY b.id, b.name, b.location
+       GROUP BY b.id, b.name, b.building_code, b.location, b.cover_image_url
        ORDER BY b.name`
     );
     res.json({ buildings: rows });
@@ -49,34 +49,23 @@ router.get('/buildings', async (req, res, next) => {
  * GET /api/buildings/top-popular
  *
  * Top 3 buildings ranked by total reservations across all their rooms.
- * Database query (MySQL):
- *   SELECT b.id, b.name AS building_name, b.location,
- *          COUNT(DISTINCT CASE WHEN r.is_active = 1 THEN r.id END) AS active_rooms,
- *          COUNT(res.id) AS total_reservations,
- *          COUNT(CASE WHEN res.status = 'Approved' THEN 1 END) AS approved_reservations
- *   FROM buildings b
- *   LEFT JOIN rooms r ON r.building_id = b.id
- *   LEFT JOIN reservations res ON res.room_id = r.id
- *   GROUP BY b.id, b.name, b.location
- *   ORDER BY total_reservations DESC, approved_reservations DESC, active_rooms DESC, b.name ASC
- *   LIMIT 3;
  */
 router.get('/buildings/top-popular', async (req, res, next) => {
   try {
     const { rows } = await pool.query(
-      `SELECT b.id, b.name AS building_name, b.name AS name, b.location,
-              COUNT(DISTINCT CASE WHEN r.is_active = TRUE THEN r.id END) AS active_rooms,
-              COUNT(res.id) AS total_reservations,
-              COUNT(CASE WHEN res.status = 'Approved' THEN 1 END) AS approved_reservations,
-              (
+      `SELECT b.id, b.name AS building_name, b.name AS name, b.building_code, b.location,
+              COALESCE(b.cover_image_url, (
                 SELECT r2.image_url FROM rooms r2
                 WHERE r2.building_id = b.id AND r2.is_active = TRUE AND r2.image_url IS NOT NULL
                 ORDER BY r2.id LIMIT 1
-              ) AS image_url
+              )) AS image_url,
+              COUNT(DISTINCT CASE WHEN r.is_active = TRUE THEN r.id END) AS active_rooms,
+              COUNT(res.id) AS total_reservations,
+              COUNT(CASE WHEN res.status = 'Approved' THEN 1 END) AS approved_reservations
        FROM buildings b
        LEFT JOIN rooms r ON r.building_id = b.id
        LEFT JOIN reservations res ON res.room_id = r.id
-       GROUP BY b.id, b.name, b.location
+       GROUP BY b.id, b.name, b.building_code, b.location, b.cover_image_url
        ORDER BY total_reservations DESC, approved_reservations DESC, active_rooms DESC, b.name ASC
        LIMIT 3`
     );

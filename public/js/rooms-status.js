@@ -29,8 +29,8 @@
     'MULTI PURPOSE BUILDING': '/img/fc87102f-d288-4b44-81f1-022acfccb7c6.jpg',
     'MULTI PORPUSE BUILDING': '/img/fc87102f-d288-4b44-81f1-022acfccb7c6.jpg',
     'CHS BUILDING': '/img/e4edc818-0707-48a1-87d1-cb81125f6ee4.jpg',
-    'CITD BUILDING': '/img/cookery-lab.jpg',
-    'LSB BUILDING': '/img/chemistry-lab.jpg'
+    'CITD BUILDING': '/img/6073d9fd-be4f-4d55-bc84-bde51aa8db51.jpg',
+    'LSB BUILDING': '/img/79f0c07c-b23e-4644-9550-536b84c2f5b4.jpg'
   };
 
   function updateBuildingBackground() {
