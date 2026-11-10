@@ -117,19 +117,10 @@
   // button keeps its friendly "not configured" notice instead of redirecting.
   const visitorSsoBtn = document.getElementById('visitor-sso-google');
   if (visitorSsoBtn) {
-    visitorSsoBtn.addEventListener('click', async () => {
-      try {
-        const cfg = await P.api('/api/auth/google/config');
-        if (!cfg.configured) {
-          P.toastInfo('Google sign-in is not configured yet. Please use your school ID and password until the SSO provider is set up.');
-          return;
-        }
-        P.busy(visitorSsoBtn, true, 'Opening Google...');
-        const type = loginMode === 'admin' ? 'admin' : 'user';
-        window.location.assign(`/api/auth/google?type=${type}&return=home`);
-      } catch {
-        P.toastInfo('Unable to start Google sign-in right now. Please try again or use your school ID and password.');
-      }
+    visitorSsoBtn.addEventListener('click', () => {
+      P.busy(visitorSsoBtn, true, 'Opening Google...');
+      const type = loginMode === 'admin' ? 'admin' : 'user';
+      window.location.assign(`/api/auth/google?type=${type}&return=home`);
     });
   }
 

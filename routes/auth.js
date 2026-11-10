@@ -414,6 +414,13 @@ function getAllowedGoogleDomains() {
 
 /** Returns null until GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET are set in .env. */
 function googleOAuthConfig() {
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    try {
+      require('dotenv').config({ path: require('path').join(__dirname, '..', '.env'), override: true });
+    } catch (_) {
+      /* ignore */
+    }
+  }
   const clientId = String(process.env.GOOGLE_CLIENT_ID || '').trim();
   const clientSecret = String(process.env.GOOGLE_CLIENT_SECRET || '').trim();
   if (!clientId || !clientSecret) return null;

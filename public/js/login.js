@@ -121,26 +121,11 @@
 
   const googleBtn = document.getElementById('sso-google');
   if (googleBtn) {
-    // Single-click OAuth handoff: /api/auth/google builds the consent-screen
-    // URL server-side (CSRF state nonce included) and verifies the callback.
-    // Until GOOGLE_CLIENT_ID/SECRET are set in .env the config endpoint
-    // reports { configured: false } and the button keeps its friendly notice.
-    googleBtn.addEventListener('click', async () => {
-      try {
-        const cfg = await api('/api/auth/google/config');
-        if (!cfg.configured) {
-          toastInfo('Google sign-in is not configured yet. Please use your school ID and password until the SSO provider is set up.');
-          return;
-        }
-
-        busy(googleBtn, true, 'Opening Google...');
-        const type = isAdminPage ? 'admin' : 'user';
-        const returnTo = isAdminPage ? 'admin-login' : 'home';
-        window.location.assign(`/api/auth/google?type=${type}&return=${returnTo}`);
-      } catch {
-        toastInfo('Unable to start Google sign-in right now. Please try again or use your school ID and password.');
-        busy(googleBtn, false);
-      }
+    googleBtn.addEventListener('click', () => {
+      busy(googleBtn, true, 'Opening Google...');
+      const type = isAdminPage ? 'admin' : 'user';
+      const returnTo = isAdminPage ? 'admin-login' : 'home';
+      window.location.assign(`/api/auth/google?type=${type}&return=${returnTo}`);
     });
   }
 

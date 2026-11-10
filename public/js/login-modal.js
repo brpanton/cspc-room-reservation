@@ -220,25 +220,10 @@
        { configured } flag so an unprovisioned server keeps its friendly
        notice instead of redirecting. Falls back to plain fetch when the
        snippet runs without app.js. */
-  ssoBtn?.addEventListener('click', async () => {
-    try {
-      const cfg = P.api
-        ? await P.api('/api/auth/google/config')
-        : await fetch('/api/auth/google/config', { headers: { Accept: 'application/json' } }).then((r) => r.json());
-      if (!cfg || !cfg.configured) {
-        const message = 'Google sign-in is not configured yet. Please use your school ID and password until the SSO provider is set up.';
-        if (P.toastInfo) P.toastInfo(message);
-        else showAlert(message, 'warning');
-        return;
-      }
-      setBusy(ssoBtn, true, 'Opening Google...');
-      const type = loginMode === 'admin' ? 'admin' : 'user';
-      window.location.assign(`/api/auth/google?type=${type}&return=home`);
-    } catch {
-      const message = 'Unable to start Google sign-in right now. Please try again or use your school ID and password.';
-      if (P.toastInfo) P.toastInfo(message);
-      else showAlert(message, 'warning');
-    }
+  ssoBtn?.addEventListener('click', () => {
+    setBusy(ssoBtn, true, 'Opening Google...');
+    const type = loginMode === 'admin' ? 'admin' : 'user';
+    window.location.assign(`/api/auth/google?type=${type}&return=home`);
   });
 
   /* --- reset when the card reopens on a different role ------------------ */
