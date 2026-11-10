@@ -217,5 +217,14 @@
     load();
   });
 
+  try {
+    const bc = new BroadcastChannel('cspc-availability');
+    bc.addEventListener('message', () => load());
+  } catch {
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'cspc-availability-changed') load();
+    });
+  }
+
   await load();
 })();

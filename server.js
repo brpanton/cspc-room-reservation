@@ -37,6 +37,8 @@ const profileRoutes = require('./routes/profile');
 const passwordResetRoutes = require('./routes/password-reset');
 const maintenanceRoutes = require('./routes/maintenance');
 const { ensureMaintenanceSchema } = require('./routes/maintenance');
+const sessionOverrideRoutes = require('./routes/session-override');
+const { ensureSessionOverrideSchema } = require('./routes/session-override');
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -84,6 +86,7 @@ app.use(attachUser);
 // ------------------------------------------------------------------- routes
 app.use('/api/auth', authRoutes);
 app.use('/api', maintenanceRoutes); // facility-showcase, maintenance advisories, admin maintenance & photo CRUD
+app.use('/api', sessionOverrideRoutes); // early check-out, admin force termination, two-way SSE/polling notifications
 app.use('/api', roomRoutes); // public: buildings, rooms, availability
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/admin', adminRoutes);
@@ -202,7 +205,8 @@ async function start() {
   try {
     await testConnection();
     await ensureMaintenanceSchema();
-    console.log('[db] PostgreSQL connection established & maintenance showcase schema ready.');
+    await ensureSessionOverrideSchema();
+    console.log('[db] PostgreSQL connection established, maintenance & session override schemas ready.');
   } catch (err) {
     console.error('\n[db] Could not connect to PostgreSQL:', err.message);
     console.error('[db] Check your .env settings and make sure PostgreSQL is running.');

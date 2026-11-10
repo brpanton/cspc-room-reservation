@@ -130,15 +130,23 @@ CREATE TABLE IF NOT EXISTS reservations (
   end_time      TIME      NOT NULL,
   purpose       TEXT      NOT NULL,
   attendees     INT       NOT NULL DEFAULT 1,
-  status        VARCHAR(20)   NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending','Approved','Rejected','Cancelled')),
+  status        VARCHAR(30)   NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending','Approved','Rejected','Cancelled','Completed Early','Terminated by Admin')),
   transaction_code  VARCHAR(30) UNIQUE,
   approved_by   INT       DEFAULT NULL,
   remarks       VARCHAR(255) DEFAULT NULL,
   decided_at    TIMESTAMP  DEFAULT NULL,
+  scheduled_start    TIMESTAMP  DEFAULT NULL,
+  scheduled_end      TIMESTAMP  DEFAULT NULL,
+  actual_check_in    TIMESTAMP  DEFAULT NULL,
+  actual_check_out   TIMESTAMP  DEFAULT NULL,
+  session_status     VARCHAR(40) NOT NULL DEFAULT 'Scheduled' CHECK (session_status IN ('Scheduled','Active','Checked Out Early','Completed','Terminated by Admin','Cancelled')),
+  termination_reason TEXT       DEFAULT NULL,
+  terminated_by      INT        DEFAULT NULL,
   created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_res_room FOREIGN KEY (room_id) REFERENCES rooms (id) ON DELETE CASCADE,
   CONSTRAINT fk_res_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
   CONSTRAINT fk_res_approver FOREIGN KEY (approved_by) REFERENCES users (id) ON DELETE SET NULL,
+  CONSTRAINT fk_res_terminated_by FOREIGN KEY (terminated_by) REFERENCES users (id) ON DELETE SET NULL,
   CONSTRAINT chk_res_time CHECK (end_time > start_time)
 );
 
@@ -307,3 +315,63 @@ CREATE INDEX IF NOT EXISTS idx_maint_status   ON maintenance_logs(status);
 CREATE INDEX IF NOT EXISTS idx_maint_room     ON maintenance_logs(room_id);
 CREATE INDEX IF NOT EXISTS idx_maint_building ON maintenance_logs(building_id);
 CREATE INDEX IF NOT EXISTS idx_maint_window   ON maintenance_logs(start_time, end_time);
+
+-- -------------------------------------------------------------
+-- Early Check-Out & Admin Session Override Module:
+-- Schema migration for existing `reservations` + audit/notification logs.
+-- -------------------------------------------------------------
+ALTER TABLE reservations
+  ALTER COLUMN status TYPE VARCHAR(30),
+  ADD COLUMN IF NOT EXISTS scheduled_start    TIMESTAMP  DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS scheduled_end      TIMESTAMP  DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS actual_check_in    TIMESTAMP  DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS actual_check_out   TIMESTAMP  DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS session_status     VARCHAR(40) NOT NULL DEFAULT 'Scheduled',
+  ADD COLUMN IF NOT EXISTS termination_reason TEXT       DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS terminated_by      INT        DEFAULT NULL REFERENCES users(id) ON DELETE SET NULL;
+
+-- Refresh status & session_status CHECK constraints idempotently
+DO $$
+BEGIN
+  ALTER TABLE reservations DROP CONSTRAINT IF EXISTS reservations_status_check;
+  ALTER TABLE reservations ADD CONSTRAINT reservations_status_check
+    CHECK (status IN ('Pending','Approved','Rejected','Cancelled','Completed Early','Terminated by Admin'));
+
+  ALTER TABLE reservations DROP CONSTRAINT IF EXISTS reservations_session_status_check;
+  ALTER TABLE reservations ADD CONSTRAINT reservations_session_status_check
+    CHECK (session_status IN ('Scheduled','Active','Checked Out Early','Completed','Terminated by Admin','Cancelled'));
+END $$;
+
+-- Backfill scheduled_start and scheduled_end from res_date + start_time / end_time
+UPDATE reservations
+SET scheduled_start = (res_date::text || ' ' || start_time::text)::timestamp,
+    scheduled_end   = (res_date::text || ' ' || end_time::text)::timestamp
+WHERE scheduled_start IS NULL OR scheduled_end IS NULL;
+
+-- -------------------------------------------------------------
+-- Session Audit & Two-Way Notification Logs:
+-- Tracks user early check-outs, session check-ins, and admin
+-- force terminations with real-time read/unread alert status.
+-- -------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS session_notifications (
+  id                 SERIAL PRIMARY KEY,
+  reservation_id     INT          NOT NULL REFERENCES reservations(id) ON DELETE CASCADE,
+  room_id            INT          NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+  actor_id           INT          DEFAULT NULL REFERENCES users(id) ON DELETE SET NULL,
+  recipient_role     VARCHAR(20)  NOT NULL CHECK (recipient_role IN ('admin', 'user', 'staff')),
+  recipient_user_id  INT          DEFAULT NULL REFERENCES users(id) ON DELETE CASCADE,
+  event_type         VARCHAR(40)  NOT NULL CHECK (event_type IN ('EARLY_CHECKOUT', 'ADMIN_TERMINATED', 'SESSION_CHECKIN', 'ROOM_STATUS_RESTORED')),
+  title              VARCHAR(180) NOT NULL,
+  message            TEXT         NOT NULL,
+  reason             TEXT         DEFAULT NULL,
+  room_after_status  VARCHAR(30)  DEFAULT 'Available',
+  actual_time        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  is_read            BOOLEAN      NOT NULL DEFAULT FALSE,
+  read_at            TIMESTAMP    DEFAULT NULL,
+  created_at         TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_snotif_recipient_role ON session_notifications(recipient_role, is_read, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_snotif_recipient_user ON session_notifications(recipient_user_id, is_read, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_snotif_reservation    ON session_notifications(reservation_id);
+CREATE INDEX IF NOT EXISTS idx_snotif_event_type     ON session_notifications(event_type);

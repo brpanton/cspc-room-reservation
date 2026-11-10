@@ -159,8 +159,8 @@
       stats.total += 1;
       const s = String(r.status || '').toLowerCase();
       if (s === 'pending') stats.pending += 1;
-      else if (s === 'approved') stats.approved += 1;
-      else if (s === 'rejected') stats.rejected += 1;
+      else if (s === 'approved' || s === 'completed early') stats.approved += 1;
+      else if (s === 'rejected' || s === 'terminated by admin') stats.rejected += 1;
       else if (s === 'cancelled') stats.cancelled += 1;
     });
     return stats;
@@ -240,10 +240,24 @@
   }
 
   /* ------------------------------------------------ status helpers ------- */
-  const STATUS_TONE = { Pending: 'warning', Approved: 'success', Rejected: 'danger', Cancelled: 'secondary' };
+  const STATUS_TONE = {
+    Pending: 'warning',
+    Approved: 'success',
+    Rejected: 'danger',
+    Cancelled: 'secondary',
+    'Completed Early': 'info',
+    'Terminated by Admin': 'danger'
+  };
 
   function statusColor(status) {
-    const map = { Pending: '#f59e0b', Approved: '#10b981', Rejected: '#ef4444', Cancelled: '#6b7280' };
+    const map = {
+      Pending: '#f59e0b',
+      Approved: '#10b981',
+      Rejected: '#ef4444',
+      Cancelled: '#6b7280',
+      'Completed Early': '#38bdf8',
+      'Terminated by Admin': '#ef4444'
+    };
     return map[status] || '#6b7280';
   }
 
@@ -315,20 +329,27 @@
     }
 
     snapshotEl.innerHTML = '<div class="list-group list-group-flush">' +
-      upcoming.map((r) => '<div class="list-group-item list-group-item-action border-0 py-2">' +
-        '<div class="d-flex justify-content-between align-items-start">' +
-        '<div>' +
-        '<div class="fw-semibold">' + escapeHtml(r.room_name || 'Room') + '</div>' +
-        '<div class="text-muted-small">' + escapeHtml(r.building_name || '') + '</div>' +
-        '</div>' +
-        '<span class="badge rounded-pill text-bg-' + (STATUS_TONE[r.status] || 'secondary') + '">' +
-        escapeHtml(String(r.status || 'Pending')) + '</span>' +
-        '</div>' +
-        '<div class="mt-2">' +
-        '<span class="text-muted-small me-2">' + formatDateShort(r.res_date) + '</span>' +
-        '<span class="text-muted-small">' + formatTime(r.start_time) + ' &ndash; ' + formatTime(r.end_time) + '</span>' +
-        '</div>' +
-        '</div>').join('') + '</div>';
+      upcoming.map((r) => {
+        const canEarlyOut = String(r.status || '') === 'Approved' && r.can_early_checkout !== false;
+        const earlyBtnHtml = canEarlyOut
+          ? '<div class="mt-2"><button type="button" class="btn btn-sm btn-warning text-dark fw-semibold" data-early-checkout="' + r.id + '">⏱ End Session Early / Check-Out Now</button></div>'
+          : '';
+        return '<div class="list-group-item list-group-item-action border-0 py-2">' +
+          '<div class="d-flex justify-content-between align-items-start">' +
+          '<div>' +
+          '<div class="fw-semibold">' + escapeHtml(r.room_name || 'Room') + '</div>' +
+          '<div class="text-muted-small">' + escapeHtml(r.building_name || '') + '</div>' +
+          '</div>' +
+          '<span class="badge rounded-pill text-bg-' + (STATUS_TONE[r.status] || 'secondary') + '">' +
+          escapeHtml(String(r.status || 'Pending')) + '</span>' +
+          '</div>' +
+          '<div class="mt-2">' +
+          '<span class="text-muted-small me-2">' + formatDateShort(r.res_date) + '</span>' +
+          '<span class="text-muted-small">' + formatTime(r.start_time) + ' &ndash; ' + formatTime(r.end_time) + '</span>' +
+          '</div>' +
+          earlyBtnHtml +
+          '</div>';
+      }).join('') + '</div>';
   }
 
   /* ---------------------------------------------------- reservations --- */
@@ -387,11 +408,31 @@
 
     bodyEl.innerHTML = filtered.map((r, index) => {
       const status = String(r.status || 'Pending');
-      const tone = STATUS_TONE[status] || 'secondary';
       const canCancel = status.toLowerCase() === 'pending';
-      const cancelBtn = canCancel
-        ? '<button type="button" class="btn btn-sm btn-outline-danger cancel-btn" data-id="' + r.id + '" title="Cancel reservation #' + r.id + '">Cancel</button>'
-        : '<span class="text-muted-sm">&mdash;</span>';
+      const canEarlyOut = status === 'Approved' && r.can_early_checkout !== false;
+
+      let actionBtns = '';
+      if (canEarlyOut) {
+        actionBtns =
+          '<button type="button" class="btn btn-sm btn-warning text-dark fw-semibold" data-early-checkout="' + r.id + '" title="Finish session early and free laboratory">' +
+          '⏱ Check-Out Now' +
+          '</button>';
+      } else if (canCancel) {
+        actionBtns = '<button type="button" class="btn btn-sm btn-outline-danger cancel-btn" data-id="' + r.id + '" title="Cancel reservation #' + r.id + '">Cancel</button>';
+      } else {
+        actionBtns = '<span class="text-muted-sm">&mdash;</span>';
+      }
+
+      let sessionMetaHtml = '';
+      if (status === 'Completed Early' && r.actual_check_out) {
+        const outTime = new Date(r.actual_check_out).toLocaleTimeString(getLocale(), { hour: 'numeric', minute: '2-digit' });
+        sessionMetaHtml = '<div class="small text-info mt-1">✓ Checked out early at ' + escapeHtml(outTime) + '</div>';
+      } else if (status === 'Terminated by Admin') {
+        const reasonText = r.termination_reason || r.remarks || 'Session overridden by Administrator';
+        sessionMetaHtml = '<div class="small text-danger fw-semibold mt-1">⚠ Reason: ' + escapeHtml(reasonText) + '</div>';
+      } else if (r.session_status === 'Active' && status === 'Approved') {
+        sessionMetaHtml = '<div class="small text-success fw-semibold mt-1">● Session Checked-In (Active)</div>';
+      }
 
       const requesterName = escapeHtml(user.full_name || 'You');
       return '<tr data-row-id="' + escapeHtml(String(r.id)) + '">' +
@@ -402,16 +443,22 @@
         '</td>' +
         '<td>' + escapeHtml(formatDateShort(r.res_date)) + '</td>' +
         '<td>' + escapeHtml(formatTime(r.start_time)) + ' &ndash; ' + escapeHtml(formatTime(r.end_time)) + '</td>' +
-        '<td>' + escapeHtml(r.purpose || '&mdash;') + '</td>' +
+        '<td>' + escapeHtml(r.purpose || '&mdash;') + sessionMetaHtml + '</td>' +
         '<td class="text-center">' + (r.attendees != null ? r.attendees : '&mdash;') + '</td>' +
         '<td class="text-center">' + requesterName + '</td>' +
         '<td class="text-center">' + statusBadge(status) + '</td>' +
-        '<td class="text-end">' + cancelBtn + '</td>' +
+        '<td class="text-end text-nowrap">' + actionBtns + '</td>' +
         '</tr>';
     }).join('');
 
     bindCancelActions();
+    if (typeof window.PortalRenderActiveUserSessions === 'function') {
+      window.PortalRenderActiveUserSessions(state.items);
+    }
   }
+
+  window.PortalRefreshUserDashboard = loadReservations;
+  window.PortalGetUserReservations = () => state.items;
 
   function bindCancelActions() {
     bodyEl.querySelectorAll('.cancel-btn').forEach((btn) => {

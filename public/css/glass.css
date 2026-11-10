@@ -845,3 +845,234 @@ html body:not(.lg-off) .portal-navbar .nav-link.active {
   object-fit: cover;
 }
 
+/* ============================================================================
+   EARLY CHECK-OUT & ADMIN SESSION OVERRIDE MODULE + TWO-WAY NOTIFICATIONS
+   ============================================================================ */
+
+/* 1. Navbar Notification Bell & Drawer */
+.portal-notif-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #ffffff;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.portal-notif-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(2, 8, 23, 0.35);
+}
+
+.portal-notif-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid #0f172a;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.7);
+}
+
+.portal-notif-drawer {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 360px;
+  max-width: calc(100vw - 24px);
+  border-radius: 20px;
+  background: linear-gradient(155deg, rgba(15, 23, 42, 0.96), rgba(8, 22, 48, 0.97));
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 24px 60px rgba(2, 8, 23, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(28px) saturate(185%);
+  -webkit-backdrop-filter: blur(28px) saturate(185%);
+  z-index: 1085;
+  overflow: hidden;
+}
+
+.portal-notif-drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.85rem 1.1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.portal-notif-kicker {
+  display: block;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #38bdf8;
+  font-weight: 700;
+}
+
+.portal-notif-drawer-body {
+  max-height: 390px;
+  overflow-y: auto;
+  padding: 0.6rem;
+}
+
+.portal-notif-item {
+  padding: 0.75rem 0.85rem;
+  border-radius: 14px;
+  margin-bottom: 0.5rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: background 0.18s ease;
+}
+
+.portal-notif-item.is-unread {
+  background: linear-gradient(145deg, rgba(56, 189, 248, 0.14), rgba(15, 23, 42, 0.7));
+  border-color: rgba(56, 189, 248, 0.45);
+}
+
+.portal-notif-reason {
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.15);
+  border-left: 3px solid #f87171;
+  color: #fecaca;
+}
+
+/* 2. Active Session Banner Card (User Dashboard) */
+.active-session-banner-card {
+  border-color: rgba(16, 185, 129, 0.5) !important;
+  box-shadow: 0 18px 46px rgba(2, 8, 23, 0.48), 0 0 24px rgba(16, 185, 129, 0.15) !important;
+}
+
+.active-session-pulse {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 12px #10b981;
+  display: inline-block;
+  animation: maintDotPulse 1.5s infinite;
+}
+
+.active-session-item-card {
+  background: linear-gradient(145deg, rgba(16, 185, 129, 0.12), rgba(15, 23, 42, 0.55));
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+/* 3. Early Check-Out & Force Termination Modals */
+.session-override-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1095;
+  background: rgba(3, 9, 24, 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+}
+
+.session-override-dialog {
+  width: 100%;
+  max-width: 580px;
+  border-radius: 24px;
+  overflow: hidden;
+  background: linear-gradient(155deg, rgba(15, 29, 58, 0.94), rgba(8, 18, 40, 0.96));
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  box-shadow: 0 28px 75px rgba(0, 0, 0, 0.68), inset 0 1.5px 0 rgba(255, 255, 255, 0.35);
+  color: #f8fafc;
+}
+
+.session-override-dialog.is-terminated-alert {
+  border-color: rgba(239, 68, 68, 0.65);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.75), 0 0 36px rgba(239, 68, 68, 0.3);
+}
+
+.session-override-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.15rem 1.4rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.session-override-header.is-checkout {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.25), rgba(16, 185, 129, 0.18));
+}
+
+.session-override-header.is-terminated {
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.35), rgba(245, 158, 11, 0.22));
+}
+
+.session-override-kicker {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #7dd3fc;
+}
+
+.session-override-body {
+  padding: 1.35rem 1.4rem;
+}
+
+.session-override-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.95rem 1.4rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.session-summary-box {
+  padding: 0.9rem 1.05rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.termination-reason-callout {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.22), rgba(185, 28, 28, 0.18));
+  border: 1px solid rgba(248, 113, 113, 0.55);
+}
+
+/* 4. Alert Banners for User (Terminated) & Admin (Early Check-Out) */
+.user-terminated-banner {
+  padding: 1rem 1.25rem;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(185, 28, 28, 0.35), rgba(15, 23, 42, 0.85));
+  border: 1px solid rgba(248, 113, 113, 0.65);
+  box-shadow: 0 14px 36px rgba(220, 38, 38, 0.25);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.admin-early-checkout-banner {
+  padding: 1rem 1.25rem;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.28), rgba(16, 185, 129, 0.22));
+  border: 1px solid rgba(56, 189, 248, 0.6);
+  box-shadow: 0 14px 36px rgba(14, 165, 233, 0.2);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+

@@ -198,10 +198,12 @@
               <div class="request-search">
                 <input type="search" class="form-control form-control-sm" id="reservation-search" placeholder="Search requester or room…" aria-label="Search by requester or room" />
               </div>
-              <div class="btn-group btn-group-sm" role="group" id="status-filters">
+              <div class="btn-group btn-group-sm flex-wrap" role="group" id="status-filters">
               <button type="button" class="btn btn-outline-secondary active" data-status="">All</button>
               <button type="button" class="btn btn-outline-secondary" data-status="Pending">Pending</button>
               <button type="button" class="btn btn-outline-secondary" data-status="Approved">Approved</button>
+              <button type="button" class="btn btn-outline-secondary" data-status="Completed Early">Checked Out Early</button>
+              <button type="button" class="btn btn-outline-secondary" data-status="Terminated by Admin">Terminated</button>
               <button type="button" class="btn btn-outline-secondary" data-status="Rejected">Rejected</button>
               <button type="button" class="btn btn-outline-secondary" data-status="Cancelled">Cancelled</button>
               </div>
@@ -699,6 +701,7 @@
   <script src="/js/cookie-consent.js"></script>
   <script src="/js/admin-dashboard.js?v=20261019-cancel-red"></script>
   <script src="/js/maintenance-showcase.js"></script>
+  <script src="/js/session-override.js"></script>
   <script>
   (function () {
     const grid = document.getElementById('admin-building-grid');

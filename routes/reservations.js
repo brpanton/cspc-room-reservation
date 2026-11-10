@@ -39,25 +39,50 @@ const BLOCKING_STATUSES = ['Pending', 'Approved'];
 
 const RESERVATION_SELECT = `
   SELECT res.id, res.room_id, res.user_id, res.res_date, res.start_time, res.end_time,
-         res.purpose, res.attendees, res.status, res.approved_by, res.remarks, res.decided_at,
+         res.purpose, res.attendees, res.status, res.transaction_code,
+         res.approved_by, res.remarks, res.decided_at,
+         res.scheduled_start, res.scheduled_end, res.actual_check_in, res.actual_check_out,
+         res.session_status, res.termination_reason, res.terminated_by,
          res.created_at,
          r.name AS room_name, r.room_type, r.capacity,
          b.id AS building_id, b.name AS building_name,
          u.full_name AS requested_by, u.school_id AS requester_school_id,
          u.role AS requester_role,
-         a.full_name AS approved_by_name
+         a.full_name AS approved_by_name,
+         t.full_name AS terminated_by_name,
+         (SELECT string_agg(eq.equipment, ',') FROM reservation_equipment eq WHERE eq.reservation_id = res.id) AS equipment
   FROM reservations res
   JOIN rooms r       ON r.id = res.room_id
   JOIN buildings b   ON b.id = r.building_id
   JOIN users u       ON u.id = res.user_id
   LEFT JOIN users a  ON a.id = res.approved_by
-  LEFT JOIN reservation_equipment e ON e.reservation_id = res.id
+  LEFT JOIN users t  ON t.id = res.terminated_by
 `;
 
+function toDateIso(val) {
+  if (!val) return '';
+  if (val instanceof Date) {
+    const y = val.getFullYear();
+    const m = String(val.getMonth() + 1).padStart(2, '0');
+    const d = String(val.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  return String(val).slice(0, 10);
+}
+
 function shape(row) {
+  const resDateIso = toDateIso(row.res_date);
+  const status = String(row.status || 'Pending');
+  const sessionStatus = String(row.session_status || 'Scheduled');
+  const isApproved = status === 'Approved';
+  const isOngoingOrScheduled = !['Checked Out Early', 'Terminated by Admin', 'Completed', 'Cancelled'].includes(sessionStatus);
+
   return {
     ...row,
-    equipment: row.equipment ? row.equipment.split(',') : []
+    res_date: resDateIso || row.res_date,
+    equipment: row.equipment ? String(row.equipment).split(',').filter(Boolean) : [],
+    can_early_checkout: isApproved && isOngoingOrScheduled,
+    can_admin_terminate: (status === 'Approved' || status === 'Pending') && isOngoingOrScheduled
   };
 }
 
@@ -217,8 +242,12 @@ router.post('/', async (req, res, next) => {
 
     const { rows } = await conn.query(
       `INSERT INTO reservations
-         (room_id, user_id, res_date, start_time, end_time, purpose, attendees, status, transaction_code)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'Pending', $8) RETURNING id`,
+         (room_id, user_id, res_date, start_time, end_time, purpose, attendees, status, transaction_code,
+          scheduled_start, scheduled_end, session_status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'Pending', $8,
+               ($3::text || ' ' || $4::text)::timestamp,
+               ($3::text || ' ' || $5::text)::timestamp,
+               'Scheduled') RETURNING id`,
       [roomId, req.session.user.id, date, startTime, endTime, purpose, attendees, transactionCode]
     );
 
@@ -292,6 +321,11 @@ router.get('/', async (req, res, next) => {
       params.push(user.id);
     }
 
+    if (req.query.status) {
+      params.push(String(req.query.status).trim());
+      where += ` AND res.status = $${params.length}`;
+    }
+
     const { rows } = await pool.query(`${RESERVATION_SELECT} ${where} ORDER BY res.res_date DESC, res.start_time DESC`, params);
     res.json({ reservations: rows.map(shape) });
   } catch (err) {
@@ -315,7 +349,8 @@ router.get('/stats', async (req, res, next) => {
 
     const inventory = {};
     for (const t of totals.rows) {
-      inventory[t.status.toLowerCase()] = Number(t.cnt);
+      const key = String(t.status || '').toLowerCase().replace(/\s+/g, '_');
+      inventory[key] = Number(t.cnt);
     }
     inventory.total = Number(totals.rows.reduce((sum, t) => sum + Number(t.cnt), 0));
 
@@ -328,7 +363,9 @@ router.get('/stats', async (req, res, next) => {
         pending: inventory.pending || 0,
         approved: inventory.approved || 0,
         rejected: inventory.rejected || 0,
-        cancelled: inventory.cancelled || 0
+        cancelled: inventory.cancelled || 0,
+        completed_early: inventory.completed_early || 0,
+        terminated_by_admin: inventory.terminated_by_admin || 0
       },
       today: today.rows[0]?.today_count || 0,
       upcoming: upcoming.rows[0]?.upcoming_count || 0,
@@ -508,7 +545,7 @@ router.patch('/:id/cancel', async (req, res, next) => {
 
     try {
       await conn.query(
-        `UPDATE reservations SET status = 'Cancelled', decided_at = NOW(), remarks = $1 WHERE id = $2`,
+        `UPDATE reservations SET status = 'Cancelled', session_status = 'Cancelled', decided_at = NOW(), remarks = $1 WHERE id = $2`,
         [remarks, reservation.id]
       );
     } catch (updateErr) {

@@ -1053,7 +1053,9 @@ const STATUS_STYLES = {
   Pending: 'warning',
   Approved: 'success',
   Rejected: 'danger',
-  Cancelled: 'secondary'
+  Cancelled: 'secondary',
+  'Completed Early': 'info',
+  'Terminated by Admin': 'danger'
 };
 
 /** A coloured pill for a reservation status. */

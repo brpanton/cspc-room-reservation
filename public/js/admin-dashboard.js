@@ -336,7 +336,8 @@ setInterval(() => {
 
     reservationsBody.innerHTML = visible.map((r) => {
       const canDecide = r.status === 'Pending';
-      const canCancel = r.status !== 'Cancelled';
+      const canForceTerminate = r.status === 'Approved' && r.can_admin_terminate !== false;
+      const canCancel = r.status === 'Pending';
       let actions = '';
 
       if (canDecide) {
@@ -345,9 +346,10 @@ setInterval(() => {
           <button class="btn btn-sm btn-reject ms-1" data-action="reject" data-id="${r.id}">Reject</button>
         `;
       }
+      if (canForceTerminate) {
+        actions += `<button class="btn btn-sm btn-warning text-dark fw-semibold ms-1" data-force-terminate="${r.id}" title="Override / Force Terminate Active Lab Session #${r.id}">⚡ Override / Force End</button>`;
+      }
       if (canCancel) {
-        // Cancel binds the REAL database primary key (reservations.id -> r.id),
-        // never a loop index. The click handler looks the row back up by r.id === id.
         actions += `<button class="btn btn-sm btn-reject ms-1" data-action="cancel" data-id="${r.id}" title="Cancel reservation #${r.id}">✕ Cancel</button>`;
       }
       if (!actions) actions = '<span class="text-muted-sm">-</span>';
@@ -355,6 +357,16 @@ setInterval(() => {
       const equipment = (r.equipment || []).length
         ? `<div class="text-muted-sm">${(r.equipment || []).map(escapeHtml).join(', ')}</div>`
         : '';
+
+      let sessionMeta = '';
+      if (r.status === 'Completed Early' && r.actual_check_out) {
+        const outStr = new Date(r.actual_check_out).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        sessionMeta = `<div class="small text-info mt-1">✓ Vacated early at ${escapeHtml(outStr)}</div>`;
+      } else if (r.status === 'Terminated by Admin') {
+        sessionMeta = `<div class="small text-danger fw-semibold mt-1">⚠ Override: ${escapeHtml(r.termination_reason || r.remarks || 'Terminated by Admin')}</div>`;
+      } else if (r.session_status === 'Active' && r.status === 'Approved') {
+        sessionMeta = `<div class="small text-success fw-semibold mt-1">● Checked-In (Active Session)</div>`;
+      }
 
       const viewTicketBtn = `<button class="btn btn-sm btn-outline-primary btn-view-ticket" data-id="${r.id}" title="View Ticket">🎫 Ticket</button>`;
 
@@ -375,6 +387,7 @@ setInterval(() => {
           <td style="max-width: 260px">
             <div>${escapeHtml(r.purpose)}</div>
             ${equipment}
+            ${sessionMeta}
           </td>
           <td>${escapeHtml(r.attendees)}</td>
           <td>${statusBadge(r.status)}</td>
@@ -401,6 +414,9 @@ setInterval(() => {
       });
     });
   }
+
+  window.PortalRefreshAdminDashboard = () => Promise.all([loadStats(), loadReservations(), loadRooms()]);
+  window.PortalGetAdminReservations = () => state.items;
 
   const modalEl = document.getElementById('decision-modal');
   const modal = new bootstrap.Modal(modalEl);

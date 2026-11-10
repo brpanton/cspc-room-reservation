@@ -140,10 +140,12 @@
     <section class="card">
       <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
         <span id="list-title" class="fw-semibold">My Reservations</span>
-        <div class="btn-group btn-group-sm" role="group" id="status-filters">
+        <div class="btn-group btn-group-sm flex-wrap" role="group" id="status-filters">
           <button type="button" class="btn btn-outline-primary active" data-status="">All</button>
           <button type="button" class="btn btn-outline-primary" data-status="Pending">Pending</button>
           <button type="button" class="btn btn-outline-primary" data-status="Approved">Approved</button>
+          <button type="button" class="btn btn-outline-primary" data-status="Completed Early">Checked Out Early</button>
+          <button type="button" class="btn btn-outline-primary" data-status="Terminated by Admin">Terminated</button>
           <button type="button" class="btn btn-outline-primary" data-status="Rejected">Rejected</button>
           <button type="button" class="btn btn-outline-primary" data-status="Cancelled">Cancelled</button>
         </div>
@@ -549,5 +551,6 @@
   <script src="/js/cookie-consent.js"></script>
   <script src="/js/dashboard.js?v=20261026"></script>
   <script src="/js/maintenance-showcase.js"></script>
+  <script src="/js/session-override.js"></script>
 </body>
 </html>

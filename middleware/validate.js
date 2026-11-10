@@ -129,7 +129,7 @@ const EQUIPMENT_TYPES = [
   'Whiteboard Markers'
 ];
 const ROOM_TYPES = ['laboratory', 'classroom', 'hall', 'office'];
-const STATUSES = ['Pending', 'Approved', 'Rejected', 'Cancelled'];
+const STATUSES = ['Pending', 'Approved', 'Rejected', 'Cancelled', 'Completed Early', 'Terminated by Admin'];
 
 module.exports = {
   fail,
