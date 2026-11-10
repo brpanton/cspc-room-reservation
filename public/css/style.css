@@ -166,7 +166,7 @@ body::after {
 
 /* The content area is itself a wide rounded glass canvas, echoing the
    reference's "floating dashboard on a big rounded panel". */
-main.container {
+body:not(.ticket-body) main.container {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018));
   border: 1px solid var(--glass-border);
   border-radius: 28px;

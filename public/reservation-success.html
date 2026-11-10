@@ -6,7 +6,6 @@
   <title>Reservation Confirmation - CSPC Lab &amp; Room Reservation</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="/css/style.css" rel="stylesheet" />
-  <link href="/css/glass.css" rel="stylesheet" />
   <link rel="icon" type="image/jpeg" href="/img/hornet-logo.jpg" />
   <style>
     @media print {
@@ -14,6 +13,23 @@
       .ticket-body { background: #fff !important; padding: 0 !important; }
       .ticket-card { border: 1px solid #000 !important; box-shadow: none !important; }
       .badge { border: 1px solid #000 !important; }
+    }
+    /* Completely remove any glass container, frosted blur, and borders */
+    body.ticket-body,
+    body.ticket-body main,
+    body.ticket-body main.container,
+    body.ticket-body .container,
+    body.ticket-body .card,
+    body.ticket-body .alert {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }
+    body.ticket-body main.container,
+    body.ticket-body .container {
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
     }
     .ticket-body {
       background: #f1f5f9;
@@ -74,9 +90,13 @@
       opacity: 1 !important;
     }
     .alert-info {
-      background: #e0e7ff;
-      color: #1e3a8a;
-      border: 1px solid #c7d2fe;
+      background: #ffffff !important;
+      color: #1e3a8a !important;
+      border: 1px solid #bfdbfe !important;
+      border-radius: 12px !important;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
     }
     .alert-info small {
       color: #1e3a8a;

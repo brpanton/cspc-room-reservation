@@ -47,7 +47,7 @@
 }
 
 /* ---------------------------------------------------- page canvas --- */
-main.container {
+body:not(.ticket-body) main.container {
   background: var(--lg-fill), rgba(10, 17, 32, 0.12);
   border: 1px solid var(--lg-edge);
   border-top-color: var(--lg-edge-top);
