@@ -245,7 +245,7 @@ router.post('/', async (req, res, next) => {
       `INSERT INTO reservations
          (room_id, user_id, res_date, start_time, end_time, purpose, attendees, status, transaction_code,
           scheduled_start, scheduled_end, session_status)
-       VALUES ($1, $2, $3::date, $4::time, $5::time, $6, $7, 'Pending', $8,
+       VALUES ($1::int, $2::int, $3::date, $4::time, $5::time, $6::text, $7::int, 'Pending', $8::text,
                ($3::date + $4::time)::timestamp,
                ($3::date + $5::time)::timestamp,
                'Scheduled') RETURNING id`,
