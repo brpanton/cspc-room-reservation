@@ -3128,16 +3128,147 @@ body:not(.ticket-body) main.container {
   font-size: 0.85rem;
 }
 
-.home-status-legend { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.5rem; margin-bottom: 1rem; align-items: center; }
+.home-status-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+  align-items: center;
+}
 
-.home-status-legend-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #93a4bd; margin-right: 0.25rem; flex-shrink: 0; }
+.home-status-legend-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #93a4bd;
+  margin-right: 0.25rem;
+  flex-shrink: 0;
+}
 
-.home-status-key { display: inline-flex; align-items: center; gap: 0.5rem; color: #e2e8f0; font-size: 0.8rem; font-weight: 600; padding: 0.28rem 0.75rem; border-radius: 999px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.08); }
+.home-status-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.32rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+  transition: all 0.25s ease;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
 
-.home-status-dot { width: 0.7rem; height: 0.7rem; border-radius: 50%; display: inline-block; flex-shrink: 0; }
-.home-status-dot.is-available { background: #4ade80; box-shadow: 0 0 10px rgba(74, 222, 128, 0.8); }
-.home-status-dot.is-limited   { background: #facc15; box-shadow: 0 0 10px rgba(250, 204, 21, 0.8); }
-.home-status-dot.is-occupied  { background: #f87171; box-shadow: 0 0 10px rgba(248, 113, 113, 0.8); }
+/* Glowing Available Pill */
+.home-status-key.is-available,
+.home-status-key:has(.is-available) {
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(74, 222, 128, 0.55);
+  color: #bbf7d0;
+  box-shadow: 0 0 16px rgba(34, 197, 94, 0.4), inset 0 0 10px rgba(34, 197, 94, 0.18);
+  text-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
+}
+.home-status-key.is-available:hover,
+.home-status-key:has(.is-available):hover {
+  background: rgba(34, 197, 94, 0.24);
+  border-color: rgba(74, 222, 128, 0.85);
+  box-shadow: 0 0 22px rgba(74, 222, 128, 0.65), inset 0 0 12px rgba(34, 197, 94, 0.3);
+  color: #ffffff;
+}
+
+/* Glowing Limited Pill */
+.home-status-key.is-limited,
+.home-status-key:has(.is-limited) {
+  background: rgba(234, 179, 8, 0.15);
+  border: 1px solid rgba(250, 204, 21, 0.55);
+  color: #fef08a;
+  box-shadow: 0 0 16px rgba(234, 179, 8, 0.4), inset 0 0 10px rgba(234, 179, 8, 0.18);
+  text-shadow: 0 0 8px rgba(250, 204, 21, 0.5);
+}
+.home-status-key.is-limited:hover,
+.home-status-key:has(.is-limited):hover {
+  background: rgba(234, 179, 8, 0.24);
+  border-color: rgba(250, 204, 21, 0.85);
+  box-shadow: 0 0 22px rgba(250, 204, 21, 0.65), inset 0 0 12px rgba(234, 179, 8, 0.3);
+  color: #ffffff;
+}
+
+/* Glowing Occupied Pill */
+.home-status-key.is-occupied,
+.home-status-key:has(.is-occupied) {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(248, 113, 113, 0.55);
+  color: #fecaca;
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.4), inset 0 0 10px rgba(239, 68, 68, 0.18);
+  text-shadow: 0 0 8px rgba(248, 113, 113, 0.5);
+}
+.home-status-key.is-occupied:hover,
+.home-status-key:has(.is-occupied):hover {
+  background: rgba(239, 68, 68, 0.24);
+  border-color: rgba(248, 113, 113, 0.85);
+  box-shadow: 0 0 22px rgba(248, 113, 113, 0.65), inset 0 0 12px rgba(239, 68, 68, 0.3);
+  color: #ffffff;
+}
+
+.home-status-dot {
+  width: 0.72rem;
+  height: 0.72rem;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.home-status-dot.is-available {
+  background: #22c55e;
+  box-shadow: 0 0 6px #22c55e, 0 0 14px rgba(34, 197, 94, 0.95), 0 0 24px rgba(34, 197, 94, 0.6);
+  animation: pulseGlowAvailable 2.4s ease-in-out infinite;
+}
+.home-status-dot.is-limited {
+  background: #eab308;
+  box-shadow: 0 0 6px #eab308, 0 0 14px rgba(234, 179, 8, 0.95), 0 0 24px rgba(234, 179, 8, 0.6);
+  animation: pulseGlowLimited 2.4s ease-in-out infinite;
+}
+.home-status-dot.is-occupied {
+  background: #ef4444;
+  box-shadow: 0 0 6px #ef4444, 0 0 14px rgba(239, 68, 68, 0.95), 0 0 24px rgba(239, 68, 68, 0.6);
+  animation: pulseGlowOccupied 2.4s ease-in-out infinite;
+}
+
+@keyframes pulseGlowAvailable {
+  0%, 100% {
+    box-shadow: 0 0 4px #22c55e, 0 0 12px rgba(34, 197, 94, 0.85), 0 0 20px rgba(34, 197, 94, 0.45);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 7px #4ade80, 0 0 18px rgba(74, 222, 128, 1), 0 0 28px rgba(74, 222, 128, 0.75);
+    transform: scale(1.12);
+  }
+}
+
+@keyframes pulseGlowLimited {
+  0%, 100% {
+    box-shadow: 0 0 4px #eab308, 0 0 12px rgba(234, 179, 8, 0.85), 0 0 20px rgba(234, 179, 8, 0.45);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 7px #facc15, 0 0 18px rgba(250, 204, 21, 1), 0 0 28px rgba(250, 204, 21, 0.75);
+    transform: scale(1.12);
+  }
+}
+
+@keyframes pulseGlowOccupied {
+  0%, 100% {
+    box-shadow: 0 0 4px #ef4444, 0 0 12px rgba(239, 68, 68, 0.85), 0 0 20px rgba(239, 68, 68, 0.45);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 7px #f87171, 0 0 18px rgba(248, 113, 113, 1), 0 0 28px rgba(248, 113, 113, 0.75);
+    transform: scale(1.12);
+  }
+}
 
 /* ------------------------------------- lab equipment & occupancy --- */
 .home-equipment { display: flex; gap: 0.5rem; margin: 0.5rem 0 0.75rem; }
@@ -6570,15 +6701,24 @@ body, body.modal-open {
 }
 
 .card-status.is-available {
-  background: rgba(34, 197, 94, 0.9);
+  background: rgba(34, 197, 94, 0.88);
+  border: 1px solid rgba(74, 222, 128, 0.6);
+  box-shadow: 0 0 14px rgba(34, 197, 94, 0.55), 0 2px 6px rgba(0, 0, 0, 0.25);
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.35);
 }
 
 .card-status.is-limited {
-  background: rgba(251, 191, 36, 0.9);
+  background: rgba(234, 179, 8, 0.88);
+  border: 1px solid rgba(250, 204, 21, 0.6);
+  box-shadow: 0 0 14px rgba(234, 179, 8, 0.55), 0 2px 6px rgba(0, 0, 0, 0.25);
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.35);
 }
 
 .card-status.is-occupied {
-  background: rgba(239, 68, 68, 0.9);
+  background: rgba(239, 68, 68, 0.88);
+  border: 1px solid rgba(248, 113, 113, 0.6);
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.55), 0 2px 6px rgba(0, 0, 0, 0.25);
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.35);
 }
 
 .exit-btn {
