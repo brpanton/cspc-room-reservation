@@ -192,8 +192,8 @@
     if (!container) return;
 
     const activeList = (items || []).filter((r) => {
-      const s = String(r.status || '').toLowerCase();
-      return s === 'pending' || s === 'approved';
+      const s = String(r.status || '').toUpperCase();
+      return s === 'PENDING_APPROVAL' || s === 'PENDING' || s === 'APPROVED';
     });
 
     if (countEl) {
@@ -214,14 +214,19 @@
 
     container.innerHTML = '<div class="row g-3">' +
       activeList.map((r) => {
-        const isApproved = String(r.status || '').toLowerCase() === 'approved';
+        const sUpper = String(r.status || '').toUpperCase();
+        const isApproved = sUpper === 'APPROVED';
         const badgeClass = isApproved ? 'bg-success' : 'bg-warning text-dark';
-        const badgeLabel = isApproved ? 'Approved' : 'Pending Review';
+        const badgeLabel = isApproved ? 'Approved' : 'Pending Approval';
 
         const canEarlyOut = isApproved && r.can_early_checkout !== false;
         const earlyBtnHtml = canEarlyOut
           ? `<button type="button" class="btn btn-sm btn-warning text-dark fw-bold me-2" data-early-checkout="${r.id}" title="End Session Early">Check-Out</button>`
           : '';
+
+        const ticketBtnHtml = isApproved
+          ? `<a href="/reservation-success.html?id=${r.id}" class="btn btn-sm btn-outline-success fw-semibold me-2" title="View & Print Official Ticket">Print Ticket</a>`
+          : `<button type="button" class="btn btn-sm btn-outline-secondary me-2" disabled title="Your reservation request is pending administrator review. Ticket generation will be available once approved.">Ticket Pending</button>`;
 
         const cancelBtnHtml = `
           <button type="button" class="btn btn-sm btn-outline-danger btn-cancel-active" data-id="${r.id}" title="Cancel reservation #${r.id}">
@@ -250,6 +255,7 @@
               <div class="d-flex justify-content-between align-items-center pt-2 border-top border-secondary-subtle mt-2">
                 <span class="text-muted-small font-monospace">#${r.id}</span>
                 <div class="d-flex align-items-center">
+                  ${ticketBtnHtml}
                   ${earlyBtnHtml}
                   ${cancelBtnHtml}
                 </div>
@@ -618,6 +624,10 @@
 
   /* ------------------------------------------------ status helpers ------- */
   const STATUS_TONE = {
+    PENDING_APPROVAL: 'warning',
+    APPROVED: 'success',
+    REJECTED: 'danger',
+    CANCELLED: 'secondary',
     Pending: 'warning',
     Approved: 'success',
     Rejected: 'danger',
@@ -627,15 +637,14 @@
   };
 
   function statusColor(status) {
-    const map = {
-      Pending: '#f59e0b',
-      Approved: '#10b981',
-      Rejected: '#ef4444',
-      Cancelled: '#6b7280',
-      'Completed Early': '#38bdf8',
-      'Terminated by Admin': '#ef4444'
-    };
-    return map[status] || '#6b7280';
+    const s = String(status || '').toUpperCase();
+    if (s === 'PENDING_APPROVAL' || s === 'PENDING') return '#f59e0b';
+    if (s === 'APPROVED') return '#10b981';
+    if (s === 'REJECTED') return '#ef4444';
+    if (s === 'CANCELLED') return '#6b7280';
+    if (status === 'Completed Early') return '#38bdf8';
+    if (status === 'Terminated by Admin') return '#ef4444';
+    return '#6b7280';
   }
 
   function timeAgo(value) {

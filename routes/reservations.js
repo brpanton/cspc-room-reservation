@@ -24,6 +24,8 @@ const {
   STATUSES
 } = require('../middleware/validate');
 const { findMaintenanceConflict } = require('./maintenance');
+const { broadcastSseEvent } = require('./session-override');
+const { sendReservationApprovalNotification } = require('../mailer');
 
 const router = express.Router();
 
@@ -35,56 +37,8 @@ router.param('id', (req, res, next, id) => {
   return res.status(404).json({ error: 'Not found.' });
 });
 
-const BLOCKING_STATUSES = ['Pending', 'Approved'];
-
-const RESERVATION_SELECT = `
-  SELECT res.id, res.room_id, res.user_id, res.res_date, res.start_time, res.end_time,
-         res.purpose, res.attendees, res.status, res.transaction_code,
-         res.approved_by, res.remarks, res.decided_at,
-         res.scheduled_start, res.scheduled_end, res.actual_check_in, res.actual_check_out,
-         res.session_status, res.termination_reason, res.terminated_by,
-         res.created_at,
-         r.name AS room_name, r.room_type, r.capacity,
-         b.id AS building_id, b.name AS building_name,
-         u.full_name AS requested_by, u.school_id AS requester_school_id,
-         u.role AS requester_role,
-         a.full_name AS approved_by_name,
-         t.full_name AS terminated_by_name,
-         (SELECT string_agg(eq.equipment, ',') FROM reservation_equipment eq WHERE eq.reservation_id = res.id) AS equipment
-  FROM reservations res
-  JOIN rooms r       ON r.id = res.room_id
-  JOIN buildings b   ON b.id = r.building_id
-  JOIN users u       ON u.id = res.user_id
-  LEFT JOIN users a  ON a.id = res.approved_by
-  LEFT JOIN users t  ON t.id = res.terminated_by
-`;
-
-function toDateIso(val) {
-  if (!val) return '';
-  if (val instanceof Date) {
-    const y = val.getFullYear();
-    const m = String(val.getMonth() + 1).padStart(2, '0');
-    const d = String(val.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  }
-  return String(val).slice(0, 10);
-}
-
-function shape(row) {
-  const resDateIso = toDateIso(row.res_date);
-  const status = String(row.status || 'Pending');
-  const sessionStatus = String(row.session_status || 'Scheduled');
-  const isApproved = status === 'Approved';
-  const isOngoingOrScheduled = !['Checked Out Early', 'Terminated by Admin', 'Completed', 'Cancelled'].includes(sessionStatus);
-
-  return {
-    ...row,
-    res_date: resDateIso || row.res_date,
-    equipment: row.equipment ? String(row.equipment).split(',').filter(Boolean) : [],
-    can_early_checkout: isApproved && isOngoingOrScheduled,
-    can_admin_terminate: (status === 'Approved' || status === 'Pending') && isOngoingOrScheduled
-  };
-}
+const BLOCKING_STATUSES = ['PENDING_APPROVAL', 'APPROVED', 'Pending', 'Approved'];
+const { RESERVATION_SELECT, toDateIso, shape } = require('./reservation-queries');
 
 function requireSession(req, res) {
   if (!req.session || !req.session.user) {
@@ -245,7 +199,7 @@ router.post('/', async (req, res, next) => {
       `INSERT INTO reservations
          (room_id, user_id, res_date, start_time, end_time, purpose, attendees, status, transaction_code,
           scheduled_start, scheduled_end, session_status)
-       VALUES ($1::int, $2::int, $3::date, $4::time, $5::time, $6::text, $7::int, 'Pending', $8::text,
+       VALUES ($1::int, $2::int, $3::date, $4::time, $5::time, $6::text, $7::int, 'PENDING_APPROVAL', $8::text,
                ($3::date + $4::time)::timestamp,
                ($3::date + $5::time)::timestamp,
                'Scheduled') RETURNING id`,
@@ -293,6 +247,8 @@ router.post('/', async (req, res, next) => {
       message: 'Reservation submitted successfully.',
       reservationId,
       transactionCode,
+      status: 'PENDING_APPROVAL',
+      ticket_unlocked: false,
       reservation: detailRows[0]
     });
   } catch (err) {
@@ -361,7 +317,7 @@ router.get('/stats', async (req, res, next) => {
     res.json({
       totals: {
         total: inventory.total || 0,
-        pending: inventory.pending || 0,
+        pending: (inventory.pending_approval || 0) + (inventory.pending || 0),
         approved: inventory.approved || 0,
         rejected: inventory.rejected || 0,
         cancelled: inventory.cancelled || 0,
@@ -394,6 +350,86 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
+// ------------------------------------------------------------ ticket ---
+/**
+ * GET /api/reservations/:id/ticket
+ *
+ * Admin Approval Gate:
+ * A reservation must be explicitly accepted/approved by an Admin before a user
+ * can view, download, or print their reservation ticket.
+ * Returns 403 Forbidden if the reservation status is not APPROVED.
+ */
+router.get('/:id/ticket', async (req, res, next) => {
+  if (!requireSession(req, res)) return;
+  try {
+    const { rows } = await pool.query(`${RESERVATION_SELECT} WHERE res.id = $1`, [req.params.id]);
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Reservation not found.' });
+    }
+
+    const reservation = rows[0];
+
+    // Ownership check: user can only access their own ticket unless staff/admin
+    if (!canManageReservation(req.session.user, reservation)) {
+      return res.status(403).json({ error: 'You can only view your own reservation ticket.' });
+    }
+
+    // Admin Approval Gate: Must be explicitly APPROVED
+    const statusUpper = String(reservation.status || '').toUpperCase();
+    const isApproved = statusUpper === 'APPROVED';
+
+    if (!isApproved) {
+      return res.status(403).json({
+        error: 'Your reservation request is pending administrator review. Ticket generation will be available once approved.',
+        status: reservation.status,
+        unlocked: false
+      });
+    }
+
+    // Unlocked ticket payload
+    const { rows: eqRows } = await pool.query(
+      'SELECT equipment FROM reservation_equipment WHERE reservation_id = $1',
+      [reservation.id]
+    );
+
+    const ticket = {
+      id: reservation.id,
+      transaction_code: reservation.transaction_code,
+      status: reservation.status,
+      room_id: reservation.room_id,
+      room_name: reservation.room_name,
+      room_type: reservation.room_type,
+      capacity: reservation.capacity,
+      building_id: reservation.building_id,
+      building_name: reservation.building_name,
+      res_date: toDateIso(reservation.res_date),
+      start_time: String(reservation.start_time).slice(0, 8),
+      end_time: String(reservation.end_time).slice(0, 8),
+      purpose: reservation.purpose,
+      attendees: reservation.attendees,
+      requested_by: reservation.requested_by,
+      requester_school_id: reservation.requester_school_id,
+      requester_role: reservation.requester_role,
+      equipment: eqRows.map((e) => e.equipment),
+      remarks: reservation.remarks,
+      approved_by: reservation.approved_by,
+      approved_by_name: reservation.approved_by_name,
+      decided_at: reservation.decided_at,
+      created_at: reservation.created_at,
+      unlocked: true
+    };
+
+    res.json({
+      message: 'Reservation ticket generated successfully.',
+      unlocked: true,
+      ticket,
+      reservation: shape(reservation)
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // --------------------------------------------------------- approve/reject ---
 router.patch('/:id/decision', requireStaff, async (req, res, next) => {
   if (!requireSession(req, res)) return;
@@ -401,7 +437,8 @@ router.patch('/:id/decision', requireStaff, async (req, res, next) => {
   try {
     conn = await pool.connect();
     requireFields(req.body, ['status']);
-    const status = oneOf(req.body.status, ['Approved', 'Rejected'], 'status');
+    const rawStatus = oneOf(req.body.status, ['Approved', 'Rejected', 'APPROVED', 'REJECTED'], 'status');
+    const normalizedStatus = (rawStatus === 'Approved' || rawStatus === 'APPROVED') ? 'APPROVED' : 'REJECTED';
     const remarks = req.body.remarks ? String(req.body.remarks).trim().slice(0, 255) : null;
 
     await conn.query('BEGIN');
@@ -417,20 +454,21 @@ router.patch('/:id/decision', requireStaff, async (req, res, next) => {
     }
     const reservation = rows[0];
 
-    if (reservation.status === 'Approved' || reservation.status === 'Rejected') {
+    const curStatus = String(reservation.status || '').toUpperCase();
+    if (curStatus === 'APPROVED' || curStatus === 'REJECTED') {
       const err = new Error(
         `This reservation has already been ${reservation.status.toLowerCase()}.`
       );
       err.status = 409;
       throw err;
     }
-    if (reservation.status === 'Cancelled') {
+    if (curStatus === 'CANCELLED') {
       const err = new Error('This reservation was cancelled and can no longer be decided on.');
       err.status = 409;
       throw err;
     }
 
-    if (status === 'Approved') {
+    if (normalizedStatus === 'APPROVED') {
       const maintConflict = await findMaintenanceConflict(conn, {
         roomId: reservation.room_id,
         date: reservation.res_date,
@@ -468,13 +506,13 @@ router.patch('/:id/decision', requireStaff, async (req, res, next) => {
       `UPDATE reservations
        SET status = $1, approved_by = $2, remarks = $3, decided_at = NOW()
        WHERE id = $4`,
-      [status, req.session.user.id, remarks, reservation.id]
+      [normalizedStatus, req.session.user.id, remarks, reservation.id]
     );
 
     await conn.query(
       `INSERT INTO reservation_logs (reservation_id, actor_id, action, remarks)
        VALUES ($1, $2, $3, $4)`,
-      [reservation.id, req.session.user.id, status, remarks]
+      [reservation.id, req.session.user.id, normalizedStatus, remarks]
     );
 
     await conn.query('COMMIT');
@@ -486,9 +524,96 @@ router.patch('/:id/decision', requireStaff, async (req, res, next) => {
       err.status = 500;
       throw err;
     }
+
+    const shaped = shape(updatedReservation);
+
+    // Notification & Unlocking
+    if (normalizedStatus === 'APPROVED') {
+      // 1. Two-way notification
+      try {
+        const notifTitle = `Reservation Approved — ${updatedReservation.room_name}`;
+        const notifMessage = `Your reservation #${reservation.id} for ${updatedReservation.room_name} on ${toDateIso(reservation.res_date)} has been approved by the Administrator. Your reservation ticket is now unlocked and available to view, print, or download.`;
+        const { rows: notifRows } = await pool.query(
+          `INSERT INTO session_notifications
+             (reservation_id, room_id, actor_id, recipient_role, recipient_user_id,
+              event_type, title, message, room_after_status, actual_time)
+           VALUES ($1, $2, $3, 'user', $4, 'RESERVATION_APPROVED', $5, $6, 'Booked', NOW())
+           RETURNING *`,
+          [
+            reservation.id,
+            reservation.room_id,
+            req.session.user.id,
+            reservation.user_id,
+            notifTitle,
+            notifMessage
+          ]
+        );
+        if (typeof broadcastSseEvent === 'function') {
+          broadcastSseEvent('reservation_approved', {
+            notification: notifRows[0] || null,
+            reservation: shaped,
+            ticket_unlocked: true
+          }, (c) => Number(c.userId) === Number(reservation.user_id));
+        }
+      } catch (notifErr) {
+        console.error('[notification] Approval notification error:', notifErr.message);
+      }
+
+      // 2. Email notification via mailer
+      try {
+        let userEmail = updatedReservation.requester_email;
+        if (!userEmail) {
+          const { rows: uRows } = await pool.query('SELECT email, full_name FROM users WHERE id = $1', [reservation.user_id]);
+          if (uRows.length) userEmail = uRows[0].email;
+        }
+        if (userEmail) {
+          sendReservationApprovalNotification({
+            email: userEmail,
+            name: updatedReservation.requested_by,
+            reservationId: reservation.id,
+            roomName: updatedReservation.room_name,
+            buildingName: updatedReservation.building_name,
+            resDate: toDateIso(reservation.res_date),
+            startTime: String(reservation.start_time).slice(0, 5),
+            endTime: String(reservation.end_time).slice(0, 5),
+            transactionCode: reservation.transaction_code
+          }).catch(err => console.error('[mailer] Async email error:', err.message));
+        }
+      } catch (emailErr) {
+        console.error('[mailer] Error preparing approval email:', emailErr.message);
+      }
+    } else if (normalizedStatus === 'REJECTED') {
+      try {
+        const notifTitle = `Reservation Rejected — ${updatedReservation.room_name}`;
+        const notifMessage = `Your reservation request #${reservation.id} for ${updatedReservation.room_name} was not approved.${remarks ? ' Remarks: ' + remarks : ''}`;
+        await pool.query(
+          `INSERT INTO session_notifications
+             (reservation_id, room_id, actor_id, recipient_role, recipient_user_id,
+              event_type, title, message, room_after_status, reason, actual_time)
+           VALUES ($1, $2, $3, 'user', $4, 'RESERVATION_REJECTED', $5, $6, 'Available', $7, NOW())`,
+          [
+            reservation.id,
+            reservation.room_id,
+            req.session.user.id,
+            reservation.user_id,
+            notifTitle,
+            notifMessage,
+            remarks
+          ]
+        );
+        if (typeof broadcastSseEvent === 'function') {
+          broadcastSseEvent('reservation_rejected', {
+            reservation: shaped
+          }, (c) => Number(c.userId) === Number(reservation.user_id));
+        }
+      } catch (notifErr) {
+        console.error('[notification] Reject notification error:', notifErr.message);
+      }
+    }
+
     res.json({
-      message: `Reservation #${reservation.id} has been ${status.toLowerCase()}.`,
-      reservation: shape(updatedReservation)
+      message: `Reservation #${reservation.id} has been ${normalizedStatus.toLowerCase()}.`,
+      reservation: shaped
     });
   } catch (err) {
     try {
@@ -533,7 +658,8 @@ router.patch('/:id/cancel', async (req, res, next) => {
       return res.status(403).json({ error: 'You can only cancel your own reservations.' });
     }
 
-    if (reservation.status === 'Cancelled') {
+    const curStatus = String(reservation.status || '').toUpperCase();
+    if (curStatus === 'CANCELLED') {
       await conn.query('ROLLBACK');
       conn.release();
       conn = undefined;
@@ -546,7 +672,7 @@ router.patch('/:id/cancel', async (req, res, next) => {
 
     try {
       await conn.query(
-        `UPDATE reservations SET status = 'Cancelled', session_status = 'Cancelled', decided_at = NOW(), remarks = $1 WHERE id = $2`,
+        `UPDATE reservations SET status = 'CANCELLED', session_status = 'Cancelled', decided_at = NOW(), remarks = $1 WHERE id = $2`,
         [remarks, reservation.id]
       );
     } catch (updateErr) {

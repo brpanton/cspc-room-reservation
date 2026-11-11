@@ -198,4 +198,90 @@ async function sendPasswordChangedAlert({ email, name }) {
   }
 }
 
-module.exports = { sendPasswordResetOtp, sendPasswordChangedAlert, brevoConfigured };
+/**
+ * Outbound email notification when an administrator approves a reservation request.
+ * Unlocks the ticket generation and provides reservation summary.
+ */
+async function sendReservationApprovalNotification({
+  email,
+  name,
+  reservationId,
+  roomName,
+  buildingName,
+  resDate,
+  startTime,
+  endTime,
+  transactionCode
+}) {
+  if (!email) return { delivered: false, reason: 'no_email' };
+
+  if (!brevoConfigured()) {
+    console.log('[mailer] Brevo API key not configured - NO EMAIL WILL BE SENT.');
+    console.log(`[mailer] Approval notification for ${email} (Reservation #${reservationId}): Room ${roomName}, Date ${resDate}, Ticket unlocked.`);
+    return { delivered: false, reason: 'unconfigured' };
+  }
+
+  const subject = `Your Reservation #${reservationId} is Approved — Ticket Ready`;
+  const text = [
+    `Hello ${name || 'there'},`,
+    '',
+    `Good news! Your reservation request #${reservationId} has been approved by the Administrator.`,
+    '',
+    `Facility: ${roomName} (${buildingName || 'Campus'})`,
+    `Date: ${resDate}`,
+    `Time: ${startTime} - ${endTime}`,
+    `Transaction Code: ${transactionCode || 'N/A'}`,
+    '',
+    'Your official reservation ticket is now unlocked and available to view, print, or download.',
+    'Log in to your CSPC Reservation Portal dashboard to print your ticket receipt.',
+    '',
+    'CSPC Lab & Room Reservation System'
+  ].join('\n');
+
+  const html = `
+  <div style="font-family:Segoe UI,Arial,sans-serif;background:#0b1220;padding:28px 16px;">
+    <div style="max-width:520px;margin:0 auto;background:#101a2c;border:1px solid rgba(148,163,184,.25);border-radius:16px;overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#059669,#10b981);padding:22px 24px;">
+        <p style="margin:0;color:#d1fae5;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;">CSPC Lab &amp; Room Reservation</p>
+        <h1 style="margin:6px 0 0;color:#fff;font-size:20px;font-weight:700;">Reservation Approved &amp; Ticket Ready</h1>
+      </div>
+      <div style="padding:24px;">
+        <p style="margin:0 0 16px;color:#e8f0fb;font-size:14px;line-height:1.5;">
+          Hello <strong>${name || 'Student/Faculty'}</strong>, your reservation request has been officially approved by the Administrator. Your reservation ticket is now unlocked.
+        </p>
+        <div style="background:#0b1220;border:1px solid rgba(16,185,129,.35);border-radius:12px;padding:16px 20px;margin-bottom:20px;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;color:#cbd5e1;">
+            <tr><td style="padding:4px 0;color:#94a3b8;width:120px;">Facility:</td><td style="padding:4px 0;color:#fff;font-weight:600;">${roomName}</td></tr>
+            <tr><td style="padding:4px 0;color:#94a3b8;">Building:</td><td style="padding:4px 0;color:#fff;">${buildingName || 'CSPC Campus'}</td></tr>
+            <tr><td style="padding:4px 0;color:#94a3b8;">Date:</td><td style="padding:4px 0;color:#fff;">${resDate}</td></tr>
+            <tr><td style="padding:4px 0;color:#94a3b8;">Time Slot:</td><td style="padding:4px 0;color:#38bdf8;font-weight:600;">${startTime} – ${endTime}</td></tr>
+            <tr><td style="padding:4px 0;color:#94a3b8;">Transaction:</td><td style="padding:4px 0;color:#a7f3d0;font-family:monospace;font-weight:700;">${transactionCode || '--'}</td></tr>
+          </table>
+        </div>
+        <p style="margin:0 0 16px;color:#94a3b8;font-size:13px;line-height:1.5;">
+          Please present your printed or digital ticket upon arrival at the facility.
+        </p>
+        <hr style="border:none;border-top:1px solid rgba(148,163,184,.2);margin:20px 0;" />
+        <p style="margin:0;color:#64748b;font-size:11px;">
+          CSPC Computer Studies Department &middot; Automated Facility Management
+        </p>
+      </div>
+    </div>
+  </div>`;
+
+  try {
+    const result = await sendViaBrevo({ to: email, subject, text, html });
+    console.log(`[mailer] Approval notification sent -> to=${email} messageId=${result?.messageId}`);
+    return { delivered: true };
+  } catch (err) {
+    console.error(`[mailer] Approval notification failed -> to=${email}:`, err.message);
+    return { delivered: false, reason: 'error', error: err };
+  }
+}
+
+module.exports = {
+  sendPasswordResetOtp,
+  sendPasswordChangedAlert,
+  sendReservationApprovalNotification,
+  brevoConfigured
+};

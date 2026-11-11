@@ -1260,6 +1260,40 @@
         } catch { /* ignore */ }
       });
 
+      es.addEventListener('reservation_approved', (event) => {
+        try {
+          const payload = JSON.parse(event.data || '{}');
+          if (payload.notification) {
+            notificationsState.unshift(payload.notification);
+          }
+          if (Number(payload.recipient_user_id) === Number(currentUser.id)) {
+            unreadCountState += 1;
+            updateNotificationBadge();
+            toastOk(`Reservation #${payload.reservation_id} Approved: Ticket generation is now available.`);
+            if (typeof window.PortalRefreshUserDashboard === 'function') {
+              window.PortalRefreshUserDashboard();
+            }
+          }
+        } catch { /* ignore */ }
+      });
+
+      es.addEventListener('reservation_rejected', (event) => {
+        try {
+          const payload = JSON.parse(event.data || '{}');
+          if (payload.notification) {
+            notificationsState.unshift(payload.notification);
+          }
+          if (Number(payload.recipient_user_id) === Number(currentUser.id)) {
+            unreadCountState += 1;
+            updateNotificationBadge();
+            toastErr(`Reservation #${payload.reservation_id} was declined by administrator.`);
+            if (typeof window.PortalRefreshUserDashboard === 'function') {
+              window.PortalRefreshUserDashboard();
+            }
+          }
+        } catch { /* ignore */ }
+      });
+
       es.addEventListener('room_status_updated', () => {
         broadcastSync();
         if (typeof window.PortalRefreshUserDashboard === 'function') {

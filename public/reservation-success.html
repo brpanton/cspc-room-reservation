@@ -152,11 +152,27 @@
       font-weight: 700;
       padding: 0.5rem 1.1rem;
       border-radius: 8px;
-      transition: background 0.2s ease;
+      transition: background 0.2s ease, opacity 0.2s ease;
     }
-    .btn-print:hover {
+    .btn-print:hover:not(:disabled) {
       background: #1e40af;
       color: #ffffff;
+    }
+    .btn-print:disabled,
+    .btn-print.disabled,
+    #btn-download-ticket:disabled,
+    #btn-download-ticket.disabled {
+      cursor: not-allowed !important;
+      opacity: 0.55 !important;
+      pointer-events: auto !important;
+      background-color: #64748b !important;
+      border-color: #64748b !important;
+      color: #cbd5e1 !important;
+    }
+    .status-approved {
+      background: #dcfce7 !important;
+      color: #166534 !important;
+      border: 1px solid #22c55e !important;
     }
   </style>
 </head>
@@ -176,6 +192,15 @@
           </a>
 
           <div class="ticket-header text-center">
+            <div class="hornet-brand-header hornet-brand-sm hornet-brand-center mb-2">
+              <div class="hornet-brand-badge">
+                <img src="/assets/hornet-logo.png" alt="Hornet Laboratory Reservation Logo" class="hornet-brand-logo" onerror="this.onerror=null;this.src='/img/hornet-logo.jpg';" />
+              </div>
+              <div class="hornet-brand-text text-start">
+                <div class="hornet-brand-title">HORNET</div>
+                <div class="hornet-brand-subtitle">Laboratory Reservation</div>
+              </div>
+            </div>
             <h2 class="mb-1">CSPC Lab &amp; Room Reservation</h2>
             <p class="mb-0 small">Computer Studies Department &middot; Ticket Receipt</p>
           </div>
@@ -248,19 +273,37 @@
               <a href="/dashboard.html" class="btn btn-outline-secondary btn-sm px-3 fw-semibold">
                 &larr; Back to Dashboard
               </a>
-              <button class="btn btn-print btn-sm" onclick="window.print()">
-                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="me-1"><path d="M17 17v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v6M16 11V7a4 4 0 0 0-8-8v4M15 11v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6m8 0H5"/></svg>
-                Print Ticket
-              </button>
+              <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-outline-primary btn-sm" id="btn-download-ticket">
+                  <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="me-1">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                  Download Ticket
+                </button>
+                <button type="button" class="btn btn-print btn-sm" id="btn-print-ticket">
+                  <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="me-1">
+                    <path d="M17 17v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v6M16 11V7a4 4 0 0 0-8-8v4M15 11v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6m8 0H5"/>
+                  </svg>
+                  Print Ticket
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="alert alert-info mt-4 text-center no-print shadow-sm">
-          <small>
-            Your reservation request has been submitted as <strong>Pending</strong>. An administrator will review and approve it.
-            Please keep this transaction code for reference.
-          </small>
+        <div id="ticket-status-alert" class="alert alert-warning mt-4 text-center no-print shadow-sm">
+          <div class="d-flex align-items-center justify-content-center gap-2">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-warning flex-shrink-0" id="guard-icon">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <span id="guard-message" class="fw-semibold">
+              Your reservation request is pending administrator review. Ticket generation will be available once approved.
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -274,6 +317,13 @@
   <script src="/js/app.js"></script>
   <script>
     (function () {
+      const btnPrint = document.getElementById('btn-print-ticket');
+      const btnDownload = document.getElementById('btn-download-ticket');
+      const alertBox = document.getElementById('ticket-status-alert');
+      const guardMsg = document.getElementById('guard-message');
+      const guardIcon = document.getElementById('guard-icon');
+      const statusEl = document.getElementById('res-status');
+
       function formatTicketDate(val) {
         if (!val || val === '--') return '--';
         const str = String(val).trim();
@@ -304,8 +354,9 @@
       }
 
       const params = new URLSearchParams(window.location.search);
+      const resId = params.get('id');
       document.getElementById('tx-code').textContent = params.get('tx') || '--';
-      document.getElementById('res-id').textContent = params.get('id') || '--';
+      document.getElementById('res-id').textContent = resId || '--';
       document.getElementById('res-building').textContent = params.get('building') || '--';
       document.getElementById('res-room').textContent = params.get('room') || '--';
       document.getElementById('res-date').textContent = formatTicketDate(params.get('date'));
@@ -313,7 +364,100 @@
       document.getElementById('res-requester').textContent = params.get('requester') || '--';
       document.getElementById('res-purpose').textContent = params.get('purpose') || '--';
       document.getElementById('res-attendees').textContent = params.get('attendees') || '--';
-      document.getElementById('res-status').textContent = params.get('status') || 'Pending';
+
+      function applyTicketGuard(isApproved, statusText) {
+        if (isApproved) {
+          btnPrint.disabled = false;
+          btnPrint.classList.remove('disabled', 'opacity-50');
+          btnPrint.title = 'Print official ticket';
+
+          btnDownload.disabled = false;
+          btnDownload.classList.remove('disabled', 'opacity-50');
+          btnDownload.title = 'Download / Save official ticket';
+
+          alertBox.className = 'alert alert-success mt-4 text-center no-print shadow-sm';
+          guardIcon.className = 'text-success flex-shrink-0';
+          guardIcon.innerHTML = '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline>';
+          guardMsg.innerHTML = '<strong>Reservation Approved!</strong> Your official ticket receipt is unlocked and ready to print or download.';
+
+          statusEl.textContent = 'APPROVED';
+          statusEl.className = 'value badge status-approved bg-success text-white';
+        } else {
+          btnPrint.disabled = true;
+          btnPrint.classList.add('disabled', 'opacity-50');
+          btnPrint.title = 'Your reservation request is pending administrator review. Ticket generation will be available once approved.';
+
+          btnDownload.disabled = true;
+          btnDownload.classList.add('disabled', 'opacity-50');
+          btnDownload.title = 'Your reservation request is pending administrator review. Ticket generation will be available once approved.';
+
+          alertBox.className = 'alert alert-warning mt-4 text-center no-print shadow-sm';
+          guardIcon.className = 'text-warning flex-shrink-0';
+          guardIcon.innerHTML = '<circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>';
+          guardMsg.textContent = 'Your reservation request is pending administrator review. Ticket generation will be available once approved.';
+
+          const displayStatus = String(statusText || 'PENDING_APPROVAL').toUpperCase();
+          statusEl.textContent = displayStatus;
+          statusEl.className = 'value badge status-pending bg-warning text-dark';
+        }
+      }
+
+      // Initial state based on query param or default PENDING_APPROVAL
+      const initialStatus = params.get('status') || 'PENDING_APPROVAL';
+      const initialIsApproved = initialStatus.toUpperCase() === 'APPROVED';
+      applyTicketGuard(initialIsApproved, initialStatus);
+
+      // Verify with backend ticket generation gate (/api/reservations/:id/ticket)
+      async function checkBackendTicketGate() {
+        if (!resId) return;
+        try {
+          const res = await fetch('/api/reservations/' + encodeURIComponent(resId) + '/ticket', {
+            headers: { Accept: 'application/json' }
+          });
+          if (res.status === 200) {
+            const data = await res.json();
+            if (data.ticket) {
+              const t = data.ticket;
+              if (t.transaction_code) document.getElementById('tx-code').textContent = t.transaction_code;
+              if (t.building_name) document.getElementById('res-building').textContent = t.building_name;
+              if (t.room_name) document.getElementById('res-room').textContent = t.room_name;
+              if (t.res_date) document.getElementById('res-date').textContent = formatTicketDate(t.res_date);
+              if (t.start_time) document.getElementById('res-time').textContent = formatTicketTime(t.start_time, t.end_time);
+              if (t.requested_by) document.getElementById('res-requester').textContent = t.requested_by;
+              if (t.purpose) document.getElementById('res-purpose').textContent = t.purpose;
+              if (t.attendees != null) document.getElementById('res-attendees').textContent = t.attendees;
+            }
+            applyTicketGuard(true, 'APPROVED');
+          } else {
+            const data = await res.json().catch(() => ({}));
+            applyTicketGuard(false, data.status || 'PENDING_APPROVAL');
+          }
+        } catch {
+          // Keep current state on network disconnect
+        }
+      }
+
+      checkBackendTicketGate();
+
+      // Gentle polling every 5s while pending to unlock ticket immediately on admin decision
+      const pollTimer = setInterval(() => {
+        if (statusEl.textContent.toUpperCase() === 'APPROVED') {
+          clearInterval(pollTimer);
+          return;
+        }
+        checkBackendTicketGate();
+      }, 5000);
+
+      // Print and Download handlers
+      btnPrint.addEventListener('click', function () {
+        if (btnPrint.disabled) return;
+        window.print();
+      });
+
+      btnDownload.addEventListener('click', function () {
+        if (btnDownload.disabled) return;
+        window.print();
+      });
 
       // Keyboard Esc shortcut to close ticket and return to dashboard
       document.addEventListener('keydown', function (e) {

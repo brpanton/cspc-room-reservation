@@ -1113,6 +1113,10 @@ function todayIso() {
 
 /** Bootstrap contextual colour for each reservation status. */
 const STATUS_STYLES = {
+  PENDING_APPROVAL: 'warning',
+  APPROVED: 'success',
+  REJECTED: 'danger',
+  CANCELLED: 'secondary',
   Pending: 'warning',
   Approved: 'success',
   Rejected: 'danger',
@@ -1124,7 +1128,12 @@ const STATUS_STYLES = {
 /** A coloured pill for a reservation status. */
 function statusBadge(status) {
   const tone = STATUS_STYLES[status] || 'secondary';
-  return `<span class="badge rounded-pill text-bg-${tone} status-badge">${escapeHtml(status)}</span>`;
+  let label = status;
+  if (status === 'PENDING_APPROVAL') label = 'Pending Approval';
+  else if (status === 'APPROVED') label = 'Approved';
+  else if (status === 'REJECTED') label = 'Rejected';
+  else if (status === 'CANCELLED') label = 'Cancelled';
+  return `<span class="badge rounded-pill text-bg-${tone} status-badge">${escapeHtml(label)}</span>`;
 }
 
 /** A coloured pill for a user role. */
@@ -1288,6 +1297,15 @@ function renderNavbar(user, active) {
     <div class="modal-content">
       <div class="modal-header">
         <div>
+          <div class="hornet-brand-header hornet-brand-sm mb-2">
+            <div class="hornet-brand-badge">
+              <img src="/assets/hornet-logo.png" alt="Hornet Laboratory Reservation Logo" class="hornet-brand-logo" />
+            </div>
+            <div class="hornet-brand-text">
+              <span class="hornet-brand-title">HORNET</span>
+              <span class="hornet-brand-subtitle">Laboratory Reservation</span>
+            </div>
+          </div>
           <span class="profile-modal-kicker">About</span>
           <h2 class="modal-title fs-5" id="about-us-title">About CSPC Lab &amp; Room Reservation</h2>
         </div>
@@ -1296,7 +1314,7 @@ function renderNavbar(user, active) {
       <div class="modal-body">
         <p>The CSPC Laboratory and Room Reservation System streamlines booking and approval workflows for campus facilities.</p>
         <p><strong>Version:</strong> 1.0.0</p>
-        <p><strong>© 2026 CSPC — Computer Studies Department</strong></p>
+        <p><strong>&copy; 2026 CSPC &mdash; Computer Studies Department</strong></p>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Close</button>
@@ -1441,6 +1459,15 @@ function renderNavbar(user, active) {
     <div class="modal-content">
       <div class="modal-header">
         <div>
+          <div class="hornet-brand-header hornet-brand-sm mb-2">
+            <div class="hornet-brand-badge">
+              <img src="/assets/hornet-logo.png" alt="Hornet Laboratory Reservation Logo" class="hornet-brand-logo" />
+            </div>
+            <div class="hornet-brand-text">
+              <span class="hornet-brand-title">HORNET</span>
+              <span class="hornet-brand-subtitle">Laboratory Reservation</span>
+            </div>
+          </div>
           <span class="profile-modal-kicker">Your Account</span>
           <h5 class="modal-title fw-semibold" id="accountSettingsTitle">Account Settings</h5>
         </div>
@@ -2760,7 +2787,54 @@ function renderGlassImage({
   }
 })();
 
+/**
+ * Generates reusable HORNET brand header HTML snippet.
+ * @param {Object} [options]
+ * @param {'sm'|'md'|'lg'} [options.size='md']
+ * @param {'left'|'center'} [options.align='left']
+ * @param {string} [options.extraClass='']
+ * @returns {string} HTML string
+ */
+function brandHeaderHtml(options = {}) {
+  const size = options.size || 'md';
+  const align = options.align === 'center' ? ' hornet-brand-center' : '';
+  const extra = options.extraClass ? ` ${options.extraClass}` : '';
+  return `
+    <div class="hornet-brand-header hornet-brand-${size}${align}${extra}">
+      <div class="hornet-brand-badge">
+        <img src="/assets/hornet-logo.png" alt="Hornet Laboratory Reservation Logo" class="hornet-brand-logo" />
+      </div>
+      <div class="hornet-brand-text">
+        <span class="hornet-brand-title">HORNET</span>
+        <span class="hornet-brand-subtitle">Laboratory Reservation</span>
+      </div>
+    </div>
+  `.trim();
+}
+
+// Register Web Component <hornet-brand-header size="sm|md|lg" align="left|center"></hornet-brand-header>
+if (typeof window !== 'undefined' && window.customElements) {
+  class HornetBrandHeaderElement extends HTMLElement {
+    connectedCallback() {
+      if (this.dataset.rendered) return;
+      this.dataset.rendered = 'true';
+      const size = this.getAttribute('size') || 'md';
+      const align = this.getAttribute('align') || 'left';
+      this.innerHTML = brandHeaderHtml({ size, align });
+    }
+  }
+  try {
+    if (!customElements.get('hornet-brand-header')) {
+      customElements.define('hornet-brand-header', HornetBrandHeaderElement);
+    }
+    if (!customElements.get('brand-header')) {
+      customElements.define('brand-header', HornetBrandHeaderElement);
+    }
+  } catch { /* ignore if already registered */ }
+}
+
 window.Portal = {
+  brandHeaderHtml,
   setLocale: setPortalLocale,
   getLocale: currentUiLocale,
   api,

@@ -117,8 +117,8 @@ ALTER TABLE rooms
   ADD COLUMN IF NOT EXISTS image_url VARCHAR(255) DEFAULT NULL;
 
 -- -------------------------------------------------------------
--- Reservations. status starts as 'Pending' and is moved to
--- 'Approved' / 'Rejected' / 'Cancelled' by the custodian or admin.
+-- Reservations. status starts as 'PENDING_APPROVAL' and is moved to
+-- 'APPROVED' / 'REJECTED' / 'CANCELLED' by the custodian or admin.
 -- `approved_by` records which staff member acted on the request.
 -- -------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS reservations (
@@ -130,7 +130,7 @@ CREATE TABLE IF NOT EXISTS reservations (
   end_time      TIME      NOT NULL,
   purpose       TEXT      NOT NULL,
   attendees     INT       NOT NULL DEFAULT 1,
-  status        VARCHAR(30)   NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending','Approved','Rejected','Cancelled','Completed Early','Terminated by Admin')),
+  status        VARCHAR(30)   NOT NULL DEFAULT 'PENDING_APPROVAL' CHECK (status IN ('PENDING_APPROVAL','APPROVED','REJECTED','CANCELLED','Pending','Approved','Rejected','Cancelled','Completed Early','Terminated by Admin')),
   transaction_code  VARCHAR(30) UNIQUE,
   approved_by   INT       DEFAULT NULL,
   remarks       VARCHAR(255) DEFAULT NULL,
@@ -335,7 +335,8 @@ DO $$
 BEGIN
   ALTER TABLE reservations DROP CONSTRAINT IF EXISTS reservations_status_check;
   ALTER TABLE reservations ADD CONSTRAINT reservations_status_check
-    CHECK (status IN ('Pending','Approved','Rejected','Cancelled','Completed Early','Terminated by Admin'));
+    CHECK (status IN ('PENDING_APPROVAL','APPROVED','REJECTED','CANCELLED','Pending','Approved','Rejected','Cancelled','Completed Early','Terminated by Admin'));
+  ALTER TABLE reservations ALTER COLUMN status SET DEFAULT 'PENDING_APPROVAL';
 
   ALTER TABLE reservations DROP CONSTRAINT IF EXISTS reservations_session_status_check;
   ALTER TABLE reservations ADD CONSTRAINT reservations_session_status_check
@@ -360,7 +361,7 @@ CREATE TABLE IF NOT EXISTS session_notifications (
   actor_id           INT          DEFAULT NULL REFERENCES users(id) ON DELETE SET NULL,
   recipient_role     VARCHAR(20)  NOT NULL CHECK (recipient_role IN ('admin', 'user', 'staff')),
   recipient_user_id  INT          DEFAULT NULL REFERENCES users(id) ON DELETE CASCADE,
-  event_type         VARCHAR(40)  NOT NULL CHECK (event_type IN ('EARLY_CHECKOUT', 'ADMIN_TERMINATED', 'SESSION_CHECKIN', 'ROOM_STATUS_RESTORED')),
+  event_type         VARCHAR(40)  NOT NULL CHECK (event_type IN ('EARLY_CHECKOUT', 'ADMIN_TERMINATED', 'SESSION_CHECKIN', 'ROOM_STATUS_RESTORED', 'RESERVATION_APPROVED', 'RESERVATION_REJECTED')),
   title              VARCHAR(180) NOT NULL,
   message            TEXT         NOT NULL,
   reason             TEXT         DEFAULT NULL,

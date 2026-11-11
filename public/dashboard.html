@@ -22,6 +22,9 @@
   </div>
 
   <main class="container py-4">
+    <!-- Live Approval Alert / Ticket Unlocked Banner -->
+    <div id="approval-notifications-banner"></div>
+
     <!-- ===== WELCOME BANNER / HERO ===== -->
     <div class="dashboard-hero card mb-4">
       <div class="dashboard-hero-identity d-flex align-items-start">
@@ -193,7 +196,18 @@
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title" id="decision-title">Decision</h5>
+          <div>
+            <div class="hornet-brand-header hornet-brand-sm mb-2">
+              <div class="hornet-brand-badge">
+                <img src="/assets/hornet-logo.png" alt="Hornet Laboratory Reservation Logo" class="hornet-brand-logo" />
+              </div>
+              <div class="hornet-brand-text">
+                <span class="hornet-brand-title">HORNET</span>
+                <span class="hornet-brand-subtitle">Laboratory Reservation</span>
+              </div>
+            </div>
+            <h5 class="modal-title" id="decision-title">Reservation Decision</h5>
+          </div>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
@@ -216,6 +230,15 @@
       <div class="modal-content">
         <div class="modal-header">
           <div>
+            <div class="hornet-brand-header hornet-brand-sm mb-2">
+              <div class="hornet-brand-badge">
+                <img src="/assets/hornet-logo.png" alt="Hornet Laboratory Reservation Logo" class="hornet-brand-logo" />
+              </div>
+              <div class="hornet-brand-text">
+                <span class="hornet-brand-title">HORNET</span>
+                <span class="hornet-brand-subtitle">Laboratory Reservation</span>
+              </div>
+            </div>
             <span class="profile-modal-kicker">Your Account</span>
             <h5 class="modal-title fw-semibold" id="accountSettingsTitle">Account Settings</h5>
           </div>
@@ -277,6 +300,15 @@
       <div class="modal-content">
         <div class="modal-header">
           <div>
+            <div class="hornet-brand-header hornet-brand-sm mb-2">
+              <div class="hornet-brand-badge">
+                <img src="/assets/hornet-logo.png" alt="Hornet Laboratory Reservation Logo" class="hornet-brand-logo" />
+              </div>
+              <div class="hornet-brand-text">
+                <span class="hornet-brand-title">HORNET</span>
+                <span class="hornet-brand-subtitle">Laboratory Reservation</span>
+              </div>
+            </div>
             <span class="profile-modal-kicker">Security</span>
             <h5 class="modal-title fw-semibold" id="changePasswordTitle">Change Password</h5>
           </div>
@@ -327,6 +359,15 @@
       <div class="modal-content">
         <div class="modal-header">
           <div>
+            <div class="hornet-brand-header hornet-brand-sm mb-2">
+              <div class="hornet-brand-badge">
+                <img src="/assets/hornet-logo.png" alt="Hornet Laboratory Reservation Logo" class="hornet-brand-logo" />
+              </div>
+              <div class="hornet-brand-text">
+                <span class="hornet-brand-title">HORNET</span>
+                <span class="hornet-brand-subtitle">Laboratory Reservation</span>
+              </div>
+            </div>
             <span class="profile-modal-kicker">Administration</span>
             <h5 class="modal-title fw-semibold" id="addAdminTitle">Add New Admin Account</h5>
           </div>
@@ -379,6 +420,15 @@
       <div class="modal-content">
         <div class="modal-header">
           <div>
+            <div class="hornet-brand-header hornet-brand-sm mb-2">
+              <div class="hornet-brand-badge">
+                <img src="/assets/hornet-logo.png" alt="Hornet Laboratory Reservation Logo" class="hornet-brand-logo" onerror="this.onerror=null;this.src='/img/hornet-logo.jpg';" />
+              </div>
+              <div class="hornet-brand-text">
+                <span class="hornet-brand-title">HORNET</span>
+                <span class="hornet-brand-subtitle">Laboratory Reservation</span>
+              </div>
+            </div>
             <span class="profile-modal-kicker">Sign Out</span>
             <h5 class="modal-title fw-semibold" id="logoutTitle">Log Out</h5>
           </div>
@@ -386,7 +436,13 @@
         </div>
         <div class="modal-body text-center">
           <div class="mb-4">
-            <span class="logout-icon" aria-hidden="true">&#128271;</span>
+            <span class="logout-icon" aria-hidden="true">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-danger">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+            </span>
           </div>
           <p class="text-muted-sm mb-0">Are you sure you want to log out of your account?</p>
         </div>
@@ -405,7 +461,18 @@
   <div class="profile-modal" id="modal-account-settings" hidden role="dialog" aria-modal="true" aria-labelledby="modal-account-title">
     <div class="profile-modal-content">
       <div class="profile-modal-header">
-        <h3 class="profile-modal-title" id="modal-account-title">Account Settings</h3>
+        <div>
+          <div class="hornet-brand-header hornet-brand-sm mb-1">
+            <div class="hornet-brand-badge">
+              <img src="/assets/hornet-logo.png" alt="Hornet Laboratory Reservation Logo" class="hornet-brand-logo" onerror="this.onerror=null;this.src='/img/hornet-logo.jpg';" />
+            </div>
+            <div class="hornet-brand-text">
+              <span class="hornet-brand-title">HORNET</span>
+              <span class="hornet-brand-subtitle">Laboratory Reservation</span>
+            </div>
+          </div>
+          <h3 class="profile-modal-title" id="modal-account-title">Account Settings</h3>
+        </div>
         <button type="button" class="profile-modal-close" id="close-account-settings" aria-label="Close">×</button>
       </div>
       <div class="profile-modal-body">
@@ -444,7 +511,18 @@
   <div class="profile-modal" id="modal-change-password" hidden role="dialog" aria-modal="true" aria-labelledby="modal-password-title">
     <div class="profile-modal-content">
       <div class="profile-modal-header">
-        <h3 class="profile-modal-title" id="modal-password-title">Change Password</h3>
+        <div>
+          <div class="hornet-brand-header hornet-brand-sm mb-1">
+            <div class="hornet-brand-badge">
+              <img src="/assets/hornet-logo.png" alt="Hornet Laboratory Reservation Logo" class="hornet-brand-logo" onerror="this.onerror=null;this.src='/img/hornet-logo.jpg';" />
+            </div>
+            <div class="hornet-brand-text">
+              <span class="hornet-brand-title">HORNET</span>
+              <span class="hornet-brand-subtitle">Laboratory Reservation</span>
+            </div>
+          </div>
+          <h3 class="profile-modal-title" id="modal-password-title">Change Password</h3>
+        </div>
         <button type="button" class="profile-modal-close" id="close-change-password" aria-label="Close">×</button>
       </div>
       <div class="profile-modal-body">
@@ -481,7 +559,18 @@
   <div class="profile-modal" id="modal-add-admin" hidden role="dialog" aria-modal="true" aria-labelledby="modal-add-admin-title">
     <div class="profile-modal-content">
       <div class="profile-modal-header">
-        <h3 class="profile-modal-title" id="modal-add-admin-title">Add New Admin Account</h3>
+        <div>
+          <div class="hornet-brand-header hornet-brand-sm mb-1">
+            <div class="hornet-brand-badge">
+              <img src="/assets/hornet-logo.png" alt="Hornet Laboratory Reservation Logo" class="hornet-brand-logo" onerror="this.onerror=null;this.src='/img/hornet-logo.jpg';" />
+            </div>
+            <div class="hornet-brand-text">
+              <span class="hornet-brand-title">HORNET</span>
+              <span class="hornet-brand-subtitle">Laboratory Reservation</span>
+            </div>
+          </div>
+          <h3 class="profile-modal-title" id="modal-add-admin-title">Add New Admin Account</h3>
+        </div>
         <button type="button" class="profile-modal-close" id="close-add-admin" aria-label="Close">×</button>
       </div>
       <div class="profile-modal-body">
@@ -520,7 +609,18 @@
   <div class="profile-modal" id="modal-logout" hidden role="dialog" aria-modal="true" aria-labelledby="modal-logout-title">
     <div class="profile-modal-content">
       <div class="profile-modal-header">
-        <h3 class="profile-modal-title" id="modal-logout-title">Log Out</h3>
+        <div>
+          <div class="hornet-brand-header hornet-brand-sm mb-1">
+            <div class="hornet-brand-badge">
+              <img src="/assets/hornet-logo.png" alt="Hornet Laboratory Reservation Logo" class="hornet-brand-logo" onerror="this.onerror=null;this.src='/img/hornet-logo.jpg';" />
+            </div>
+            <div class="hornet-brand-text">
+              <span class="hornet-brand-title">HORNET</span>
+              <span class="hornet-brand-subtitle">Laboratory Reservation</span>
+            </div>
+          </div>
+          <h3 class="profile-modal-title" id="modal-logout-title">Log Out</h3>
+        </div>
         <button type="button" class="profile-modal-close" id="close-logout" aria-label="Close">×</button>
       </div>
       <div class="profile-modal-body">
@@ -539,6 +639,15 @@
       <div class="modal-content">
         <div class="modal-header">
           <div>
+            <div class="hornet-brand-header hornet-brand-sm mb-2">
+              <div class="hornet-brand-badge">
+                <img src="/assets/hornet-logo.png" alt="Hornet Laboratory Reservation Logo" class="hornet-brand-logo" />
+              </div>
+              <div class="hornet-brand-text">
+                <span class="hornet-brand-title">HORNET</span>
+                <span class="hornet-brand-subtitle">Laboratory Reservation</span>
+              </div>
+            </div>
             <span class="profile-modal-kicker">About</span>
             <h2 class="modal-title fs-5" id="about-us-title">About CSPC Lab &amp; Room Reservation</h2>
           </div>
@@ -547,10 +656,122 @@
         <div class="modal-body">
           <p>The CSPC Laboratory and Room Reservation System streamlines booking and approval workflows for campus facilities.</p>
           <p><strong>Version:</strong> 1.0.0</p>
-          <p><strong>© 2026 CSPC — Computer Studies Department</strong></p>
+          <p><strong>&copy; 2026 CSPC &mdash; Computer Studies Department</strong></p>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Feedback Modal -->
+  <div class="modal fade visitor-auth-modal" id="experience-feedback-modal" tabindex="-1" aria-labelledby="experience-feedback-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <div class="hornet-brand-header hornet-brand-sm mb-2">
+              <div class="hornet-brand-badge">
+                <img src="/assets/hornet-logo.png" alt="Hornet Laboratory Reservation Logo" class="hornet-brand-logo" />
+              </div>
+              <div class="hornet-brand-text">
+                <span class="hornet-brand-title">HORNET</span>
+                <span class="hornet-brand-subtitle">Laboratory Reservation</span>
+              </div>
+            </div>
+            <span class="profile-modal-kicker">We value your feedback</span>
+            <h2 class="modal-title fs-5" id="experience-feedback-title">Share your experience</h2>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="experience-feedback-form" novalidate>
+            <div class="mb-3">
+              <label class="form-label" for="feedback-subject">Subject</label>
+              <input class="form-control" id="feedback-subject" name="subject" placeholder="How can we improve?" required />
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="feedback-message">Your feedback</label>
+              <textarea class="form-control" id="feedback-message" name="message" rows="5" placeholder="Tell us what worked well and what can be improved." required></textarea>
+            </div>
+            <button class="btn btn-cspc w-100" type="submit">Send feedback</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ticket Issue / Support submission form modal -->
+  <div class="modal fade support-modal" id="support-modal" tabindex="-1" aria-labelledby="support-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content support-modal-content">
+        <div class="modal-header support-modal-header">
+          <div>
+            <div class="hornet-brand-header hornet-brand-sm mb-2">
+              <div class="hornet-brand-badge">
+                <img src="/assets/hornet-logo.png" alt="Hornet Laboratory Reservation Logo" class="hornet-brand-logo" />
+              </div>
+              <div class="hornet-brand-text">
+                <span class="hornet-brand-title">HORNET</span>
+                <span class="hornet-brand-subtitle">Laboratory Reservation</span>
+              </div>
+            </div>
+            <h5 class="modal-title" id="support-title">IT Support / Help Desk</h5>
+            <p class="support-modal-subtitle">Submit a ticket issue or inquiry</p>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body support-modal-body">
+          <div class="support-contact-row mb-3">
+            <p class="mb-2"><strong>Email:</strong> <a href="mailto:helpdesk@cspc.edu.ph">helpdesk@cspc.edu.ph</a></p>
+            <p class="mb-2"><strong>Phone:</strong> <a href="tel:+634xxx12345">+63 (xxx) xxx-12345</a></p>
+            <p class="mb-0 text-muted-sm">Office hours: Monday to Friday, 8:00 AM &ndash; 5:00 PM</p>
+          </div>
+
+          <form id="support-form" novalidate>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label" for="support-fullname">Full Name</label>
+                <input type="text" class="form-control" id="support-fullname" name="support-fullname"
+                       placeholder="e.g. Maria Dela Cruz" required />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="support-role">Role / Department</label>
+                <input type="text" class="form-control" id="support-role" name="support-role"
+                       placeholder="Student, Faculty, System Admin" required />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="support-email">Email Address / Contact Number</label>
+                <input type="text" class="form-control" id="support-email" name="support-email"
+                       placeholder="e.g. name@cspc.edu.ph or 09XX-XXX-XXXX" required />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="support-category">Issue Category</label>
+                <select class="form-select" id="support-category" name="support-category" required>
+                  <option value="" selected disabled>Select an issue type</option>
+                  <option value="Password Reset">Password Reset</option>
+                  <option value="Login Error">Login Error</option>
+                  <option value="Room Booking Issue">Room Booking Issue</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="support-description">Detailed Description</label>
+                <textarea class="form-control" id="support-description" name="support-description" rows="5"
+                          placeholder="Describe the issue, what happened, and when it occurred." required></textarea>
+              </div>
+            </div>
+
+            <div class="support-security-note mt-3">
+              <strong>Security Notice:</strong> Never share your current password or sensitive credentials through this support form.
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-4">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+              <button type="submit" class="btn btn-cspc">Submit request</button>
+            </div>
+          </form>
         </div>
       </div>
     </div>

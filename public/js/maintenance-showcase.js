@@ -181,6 +181,15 @@
             </div>
           </div>
           <div class="maint-popup-body">
+            <div class="hornet-brand-header hornet-brand-sm mb-3">
+              <div class="hornet-brand-badge">
+                <img src="/assets/hornet-logo.png" alt="Hornet Laboratory Reservation Logo" class="hornet-brand-logo" />
+              </div>
+              <div class="hornet-brand-text">
+                <span class="hornet-brand-title">HORNET</span>
+                <span class="hornet-brand-subtitle">Laboratory Reservation</span>
+              </div>
+            </div>
             <div class="small text-info text-uppercase fw-bold mb-1">${esc(item.target_label)}</div>
             <h3 class="h5 fw-bold text-white mb-2" id="maint-popup-title">${esc(item.title)}</h3>
             <p class="text-muted-sm mb-3">${esc(item.description)}</p>

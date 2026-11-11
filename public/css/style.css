@@ -7241,3 +7241,168 @@ body, body.modal-open {
   border-radius: 16px;
   box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
 }
+
+/* ============================================================
+   HORNET Laboratory Reservation — Reusable Brand Header Component
+   ============================================================ */
+.hornet-brand-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+  text-decoration: none;
+  user-select: none;
+}
+
+.hornet-brand-header.hornet-brand-center {
+  display: flex;
+  justify-content: center;
+  text-align: left;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.hornet-brand-badge {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  overflow: hidden;
+  background: radial-gradient(circle at 35% 35%, rgba(59, 130, 246, 0.28), rgba(15, 23, 42, 0.95));
+  border: 1.5px solid rgba(255, 255, 255, 0.26);
+  box-shadow: 
+    0 4px 14px rgba(0, 0, 0, 0.55),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.4),
+    0 0 16px rgba(59, 130, 246, 0.25);
+  flex-shrink: 0;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.hornet-brand-header:hover .hornet-brand-badge {
+  transform: scale(1.05);
+  box-shadow: 
+    0 6px 18px rgba(0, 0, 0, 0.65),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.5),
+    0 0 22px rgba(96, 165, 250, 0.45);
+}
+
+.hornet-brand-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 50%;
+  display: block;
+}
+
+.hornet-brand-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1.15;
+}
+
+.hornet-brand-title {
+  font-family: inherit;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8), 0 0 12px rgba(59, 130, 246, 0.3);
+  line-height: 1.1;
+}
+
+.hornet-brand-subtitle {
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: #94a3b8;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  margin-top: 0.15rem;
+  white-space: nowrap;
+}
+
+/* Size Variants */
+/* Compact / Small (For modal headers, compact dialogs, inner tabs) */
+.hornet-brand-sm {
+  gap: 0.65rem;
+  margin-bottom: 0.75rem;
+}
+.hornet-brand-sm .hornet-brand-badge {
+  width: 2.35rem;
+  height: 2.35rem;
+  min-width: 2.35rem;
+  border-width: 1.25px;
+}
+.hornet-brand-sm .hornet-brand-title {
+  font-size: 0.98rem;
+  letter-spacing: 0.07em;
+}
+.hornet-brand-sm .hornet-brand-subtitle {
+  font-size: 0.66rem;
+  margin-top: 0.1rem;
+}
+
+/* Medium (Standard modal headers, card headers, forms) */
+.hornet-brand-md {
+  gap: 0.85rem;
+  margin-bottom: 1.15rem;
+}
+.hornet-brand-md .hornet-brand-badge {
+  width: 2.85rem;
+  height: 2.85rem;
+  min-width: 2.85rem;
+}
+.hornet-brand-md .hornet-brand-title {
+  font-size: 1.18rem;
+}
+.hornet-brand-md .hornet-brand-subtitle {
+  font-size: 0.74rem;
+}
+
+/* Large (Dedicated page auth heroes, landing views) */
+.hornet-brand-lg {
+  gap: 1rem;
+  margin-bottom: 1.35rem;
+}
+.hornet-brand-lg .hornet-brand-badge {
+  width: 3.5rem;
+  height: 3.5rem;
+  min-width: 3.5rem;
+  border-width: 2px;
+}
+.hornet-brand-lg .hornet-brand-title {
+  font-size: 1.38rem;
+  letter-spacing: 0.09em;
+}
+.hornet-brand-lg .hornet-brand-subtitle {
+  font-size: 0.82rem;
+  margin-top: 0.2rem;
+}
+
+/* Card / modal integrated styling */
+.modal-header .hornet-brand-header {
+  margin-bottom: 0.4rem;
+}
+.auth-hero .hornet-brand-header {
+  margin-bottom: 1.25rem;
+}
+
+/* Light background / ticket overrides for print & receipt cards */
+.ticket-card .hornet-brand-title,
+.ticket-header .hornet-brand-title {
+  color: #0f172a !important;
+  text-shadow: none !important;
+}
+.ticket-card .hornet-brand-subtitle,
+.ticket-header .hornet-brand-subtitle {
+  color: #64748b !important;
+  text-shadow: none !important;
+}
+.ticket-card .hornet-brand-badge,
+.ticket-header .hornet-brand-badge {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+

@@ -335,9 +335,12 @@ setInterval(() => {
     }
 
     reservationsBody.innerHTML = visible.map((r) => {
-      const canDecide = r.status === 'Pending';
-      const canForceTerminate = r.status === 'Approved' && r.can_admin_terminate !== false;
-      const canCancel = r.status === 'Pending';
+      const statusUpper = String(r.status || '').toUpperCase();
+      const isPending = statusUpper === 'PENDING_APPROVAL' || statusUpper === 'PENDING';
+      const isApproved = statusUpper === 'APPROVED';
+      const canDecide = isPending;
+      const canForceTerminate = isApproved && r.can_admin_terminate !== false;
+      const canCancel = isPending;
       let actions = '';
 
       if (canDecide) {
@@ -427,12 +430,14 @@ setInterval(() => {
   let pendingDecision = null;
 
   function openDecision(reservation, status) {
-    pendingDecision = { id: reservation.id, status };
-    const verb = status === 'Approved' ? 'Approve' : 'Reject';
+    const isApprove = String(status).toUpperCase() === 'APPROVED' || status === 'Approved';
+    const normalizedStatus = isApprove ? 'APPROVED' : 'REJECTED';
+    pendingDecision = { id: reservation.id, status: normalizedStatus };
+    const verb = isApprove ? 'Approve' : 'Reject';
     decisionTitle.textContent = `${verb} reservation #${reservation.id}`;
     decisionSummary.textContent = `${reservation.room_name} - ${formatDateShort(reservation.res_date)}, ${formatTime(reservation.start_time)} to ${formatTime(reservation.end_time)} (requested by ${reservation.requested_by || 'Unknown'}).`;
     decisionRemarks.value = '';
-    decisionConfirm.className = `btn ${status === 'Approved' ? 'btn-success' : 'btn-danger'}`;
+    decisionConfirm.className = `btn ${isApprove ? 'btn-success' : 'btn-danger'}`;
     decisionConfirm.textContent = `${verb} request`;
     modal.show();
   }
@@ -490,11 +495,13 @@ setInterval(() => {
   }
 
   function statusBadgeClass(status) {
-    switch (status) {
-      case 'Approved': return 'bg-success';
-      case 'Rejected': return 'bg-danger';
-      case 'Cancelled': return 'bg-secondary';
-      case 'Pending': return 'bg-warning text-dark';
+    const s = String(status || '').toUpperCase();
+    switch (s) {
+      case 'APPROVED': return 'bg-success';
+      case 'REJECTED': return 'bg-danger';
+      case 'CANCELLED': return 'bg-secondary';
+      case 'PENDING_APPROVAL':
+      case 'PENDING': return 'bg-warning text-dark';
       default: return 'bg-info text-dark';
     }
   }

@@ -350,7 +350,7 @@
         purpose: res.purpose || '',
         attendees: res.attendees || '',
         requester: res.requested_by || '',
-        status: res.status || 'Pending'
+        status: res.status || 'PENDING_APPROVAL'
       });
       toastOk(data.message || 'Reservation submitted.');
       P.broadcastAvailabilityChange();

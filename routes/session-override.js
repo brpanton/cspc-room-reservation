@@ -16,7 +16,7 @@
 const express = require('express');
 const pool = require('../db');
 const { requireLogin, requireStaff, requireAdmin, canManageReservation } = require('../middleware/auth');
-const { RESERVATION_SELECT, shape } = require('./reservations');
+const { RESERVATION_SELECT, shape } = require('./reservation-queries');
 
 const router = express.Router();
 
@@ -65,11 +65,18 @@ async function ensureSessionOverrideSchema() {
     BEGIN
       ALTER TABLE reservations DROP CONSTRAINT IF EXISTS reservations_status_check;
       ALTER TABLE reservations ADD CONSTRAINT reservations_status_check
-        CHECK (status IN ('Pending','Approved','Rejected','Cancelled','Completed Early','Terminated by Admin'));
+        CHECK (status IN ('PENDING_APPROVAL','APPROVED','REJECTED','CANCELLED','Pending','Approved','Rejected','Cancelled','Completed Early','Terminated by Admin'));
+      ALTER TABLE reservations ALTER COLUMN status SET DEFAULT 'PENDING_APPROVAL';
 
       ALTER TABLE reservations DROP CONSTRAINT IF EXISTS reservations_session_status_check;
       ALTER TABLE reservations ADD CONSTRAINT reservations_session_status_check
         CHECK (session_status IN ('Scheduled','Active','Checked Out Early','Completed','Terminated by Admin','Cancelled'));
+
+      IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'session_notifications') THEN
+        ALTER TABLE session_notifications DROP CONSTRAINT IF EXISTS session_notifications_event_type_check;
+        ALTER TABLE session_notifications ADD CONSTRAINT session_notifications_event_type_check
+          CHECK (event_type IN ('EARLY_CHECKOUT', 'ADMIN_TERMINATED', 'SESSION_CHECKIN', 'ROOM_STATUS_RESTORED', 'RESERVATION_APPROVED', 'RESERVATION_REJECTED'));
+      END IF;
     END $$;
 
     UPDATE reservations
@@ -84,7 +91,7 @@ async function ensureSessionOverrideSchema() {
       actor_id           INT          DEFAULT NULL REFERENCES users(id) ON DELETE SET NULL,
       recipient_role     VARCHAR(20)  NOT NULL CHECK (recipient_role IN ('admin', 'user', 'staff')),
       recipient_user_id  INT          DEFAULT NULL REFERENCES users(id) ON DELETE CASCADE,
-      event_type         VARCHAR(40)  NOT NULL CHECK (event_type IN ('EARLY_CHECKOUT', 'ADMIN_TERMINATED', 'SESSION_CHECKIN', 'ROOM_STATUS_RESTORED')),
+      event_type         VARCHAR(40)  NOT NULL CHECK (event_type IN ('EARLY_CHECKOUT', 'ADMIN_TERMINATED', 'SESSION_CHECKIN', 'ROOM_STATUS_RESTORED', 'RESERVATION_APPROVED', 'RESERVATION_REJECTED')),
       title              VARCHAR(180) NOT NULL,
       message            TEXT         NOT NULL,
       reason             TEXT         DEFAULT NULL,

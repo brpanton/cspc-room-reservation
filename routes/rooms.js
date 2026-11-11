@@ -28,7 +28,7 @@ router.param('id', (req, res, next, id) => {
 });
 
 /** Statuses that occupy a room. Rejected/Cancelled requests free the slot. */
-const BLOCKING_STATUSES = ['Pending', 'Approved'];
+const BLOCKING_STATUSES = ['PENDING_APPROVAL', 'APPROVED', 'Pending', 'Approved'];
 
 router.get('/buildings', async (req, res, next) => {
   try {
@@ -61,7 +61,7 @@ router.get('/buildings/top-popular', async (req, res, next) => {
               )) AS image_url,
               COUNT(DISTINCT CASE WHEN r.is_active = TRUE THEN r.id END) AS active_rooms,
               COUNT(res.id) AS total_reservations,
-              COUNT(CASE WHEN res.status = 'Approved' THEN 1 END) AS approved_reservations
+              COUNT(CASE WHEN res.status IN ('APPROVED', 'Approved') THEN 1 END) AS approved_reservations
        FROM buildings b
        LEFT JOIN rooms r ON r.building_id = b.id
        LEFT JOIN reservations res ON res.room_id = r.id
@@ -118,7 +118,7 @@ router.get('/rooms/status', async (req, res, next) => {
        JOIN rooms r     ON r.id = res.room_id
        JOIN buildings b ON b.id = r.building_id
        JOIN users u     ON u.id = res.user_id
-       WHERE res.res_date = $1 AND res.status IN ('Pending', 'Approved')
+       WHERE res.res_date = $1 AND res.status IN ('PENDING_APPROVAL', 'APPROVED', 'Pending', 'Approved')
        ORDER BY res.start_time`,
       [date]
     );
@@ -184,7 +184,7 @@ router.get('/availability', async (req, res, next) => {
     const date = req.query.date ? parseDate(req.query.date, 'date') : todayIso();
 
     const params = [date];
-    let where = `WHERE res.res_date = $1 AND res.status IN ('Pending', 'Approved')`;
+    let where = `WHERE res.res_date = $1 AND res.status IN ('PENDING_APPROVAL', 'APPROVED', 'Pending', 'Approved')`;
 
     if (req.query.room_id) {
       where += ` AND res.room_id = $${params.length + 1}`;
@@ -334,7 +334,7 @@ router.get('/buildings/:id/bookings', async (req, res, next) => {
        JOIN users u ON u.id = res.user_id
        WHERE r.building_id = $1
          AND res.res_date >= $2
-         AND res.status IN ('Pending', 'Approved')
+         AND res.status IN ('PENDING_APPROVAL', 'APPROVED', 'Pending', 'Approved')
        ORDER BY res.res_date, res.start_time
        LIMIT 20`,
       [buildingId, date]
