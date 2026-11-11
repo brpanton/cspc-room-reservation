@@ -118,7 +118,7 @@
         : '<p class="text-info fw-semibold mb-0 mt-3">Free the whole day</p>';
 
     const actionHtml = isMaint
-      ? `<button type="button" class="btn btn-sm btn-outline-secondary w-100 mt-3" disabled>Under Maintenance — Booking Disabled</button>`
+      ? `<button type="button" class="btn btn-sm btn-outline-secondary w-100 mt-3" disabled>Under Maintenance &mdash; Booking Disabled</button>`
       : `<a href="/reservation-form.html?building_id=${encodeURIComponent(room.building_id || '')}&room_id=${encodeURIComponent(room.id)}" class="btn btn-sm btn-cspc w-100 mt-3">+ Reserve this space</a>`;
 
     const cardStateClass = isMaint
@@ -144,24 +144,26 @@
           ? `<img class="room-card-img" src="${escapeHtml(room.image_url)}" alt="${escapeHtml(room.name)}" loading="lazy" />`
           : '';
 
+    const displayFloor = room.display_floor || room.floor || '';
+
     return `
-      <div class="col-md-6 col-xl-4">
+      <div class="col">
         <div class="card room-card ${cardStateClass} h-100">
           ${bannerHtml}
           <div class="card-body d-flex flex-column">
             <div class="d-flex justify-content-between align-items-start gap-2">
               <div>
-                <h2 class="h6 mb-0">${escapeHtml(room.name)}</h2>
-                <div class="text-muted-sm">${escapeHtml(room.building_name)}${room.floor ? ` · ${escapeHtml(room.floor)}` : ''}</div>
+                <h3 class="h6 mb-0 text-white fw-bold">${escapeHtml(room.name)}</h3>
+                <div class="text-muted-sm">${escapeHtml(room.building_name)}${displayFloor ? ` &middot; ${escapeHtml(displayFloor)}` : ''}</div>
               </div>
               <span class="badge ${isMaint ? 'badge-maintenance' : 'text-bg-light border'}">
                 ${isMaint ? 'Under Maintenance' : escapeHtml(ROOM_TYPE_LABELS[room.room_type] || room.room_type)}
               </span>
             </div>
-            <div class="mt-2">
+            <div class="mt-2 d-flex flex-wrap gap-1">
               ${amenities.map((a) => `<span class="amenity-pill">${escapeHtml(a)}</span>`).join('')}
             </div>
-            <div class="mt-auto">
+            <div class="mt-auto pt-3">
               ${slots}
               ${actionHtml}
             </div>
@@ -170,45 +172,252 @@
       </div>`;
   }
 
+  /* ----------------------------------------------- hierarchical grouping --- */
+
+  /** Helper to sort floor labels naturally (Ground Floor -> 1st Floor -> 2nd Floor -> ... -> Unassigned) */
+  function getFloorSortOrder(floorLabel) {
+    const label = String(floorLabel || '').trim().toLowerCase();
+    if (label.includes('ground') || label === 'general') return 0;
+    const match = label.match(/(\d+)/);
+    if (match) return parseInt(match[1], 10);
+    if (label.includes('unassigned')) return 999;
+    return 100;
+  }
+
+  /** Normalizes a floor label or extracts from room name or falls back to 'General / Ground Floor' */
+  function resolveFloorLabel(floorRaw, roomName) {
+    if (floorRaw && String(floorRaw).trim()) {
+      const val = String(floorRaw).trim();
+      return val.replace(/\bfloor\b/i, 'Floor');
+    }
+    const name = String(roomName || '').trim();
+    const match = name.match(/\b([1-9])\d{2}\b/);
+    if (match) {
+      const digit = parseInt(match[1], 10);
+      const sfx = digit === 1 ? 'st' : digit === 2 ? 'nd' : digit === 3 ? 'rd' : 'th';
+      return `${digit}${sfx} Floor`;
+    }
+    return 'General / Ground Floor';
+  }
+
+  /**
+   * Dynamically groups rooms by Building -> Floor -> Rooms.
+   * Returns an array of building groups sorted alphabetically, with floors sorted logically.
+   */
+  function groupRoomsHierarchically(rooms) {
+    const buildingMap = rooms.reduce((acc, room) => {
+      const bName = (room.building_name || 'General Campus Space').trim();
+      if (!acc.has(bName)) {
+        acc.set(bName, {
+          buildingName: bName,
+          buildingId: room.building_id || null,
+          floorMap: new Map()
+        });
+      }
+      const bEntry = acc.get(bName);
+      const floorLabel = resolveFloorLabel(room.floor, room.name);
+      if (!bEntry.floorMap.has(floorLabel)) {
+        bEntry.floorMap.set(floorLabel, []);
+      }
+      bEntry.floorMap.get(floorLabel).push({
+        ...room,
+        display_floor: floorLabel
+      });
+      return acc;
+    }, new Map());
+
+    // Sort buildings alphabetically
+    const sortedBuildings = Array.from(buildingMap.values()).sort((a, b) =>
+      a.buildingName.localeCompare(b.buildingName)
+    );
+
+    return sortedBuildings.map((b) => {
+      const sortedFloors = Array.from(b.floorMap.entries())
+        .sort(([floorA], [floorB]) => {
+          const orderA = getFloorSortOrder(floorA);
+          const orderB = getFloorSortOrder(floorB);
+          if (orderA !== orderB) return orderA - orderB;
+          return floorA.localeCompare(floorB);
+        })
+        .map(([floorName, floorRooms]) => {
+          const sortedRooms = [...floorRooms].sort((r1, r2) =>
+            String(r1.name || '').localeCompare(String(r2.name || ''))
+          );
+          return {
+            floorName,
+            rooms: sortedRooms
+          };
+        });
+
+      const allBuildingRooms = sortedFloors.flatMap((f) => f.rooms);
+      const totalRooms = allBuildingRooms.length;
+      const freeRooms = allBuildingRooms.filter((r) => r.is_free_all_day).length;
+
+      return {
+        buildingName: b.buildingName,
+        buildingId: b.buildingId,
+        totalRooms,
+        freeRooms,
+        floors: sortedFloors
+      };
+    });
+  }
+
+  /** Renders one complete building section with prominent header, floor subheaders, and card sub-grid */
+  function renderBuildingSection(bGroup) {
+    const { buildingName, buildingId, totalRooms, freeRooms, floors } = bGroup;
+    const safeBuildingId = (buildingId ? `bldg-${buildingId}` : `bldg-${buildingName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}`);
+
+    const floorPillsHtml = floors.length > 1
+      ? `<div class="building-floor-nav">
+           <span class="building-floor-nav-label">Levels:</span>
+           ${floors
+             .map((f, idx) => {
+               const floorAnchor = `${safeBuildingId}-fl-${idx}`;
+               return `<a href="#${floorAnchor}" class="building-floor-nav-pill">${escapeHtml(f.floorName)} <span class="opacity-75">(${f.rooms.length})</span></a>`;
+             })
+             .join('')}
+         </div>`
+      : '';
+
+    const floorsHtml = floors
+      .map((f, idx) => {
+        const floorAnchor = `${safeBuildingId}-fl-${idx}`;
+        return `
+          <div class="floor-group-section" id="${floorAnchor}">
+            <div class="floor-section-header">
+              <span class="floor-pill-tag">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                  <polyline points="2 17 12 22 22 17"></polyline>
+                  <polyline points="2 12 12 17 22 12"></polyline>
+                </svg>
+                <span>${escapeHtml(f.floorName)}</span>
+              </span>
+              <span class="floor-room-count-text">${f.rooms.length} ${f.rooms.length === 1 ? 'space' : 'spaces'}</span>
+              <div class="floor-divider-line"></div>
+            </div>
+            <div class="row g-3 row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4">
+              ${f.rooms.map(roomCard).join('')}
+            </div>
+          </div>
+        `;
+      })
+      .join('');
+
+    return `
+      <section class="building-group-section" id="${safeBuildingId}">
+        <div class="building-section-header">
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+            <div class="d-flex align-items-center gap-3">
+              <div class="building-header-icon" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+                  <path d="M9 22v-4h6v4"></path>
+                  <path d="M8 6h.01"></path>
+                  <path d="M16 6h.01"></path>
+                  <path d="M12 6h.01"></path>
+                  <path d="M12 10h.01"></path>
+                  <path d="M12 14h.01"></path>
+                  <path d="M16 10h.01"></path>
+                  <path d="M16 14h.01"></path>
+                  <path d="M8 10h.01"></path>
+                  <path d="M8 14h.01"></path>
+                </svg>
+              </div>
+              <div>
+                <h2 class="building-header-title">${escapeHtml(buildingName)}</h2>
+                <div class="building-header-meta">${floors.length} floor level${floors.length !== 1 ? 's' : ''} &middot; ${totalRooms} total space${totalRooms !== 1 ? 's' : ''}</div>
+              </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <span class="building-count-badge">${totalRooms} ${totalRooms === 1 ? 'Room' : 'Rooms'}</span>
+              <span class="building-avail-badge ${freeRooms > 0 ? '' : 'none'}">${freeRooms} Free</span>
+            </div>
+          </div>
+          ${floorPillsHtml}
+        </div>
+        <div class="building-floors-container">
+          ${floorsHtml}
+        </div>
+      </section>
+    `;
+  }
+
   async function load() {
     const date = dateInput.value || todayIso();
     const params = new URLSearchParams({ date });
-    const buildingName = buildingSel.value?.trim();
-    if (buildingName && window.__buildingIdByName) {
-      const bid = window.__buildingIdByName.get(buildingName);
+    const selectedBuildingRaw = (buildingSel.value || '').trim();
+
+    if (selectedBuildingRaw && window.__buildingIdByName) {
+      const bid = window.__buildingIdByName.get(selectedBuildingRaw);
       if (bid) params.set('building_id', bid);
     }
 
-    grid.innerHTML = '<div class="col-12"><p class="text-muted-sm">Loading rooms...</p></div>';
+    grid.innerHTML = `
+      <div class="card room-filter-empty w-100">
+        <div class="card-body text-center text-muted-sm py-5">
+          <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+          <div>Loading spaces and availability...</div>
+        </div>
+      </div>`;
+
     try {
       const data = await api(`/api/availability?${params.toString()}`);
-      const selectedBuildingId = buildingSel.value;
-      const selectedBuildingName = buildingSel.value?.trim() || '';
+      const selectedQuery = selectedBuildingRaw.toLowerCase();
       const wantedType = (typeSel?.value || '').toLowerCase();
-      const rooms = (data.rooms || []).filter((room) => {
-        if (wantedType && String(room.room_type || '').toLowerCase() !== wantedType) return false;
-        if (!selectedBuildingId) return true;
-        return String(room.building_id) === selectedBuildingId ||
-          room.building_name.trim().toLocaleLowerCase() === selectedBuildingName.toLocaleLowerCase();
+
+      // Filter rooms matching all active criteria (Space type, Building)
+      const filteredRooms = (data.rooms || []).filter((room) => {
+        if (wantedType && String(room.room_type || '').toLowerCase() !== wantedType) {
+          return false;
+        }
+        if (!selectedQuery) {
+          return true;
+        }
+        const bName = String(room.building_name || '').trim().toLowerCase();
+        const bId = String(room.building_id || '').trim();
+        return bName === selectedQuery || bName.includes(selectedQuery) || bId === selectedQuery;
       });
 
-      document.getElementById('sum-rooms').textContent = rooms.length;
-      document.getElementById('sum-free').textContent = rooms.filter((room) => room.is_free_all_day).length;
-      document.getElementById('sum-bookings').textContent = rooms.reduce(
+      // Update summary cards
+      document.getElementById('sum-rooms').textContent = filteredRooms.length;
+      document.getElementById('sum-free').textContent = filteredRooms.filter((r) => r.is_free_all_day).length;
+      document.getElementById('sum-bookings').textContent = filteredRooms.reduce(
         (total, room) => total + (room.bookings || []).length, 0
       );
 
-      if (!rooms.length) {
-        const message = selectedBuildingId
-          ? `No rooms found for ${escapeHtml(selectedBuildingName)}.`
-          : 'No active rooms found.';
-        grid.innerHTML = `<div class="col-12"><div class="card room-filter-empty"><div class="card-body text-center text-muted-sm">${message}</div></div></div>`;
+      // Empty state handling
+      if (!filteredRooms.length) {
+        const message = selectedBuildingRaw
+          ? `No rooms found for "${escapeHtml(selectedBuildingRaw)}" matching the active filters.`
+          : 'No active rooms found matching the current criteria.';
+        grid.innerHTML = `
+          <div class="card room-filter-empty w-100">
+            <div class="card-body text-center text-muted-sm py-5">
+              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mb-3 text-secondary opacity-50" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M16 16s-1.5-2-4-2-4 2-4 2"></path>
+                <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                <line x1="15" y1="9" x2="15.01" y2="9"></line>
+              </svg>
+              <h3 class="h6 text-light mb-1">No Spaces Available</h3>
+              <p class="mb-0 small">${message}</p>
+            </div>
+          </div>`;
         return;
       }
-      grid.innerHTML = rooms.map(roomCard).join('');
+
+      // Group hierarchically: Building -> Floor -> Rooms
+      const groupedBuildings = groupRoomsHierarchically(filteredRooms);
+      grid.innerHTML = groupedBuildings.map(renderBuildingSection).join('');
     } catch (err) {
-      grid.innerHTML =
-        `<div class="col-12"><p class="text-danger">Could not load availability: ${escapeHtml(err.message)}</p></div>`;
+      grid.innerHTML = `
+        <div class="card room-filter-empty w-100 border-danger/40">
+          <div class="card-body text-center text-danger py-5">
+            <p class="mb-0">Could not load availability: ${escapeHtml(err.message)}</p>
+          </div>
+        </div>`;
     }
   }
 
@@ -223,6 +432,10 @@
   dateInput.addEventListener('change', load);
   typeSel?.addEventListener('change', load);
   buildingSel.addEventListener('input', () => {
+    updateBuildingBackground();
+    load();
+  });
+  buildingSel.addEventListener('change', () => {
     updateBuildingBackground();
     load();
   });

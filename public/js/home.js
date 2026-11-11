@@ -620,7 +620,7 @@
           const resCount = Number(building.total_reservations ?? 0);
           const sub = building.location || (resCount > 0 ? `${resCount} reservation${resCount === 1 ? '' : 's'} booked` : 'CSPC campus');
           const bgImage = BUILDING_BACKGROUNDS[name] || '';
-          const cardStyle = bgImage ? `style="background-image: linear-gradient(145deg, rgba(7, 14, 27, 0.45), rgba(5, 8, 15, 0.55)), url('${bgImage}'); background-size: cover; background-position: center;"` : '';
+          const cardStyle = bgImage ? `style="background-image: linear-gradient(180deg, rgba(7, 14, 27, 0.12) 0%, transparent 35%, rgba(5, 8, 15, 0.72) 100%), url('${bgImage}'); background-size: cover; background-position: center;"` : '';
           return `
         <div class="col-md-4 home-building-col">
           <article class="home-building-card" ${cardStyle}>
@@ -1474,16 +1474,16 @@ function renderStatusGroups(rooms) {
       : `<div class="home-building-card-photo-placeholder">${placeholderInner}</div>`;
 
     html += `
-      <article class="home-building-card is-${tone}" data-building="${P.escapeHtml(buildingName)}" aria-label="${P.escapeHtml(buildingName)}">
+      <article class="home-building-card is-${tone}" data-building="${P.escapeHtml(buildingName)}" aria-label="${P.escapeHtml(buildingName)}" role="button" tabindex="0">
         ${imgHtml}
         <span class="card-index">${indexBadge}</span>
         <span class="card-status is-${tone}">${tone.charAt(0).toUpperCase() + tone.slice(1)}</span>
         <div class="home-building-card-content">
-          <h3>${P.escapeHtml(buildingName)}</h3>
-          <p class="reservations-booked">${activeRooms} active room${activeRooms !== 1 ? 's' : ''} - ${totalBookings} booking${totalBookings !== 1 ? 's' : ''}</p>
-        </div>
-        <div class="home-building-card-footer">
-          <button class="view-btn" aria-label="View ${P.escapeHtml(buildingName)}" title="View building">↗</button>
+          <div class="home-building-card-info">
+            <h3>${P.escapeHtml(buildingName)}</h3>
+            <p class="reservations-booked">${activeRooms} active room${activeRooms !== 1 ? 's' : ''} &bull; ${totalBookings} booking${totalBookings !== 1 ? 's' : ''}</p>
+          </div>
+          <button type="button" class="view-btn" aria-label="View ${P.escapeHtml(buildingName)}" title="View building">↗</button>
         </div>
       </article>
     `;
@@ -1493,6 +1493,19 @@ function renderStatusGroups(rooms) {
     statusGrid.innerHTML = '<div class="home-status-loading">No active rooms to show right now.</div>';
   } else {
     statusGrid.innerHTML = html;
+    statusGrid.querySelectorAll('.home-building-card').forEach((card) => {
+      card.addEventListener('click', () => {
+        const b = card.dataset.building;
+        if (b) window.location.href = `/rooms-status.html?building=${encodeURIComponent(b)}`;
+      });
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          const b = card.dataset.building;
+          if (b) window.location.href = `/rooms-status.html?building=${encodeURIComponent(b)}`;
+        }
+      });
+    });
   }
 }
 
