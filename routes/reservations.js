@@ -55,7 +55,8 @@ function safeRelease(conn) {
 }
 
 async function findConflict(conn, { roomId, date, startTime, endTime, excludeId = null }) {
-  const params = [roomId, date, startTime, endTime, ...BLOCKING_STATUSES];
+  const statusPlaceholders = BLOCKING_STATUSES.map((_, i) => `$${i + 5}`).join(', ');
+  const params = [roomId, date, endTime, startTime, ...BLOCKING_STATUSES];
   let sql = `
     SELECT res.id, res.start_time, res.end_time, res.status, u.full_name AS requested_by
     FROM reservations res
@@ -64,11 +65,11 @@ async function findConflict(conn, { roomId, date, startTime, endTime, excludeId 
       AND res.res_date = $2::date
       AND res.start_time < $3::time
       AND res.end_time > $4::time
-      AND res.status IN ($5, $6)`;
+      AND res.status IN (${statusPlaceholders})`;
 
   if (excludeId) {
-    sql += ` AND res.id <> $${params.length + 1}`;
     params.push(excludeId);
+    sql += ` AND res.id <> $${params.length}`;
   }
   sql += ' LIMIT 1 FOR UPDATE';
 
