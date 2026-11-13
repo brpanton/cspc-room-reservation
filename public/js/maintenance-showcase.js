@@ -101,19 +101,34 @@
 
     banner.innerHTML = `
       <div class="maint-top-banner-inner">
-        <div class="d-flex align-items-center flex-wrap gap-2">
-          <span class="maint-banner-pill">
-            <span class="maint-banner-dot"></span>
-            ${esc(statusLabel)}
-          </span>
-          <strong>${esc(primary.target_label || 'Campus Facilities')}:</strong>
-          <span>${esc(primary.title)}</span>
-          <span class="text-warning small fw-semibold">(Expected completion: ${esc(fmtDateTime(primary.end_time))})${esc(extraCount)}</span>
+        <div class="maint-banner-marquee">
+          <div class="maint-banner-set d-flex align-items-center gap-2 flex-nowrap">
+            <span class="maint-banner-pill">
+              <span class="maint-banner-dot"></span>
+              ${esc(statusLabel)}
+            </span>
+            <strong class="maint-banner-location">${esc(primary.target_label || 'Campus Facilities')}:</strong>
+            <span class="maint-banner-title">${esc(primary.title)}</span>
+            <span class="maint-banner-timestamp text-warning small fw-semibold">(Expected completion: ${esc(fmtDateTime(primary.end_time))})${esc(extraCount)}</span>
+            <button type="button" class="btn btn-sm btn-view-advisory px-3 py-2" style="margin-right: 0.75rem;">
+              View Advisory
+            </button>
+          </div>
+          <!-- Duplicated content for seamless marquee loop -->
+          <div class="maint-banner-set d-flex align-items-center gap-2 flex-nowrap" aria-hidden="true">
+            <span class="maint-banner-pill">
+              <span class="maint-banner-dot"></span>
+              ${esc(statusLabel)}
+            </span>
+            <strong class="maint-banner-location">${esc(primary.target_label || 'Campus Facilities')}:</strong>
+            <span class="maint-banner-title">${esc(primary.title)}</span>
+            <span class="maint-banner-timestamp text-warning small fw-semibold">(Expected completion: ${esc(fmtDateTime(primary.end_time))})${esc(extraCount)}</span>
+            <button type="button" class="btn btn-sm btn-view-advisory px-3 py-2" style="margin-right: 0.75rem;">
+              View Advisory
+            </button>
+          </div>
         </div>
-        <div class="d-flex align-items-center gap-2">
-          <button type="button" class="btn btn-sm btn-outline-light py-1 px-3" id="maint-banner-view-btn">
-            View Advisory
-          </button>
+        <div class="maint-banner-actions d-flex align-items-center gap-2">
           <button type="button" class="btn-close btn-close-white" id="maint-banner-close-btn" aria-label="Dismiss banner" style="font-size:0.7rem;"></button>
         </div>
       </div>
@@ -127,10 +142,12 @@
       document.body.prepend(banner);
     }
 
-    const viewBtn = banner.querySelector('#maint-banner-view-btn');
-    if (viewBtn && typeof onOpenModal === 'function') {
-      viewBtn.addEventListener('click', () => onOpenModal());
-    }
+    const viewBtns = banner.querySelectorAll('.btn-view-advisory');
+    viewBtns.forEach((viewBtn) => {
+      if (typeof onOpenModal === 'function') {
+        viewBtn.addEventListener('click', () => onOpenModal());
+      }
+    });
 
     const closeBtn = banner.querySelector('#maint-banner-close-btn');
     if (closeBtn) {

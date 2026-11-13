@@ -123,8 +123,12 @@
   if (googleBtn) {
     googleBtn.addEventListener('click', () => {
       busy(googleBtn, true, 'Opening Google...');
-      const type = isAdminPage ? 'admin' : 'user';
-      const returnTo = isAdminPage ? 'admin-login' : 'home';
+      // Use the current form mode (user/admin) so Google SSO respects tab switches
+      // on the shared login page, not just the initial page load.
+      const mode = (form && form.dataset && form.dataset.mode) || 'user';
+      const isAdminMode = mode === 'admin';
+      const type = isAdminMode ? 'admin' : 'user';
+      const returnTo = isAdminMode ? 'admin-login' : 'home';
       window.location.assign(`/api/auth/google?type=${type}&return=${returnTo}`);
     });
   }
