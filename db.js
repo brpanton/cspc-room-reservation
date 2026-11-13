@@ -30,5 +30,12 @@ const pool = new Pool({
   ssl: sslFor(process.env.DATABASE_URL)
 });
 
+// Standardize database session timezone to IANA 'Asia/Manila' (fallback '+08:00')
+pool.on('connect', (client) => {
+  client.query("SET TIME ZONE 'Asia/Manila'").catch(() => {
+    client.query("SET TIME ZONE '+08:00'").catch(() => {});
+  });
+});
+
 module.exports = pool;
 module.exports.sslFor = sslFor;

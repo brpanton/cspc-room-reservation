@@ -255,12 +255,40 @@ function shapeMaintenanceRow(row) {
 }
 
 /**
+ * Standardize date to standard ISO 8601 date string (YYYY-MM-DD).
+ * Prevents local timezone string leakage like "GMT+0800" in template literals.
+ */
+function toIsoDateStr(val) {
+  if (!val) return '';
+  if (val instanceof Date) {
+    const y = val.getFullYear();
+    const m = String(val.getMonth() + 1).padStart(2, '0');
+    const d = String(val.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  const str = String(val).trim();
+  const match = str.match(/^\d{4}-\d{2}-\d{2}/);
+  if (match) return match[0];
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) {
+    const y = parsed.getFullYear();
+    const m = String(parsed.getMonth() + 1).padStart(2, '0');
+    const d = String(parsed.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  return str.slice(0, 10);
+}
+
+/**
  * Checks whether a reservation request conflicts with any active/scheduled
  * maintenance window on the room OR its parent building.
  */
 async function findMaintenanceConflict(connOrPool, { roomId, date, startTime, endTime }) {
-  const startTs = `${date} ${String(startTime).slice(0, 8)}`;
-  const endTs = `${date} ${String(endTime).slice(0, 8)}`;
+  const cleanDate = toIsoDateStr(date);
+  const cleanStart = String(startTime || '00:00:00').slice(0, 8);
+  const cleanEnd = String(endTime || '23:59:59').slice(0, 8);
+  const startTs = `${cleanDate} ${cleanStart}`;
+  const endTs = `${cleanDate} ${cleanEnd}`;
 
   const { rows } = await connOrPool.query(
     `SELECT m.id, m.target_type, m.room_id, m.building_id, m.title, m.description,
@@ -328,8 +356,9 @@ async function enrichRoomsWithMaintenance(rooms, targetDate = null) {
     }
   }
 
-  const dayStartMs = targetDate ? new Date(`${targetDate}T00:00:00`).getTime() : null;
-  const dayEndMs = targetDate ? new Date(`${targetDate}T23:59:59`).getTime() : null;
+  const cleanTargetDate = targetDate ? toIsoDateStr(targetDate) : null;
+  const dayStartMs = cleanTargetDate ? new Date(`${cleanTargetDate}T00:00:00`).getTime() : null;
+  const dayEndMs = cleanTargetDate ? new Date(`${cleanTargetDate}T23:59:59`).getTime() : null;
 
   return rooms.map((room) => {
     const applicable = maintLogs.filter(

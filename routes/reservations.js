@@ -470,11 +470,15 @@ router.patch('/:id/decision', requireStaff, async (req, res, next) => {
     }
 
     if (normalizedStatus === 'APPROVED') {
+      const resDateIso = toDateIso(reservation.res_date);
+      const startTimeStr = String(reservation.start_time).slice(0, 8);
+      const endTimeStr = String(reservation.end_time).slice(0, 8);
+
       const maintConflict = await findMaintenanceConflict(conn, {
         roomId: reservation.room_id,
-        date: reservation.res_date,
-        startTime: reservation.start_time,
-        endTime: reservation.end_time
+        date: resDateIso,
+        startTime: startTimeStr,
+        endTime: endTimeStr
       });
       if (maintConflict) {
         const err = new Error(
@@ -487,9 +491,9 @@ router.patch('/:id/decision', requireStaff, async (req, res, next) => {
 
       const conflict = await findConflict(conn, {
         roomId: reservation.room_id,
-        date: reservation.res_date,
-        startTime: reservation.start_time,
-        endTime: reservation.end_time,
+        date: resDateIso,
+        startTime: startTimeStr,
+        endTime: endTimeStr,
         excludeId: reservation.id
       });
       if (conflict) {
