@@ -1204,8 +1204,36 @@ function renderNavbar(user, active) {
           <hr class="dropdown-divider" />`
     : `          <hr class="dropdown-divider" />`;
 
+  const chevronSvg = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+
   const userArea = user
-    ? `\n      <div class="user-profile-wrapper d-inline-flex align-items-center gap-0 position-relative" id="user-profile-wrapper">\n        <button type="button" class="profile-pill" id="profile-pill" aria-haspopup="true" aria-expanded="false">\n          <span class="avatar-circle" id="profile-avatar">${avatarCircleContent}</span>\n          <span class="profile-name" id="profile-name">${escapeHtml(user.full_name || 'User')}</span>\n          <span class="role-badge" id="profile-role">${String(user.role || 'STUDENT').toUpperCase()}</span>\n          <span class="dropdown-arrow">▼</span>\n        </button>\n        <div class="profile-dropdown-menu" id="profile-dropdown-menu" hidden>\n          <div class="dropdown-section">\n            <div class="dropdown-section-title">Your Account</div>\n            <button type="button" class="dropdown-item" id="menu-account-settings">\n              <span class="item-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>\n              <span class="item-label">Account Settings</span>\n            </button>\n            <button type="button" class="dropdown-item" id="menu-change-password">\n              <span class="item-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>\n              <span class="item-label">Change Password</span>\n            </button>\n          </div>\n${adminSectionNewStyle}\n          <button type="button" class="dropdown-item dropdown-item-danger" id="menu-logout">\n            <span class="item-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>\n            <span class="item-label">Log Out</span>\n          </button>\n        </div>\n      </div>`
+    ? `
+      <div class="user-profile-wrapper d-inline-flex align-items-center position-relative" id="user-profile-wrapper">
+        <button type="button" class="profile-pill" id="profile-pill" aria-haspopup="true" aria-expanded="false" title="Account Menu">
+          <span class="avatar-circle" id="profile-avatar">${avatarCircleContent}</span>
+          <span class="profile-name" id="profile-name">${escapeHtml(user.full_name || 'User')}</span>
+          <span class="role-badge role-${String(user.role || 'student').toLowerCase()}" id="profile-role">${String(user.role || 'STUDENT').toUpperCase()}</span>
+          <span class="dropdown-arrow" id="dropdown-arrow">${chevronSvg}</span>
+        </button>
+        <div class="profile-dropdown-menu" id="profile-dropdown-menu" hidden>
+          <div class="dropdown-section">
+            <div class="dropdown-section-title">Your Account</div>
+            <button type="button" class="dropdown-item" id="menu-account-settings">
+              <span class="item-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+              <span class="item-label">Account Settings</span>
+            </button>
+            <button type="button" class="dropdown-item" id="menu-change-password">
+              <span class="item-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+              <span class="item-label">Change Password</span>
+            </button>
+          </div>
+${adminSectionNewStyle}
+          <button type="button" class="dropdown-item dropdown-item-danger" id="menu-logout">
+            <span class="item-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>
+            <span class="item-label">Log Out</span>
+          </button>
+        </div>
+      </div>`
     : isPublicLanding
       ? `
       <div class="d-inline-flex align-items-center gap-2">
@@ -1222,7 +1250,7 @@ function renderNavbar(user, active) {
   const isFil = savedLocale === 'fil-PH';
   const checkMarkSvg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
   const languageControl = `
-    <div class="language-dropdown-wrapper position-relative d-inline-flex align-items-center me-2" id="language-dropdown-wrapper">
+    <div class="language-dropdown-wrapper position-relative d-inline-flex align-items-center" id="language-dropdown-wrapper">
       <button type="button" class="language-dropdown-toggle" id="language-dropdown-toggle" aria-haspopup="true" aria-expanded="false" title="Select language">
         <span class="language-picker-icon" aria-hidden="true">文</span>
         <span class="language-current-label" id="language-current-label">${isFil ? 'FIL' : 'EN'}</span>
@@ -1250,7 +1278,7 @@ function renderNavbar(user, active) {
 
   host.innerHTML = `
     <nav class="navbar navbar-expand-lg navbar-dark portal-navbar${navLinks ? '' : ' portal-navbar-slim'}">
-      <div class="container portal-nav-inner">
+      <div class="container-fluid portal-nav-inner px-3 px-xl-4">
         <a class="navbar-brand navbar-brand-hornet me-lg-3" href="${user && user.role === 'admin' ? '/admin-dashboard.html' : user ? '/dashboard.html' : '/#overview'}">
           <img class="cspc-logo hornet-logo" src="/img/hornet-logo.jpg" alt="HORNET logo" />
           <span class="brand-text">

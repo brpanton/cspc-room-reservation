@@ -402,3 +402,25 @@ CREATE INDEX IF NOT EXISTS idx_advisories_is_active           ON advisories(is_a
 CREATE INDEX IF NOT EXISTS idx_advisories_schedule_window     ON advisories(start_time, end_time);
 CREATE INDEX IF NOT EXISTS idx_advisories_expected_completion ON advisories(expected_completion);
 CREATE INDEX IF NOT EXISTS idx_advisories_updated_at          ON advisories(updated_at DESC);
+
+-- -------------------------------------------------------------
+-- Laboratory equipment issue reports filed by users for reserved rooms.
+-- -------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS lab_reports (
+  id             SERIAL PRIMARY KEY,
+  user_id        INT          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reservation_id INT          NOT NULL REFERENCES reservations(id) ON DELETE CASCADE,
+  room_id        INT          NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+  equipment_name VARCHAR(120) NOT NULL,
+  description    TEXT         NOT NULL,
+  image_url      VARCHAR(255) DEFAULT NULL,
+  status         VARCHAR(30)  NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending', 'In Progress', 'Resolved')),
+  created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_lab_reports_res     ON lab_reports(reservation_id);
+CREATE INDEX IF NOT EXISTS idx_lab_reports_room    ON lab_reports(room_id);
+CREATE INDEX IF NOT EXISTS idx_lab_reports_user    ON lab_reports(user_id);
+CREATE INDEX IF NOT EXISTS idx_lab_reports_status  ON lab_reports(status);
+CREATE INDEX IF NOT EXISTS idx_lab_reports_created ON lab_reports(created_at DESC);
+

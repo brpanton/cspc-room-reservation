@@ -777,6 +777,101 @@
     </div>
   </div>
 
+  <!-- Laboratory Issue Report Modal -->
+  <div class="modal fade profile-modal" id="report-issue-modal" tabindex="-1" aria-labelledby="report-issue-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <div class="hornet-brand-header hornet-brand-sm mb-2">
+              <div class="hornet-brand-badge">
+                <img src="/assets/hornet-logo.png" alt="Hornet Laboratory Reservation Logo" class="hornet-brand-logo" onerror="this.onerror=null;this.src='/img/hornet-logo.jpg';" />
+              </div>
+              <div class="hornet-brand-text">
+                <span class="hornet-brand-title">HORNET</span>
+                <span class="hornet-brand-subtitle">Laboratory Reservation</span>
+              </div>
+            </div>
+            <span class="profile-modal-kicker">Equipment &amp; Facilities</span>
+            <h5 class="modal-title fw-semibold" id="report-issue-title">Report Laboratory Issue</h5>
+            <p class="text-muted-sm mb-0">Report malfunctioning PCs, monitors, air conditioning, or hardware in your booked laboratory room.</p>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div id="report-alert" class="alert d-none mb-3" role="alert"></div>
+
+          <form id="report-issue-form" novalidate enctype="multipart/form-data">
+            <input type="hidden" id="report-reservation-id" name="reservation_id" value="" />
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label text-muted-sm fw-semibold">Laboratory / Room</label>
+                <input type="text" class="form-control" id="report-room-name" readonly disabled />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label text-muted-sm fw-semibold">Booking Reference / Date</label>
+                <input type="text" class="form-control" id="report-booking-date" readonly disabled />
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold" for="report-equipment-name">
+                Equipment / Item Name <span class="text-danger">*</span>
+              </label>
+              <input type="text" class="form-control" id="report-equipment-name" name="equipment_name"
+                     placeholder="e.g. PC-04, Projector, Split-type Aircon, Monitor #12" required maxlength="120" />
+              <div class="form-text text-muted-sm">Specify the unit number, PC tag, or device type.</div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold" for="report-description">
+                Issue Description <span class="text-danger">*</span>
+              </label>
+              <textarea class="form-control" id="report-description" name="description" rows="4"
+                        placeholder="Detail the malfunction, physical damage, power issue, or error message encountered..." required maxlength="3000"></textarea>
+              <div class="form-text text-muted-sm">Provide helpful context so lab technicians can quickly diagnose and resolve the issue.</div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold" for="report-image-file">
+                Photo Proof <span class="text-muted-sm font-monospace fw-normal">(Optional, max 5MB)</span>
+              </label>
+              <input type="file" class="form-control" id="report-image-file" name="image"
+                     accept="image/png,image/jpeg,image/webp" capture="environment" />
+              <div class="form-text text-muted-sm">Capture a live photo with your camera or select an image file (PNG, JPEG, WebP).</div>
+
+              <!-- Live preview container -->
+              <div id="report-preview-container" class="mt-3 d-none">
+                <div class="d-flex align-items-center gap-3 p-2 rounded border border-secondary border-opacity-25 bg-dark bg-opacity-50">
+                  <img id="report-preview-img" src="" alt="Issue photo proof preview" class="rounded object-fit-cover" style="width: 72px; height: 72px; max-width: 72px;" />
+                  <div class="flex-grow-1 min-w-0">
+                    <div class="small fw-semibold text-truncate text-white" id="report-preview-filename">image.jpg</div>
+                    <div class="text-muted-sm small" id="report-preview-size">0 KB</div>
+                  </div>
+                  <button type="button" class="btn btn-sm btn-outline-danger" id="report-remove-image-btn" title="Remove photo">
+                    Remove
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 pt-2 border-top border-secondary border-opacity-25">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-primary px-4 fw-semibold" id="report-submit-btn">
+                <span class="report-btn-text">Submit Report</span>
+                <span class="report-btn-spinner d-none">
+                  <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                  Uploading...
+                </span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/js/app.js?v=20261110-nav1"></script>
   <script src="/js/cookie-consent.js"></script>

@@ -55,7 +55,7 @@ setInterval(() => {
     if (!host || host.innerHTML.trim()) return;
     host.innerHTML = `
       <nav class="navbar navbar-expand-lg navbar-dark portal-navbar">
-        <div class="container portal-nav-inner">
+        <div class="container-fluid portal-nav-inner px-3 px-xl-4">
           <a class="navbar-brand navbar-brand-hornet" href="/admin-dashboard.html">
             <span class="brand-text"><span class="brand-title">CSPC Lab & Room Reservation</span></span>
           </a>
@@ -248,6 +248,10 @@ setInterval(() => {
   const usersBody = document.getElementById('users-body');
   const adminsBody = document.getElementById('admins-body');
   const supportBody = document.getElementById('support-body');
+  const reportsBody = document.getElementById('reports-body');
+  const reportsSearchInput = document.getElementById('reports-search');
+  const reportsStatusFilter = document.getElementById('reports-status-filter');
+  const reportsPendingBadge = document.getElementById('reports-pending-badge');
 
   /* ------------------------------------------------------ reservation overview */
 
@@ -418,7 +422,8 @@ setInterval(() => {
     });
   }
 
-  window.PortalRefreshAdminDashboard = () => Promise.all([loadStats(), loadReservations(), loadRooms()]);
+  window.PortalRefreshAdminDashboard = () => Promise.all([loadStats(), loadReservations(), loadRooms(), loadReports(false)]);
+  window.PortalRefreshAdminReports = () => loadReports(false);
   window.PortalGetAdminReservations = () => state.items;
 
   const modalEl = document.getElementById('decision-modal');
@@ -1213,6 +1218,232 @@ setInterval(() => {
     }
   }
 
+  /* ------------------------------------------------------ issue reports */
+
+  let currentReportStatus = 'all';
+  let currentReportSearch = '';
+  let reportsCache = [];
+  let reportsSearchTimeout = null;
+
+  function reportStatusTone(status) {
+    const s = String(status || '').toLowerCase();
+    if (s === 'resolved') return 'success';
+    if (s === 'in progress') return 'info';
+    return 'warning';
+  }
+
+  function updateReportsPendingBadge(count) {
+    if (!reportsPendingBadge) return;
+    const num = Number(count) || 0;
+    reportsPendingBadge.textContent = String(num);
+    if (num > 0) {
+      reportsPendingBadge.classList.remove('d-none');
+    } else {
+      reportsPendingBadge.classList.add('d-none');
+    }
+  }
+
+  async function loadReports(showLoading = true) {
+    if (!reportsBody) return;
+    if (showLoading) {
+      reportsBody.innerHTML = `<tr><td colspan="8" class="text-center text-muted-sm py-4"><span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading issue reports...</td></tr>`;
+    }
+
+    try {
+      const params = new URLSearchParams();
+      if (currentReportStatus && currentReportStatus !== 'all') {
+        params.set('status', currentReportStatus);
+      }
+      if (currentReportSearch) {
+        params.set('search', currentReportSearch);
+      }
+
+      const data = await api(`/api/admin/reports?${params.toString()}`);
+      reportsCache = data.reports || [];
+      updateReportsPendingBadge(data.pending_count ?? 0);
+
+      if (!reportsCache.length) {
+        const msg = currentReportSearch || currentReportStatus !== 'all'
+          ? 'No reports matching the selected filters.'
+          : 'No laboratory equipment issue reports submitted yet.';
+        reportsBody.innerHTML = emptyRow(8, msg);
+        return;
+      }
+
+      reportsBody.innerHTML = reportsCache.map((report) => {
+        const tone = reportStatusTone(report.status);
+        const photoCol = report.image_url
+          ? `<button type="button" class="btn p-0 border-0 bg-transparent report-thumb-btn" data-report-id="${report.id}" title="Click to view photo proof">
+               <img src="${escapeHtml(report.image_url)}" alt="Photo proof" class="rounded object-fit-cover shadow-sm border border-secondary" style="width: 50px; height: 50px; cursor: pointer; transition: transform 0.15s ease;" />
+             </button>`
+          : `<span class="badge bg-secondary-subtle text-muted-sm" style="font-size: 0.72rem;">No photo</span>`;
+
+        const locationParts = [report.room_name, report.building_name, report.room_floor].filter(Boolean);
+        const locationStr = locationParts.map(escapeHtml).join(' &middot; ');
+        const dateStr = report.created_at ? new Date(report.created_at).toLocaleDateString(P.getLocale?.() || 'en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-';
+        const timeStr = report.created_at ? new Date(report.created_at).toLocaleTimeString(P.getLocale?.() || 'en-US', { hour: '2-digit', minute: '2-digit' }) : '';
+
+        return `
+          <tr data-report-row="${report.id}">
+            <td class="text-muted-sm fw-semibold">#${report.id}</td>
+            <td class="text-center">${photoCol}</td>
+            <td>
+              <div class="fw-semibold text-white">${escapeHtml(report.room_name || 'Laboratory Room')}</div>
+              <div class="text-muted-sm small">${escapeHtml(report.building_name || '')}${report.room_floor ? ` &middot; ${escapeHtml(report.room_floor)}` : ''}</div>
+              <div class="text-muted-sm" style="font-size: 0.72rem;">Reservation #${report.reservation_id}${report.transaction_code ? ` &middot; ${escapeHtml(report.transaction_code)}` : ''}</div>
+            </td>
+            <td>
+              <span class="badge bg-dark border border-warning text-warning fw-semibold px-2 py-1">${escapeHtml(report.equipment_name || 'Equipment')}</span>
+            </td>
+            <td>
+              <div style="max-width: 280px; white-space: normal; word-break: break-word;" class="small text-white-50">
+                ${escapeHtml(report.description || '-')}
+              </div>
+            </td>
+            <td>
+              <div class="fw-semibold small text-white">${escapeHtml(report.user_name || 'User')}</div>
+              <div class="text-muted-sm" style="font-size: 0.72rem;">${escapeHtml(report.user_email || report.user_school_id || '-')}</div>
+            </td>
+            <td>
+              <div class="small text-white">${escapeHtml(dateStr)}</div>
+              <div class="text-muted-sm" style="font-size: 0.72rem;">${escapeHtml(timeStr)}</div>
+            </td>
+            <td>
+              <div class="d-flex align-items-center gap-1">
+                <select class="form-select form-select-sm report-status-select border-${tone} text-${tone} fw-semibold"
+                        data-report-id="${report.id}"
+                        aria-label="Change report status"
+                        style="min-width: 130px; background-color: rgba(15, 23, 42, 0.85);">
+                  <option value="Pending" ${report.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                  <option value="In Progress" ${report.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+                  <option value="Resolved" ${report.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
+                </select>
+                <span class="spinner-border spinner-border-sm text-primary d-none report-status-spinner ms-1" role="status" aria-hidden="true"></span>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      // Attach Lightbox triggers
+      reportsBody.querySelectorAll('.report-thumb-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const id = Number(btn.getAttribute('data-report-id'));
+          const item = reportsCache.find((r) => Number(r.id) === id);
+          if (!item) return;
+          openReportLightbox(item);
+        });
+      });
+
+      // Attach Status Change triggers
+      reportsBody.querySelectorAll('.report-status-select').forEach((sel) => {
+        sel.addEventListener('change', async () => {
+          const id = Number(sel.getAttribute('data-report-id'));
+          const newStatus = sel.value;
+          const container = sel.closest('td');
+          const spinner = container ? container.querySelector('.report-status-spinner') : null;
+          const prevStatus = (reportsCache.find((r) => Number(r.id) === id) || {}).status || 'Pending';
+
+          sel.disabled = true;
+          if (spinner) spinner.classList.remove('d-none');
+
+          try {
+            const res = await api(`/api/admin/reports/${id}/status`, {
+              method: 'PATCH',
+              body: { status: newStatus }
+            });
+
+            toastOk(res.message || `Report status updated to ${newStatus}.`);
+
+            // Update in cache
+            const target = reportsCache.find((r) => Number(r.id) === id);
+            if (target) target.status = newStatus;
+
+            // Update select styling
+            const newTone = reportStatusTone(newStatus);
+            sel.className = `form-select form-select-sm report-status-select border-${newTone} text-${newTone} fw-semibold`;
+
+            // Refresh pending count
+            const freshData = await api('/api/admin/reports');
+            updateReportsPendingBadge(freshData.pending_count ?? 0);
+          } catch (err) {
+            sel.value = prevStatus;
+            toastError(err.message || 'Failed to update report status.');
+          } finally {
+            sel.disabled = false;
+            if (spinner) spinner.classList.add('d-none');
+          }
+        });
+      });
+    } catch (err) {
+      reportsBody.innerHTML = emptyRow(8, `Could not load issue reports: ${escapeHtml(err.message)}`);
+    }
+  }
+
+  function openReportLightbox(report) {
+    const modalEl = document.getElementById('report-image-lightbox-modal');
+    if (!modalEl) return;
+
+    const imgEl = document.getElementById('report-lightbox-img');
+    const titleEl = document.getElementById('report-lightbox-title');
+    const subtitleEl = document.getElementById('report-lightbox-subtitle');
+    const equipEl = document.getElementById('report-lightbox-equipment');
+    const descEl = document.getElementById('report-lightbox-desc');
+    const statusEl = document.getElementById('report-lightbox-status');
+
+    if (imgEl) imgEl.src = report.image_url || '';
+    if (titleEl) titleEl.textContent = `Report #${report.id} Photo Proof`;
+    if (subtitleEl) {
+      subtitleEl.textContent = `${report.room_name || 'Laboratory Room'} (${report.building_name || ''}${report.room_floor ? ' · ' + report.room_floor : ''}) · Res #${report.reservation_id}`;
+    }
+    if (equipEl) equipEl.textContent = report.equipment_name || 'Equipment';
+    if (descEl) descEl.textContent = report.description || 'No description provided.';
+    if (statusEl) {
+      const tone = reportStatusTone(report.status);
+      statusEl.textContent = report.status || 'Pending';
+      statusEl.className = `badge rounded-pill text-bg-${tone}`;
+    }
+
+    const bsModal = window.bootstrap ? (bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl)) : null;
+    if (bsModal) bsModal.show();
+  }
+
+  // Filter Pills setup
+  if (reportsStatusFilter) {
+    reportsStatusFilter.querySelectorAll('[data-report-status]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        reportsStatusFilter.querySelectorAll('[data-report-status]').forEach((b) => {
+          b.classList.remove('active');
+          if (b.dataset.reportStatus === 'all') b.className = 'btn btn-outline-primary';
+          else if (b.dataset.reportStatus === 'Pending') b.className = 'btn btn-outline-warning';
+          else if (b.dataset.reportStatus === 'In Progress') b.className = 'btn btn-outline-info';
+          else if (b.dataset.reportStatus === 'Resolved') b.className = 'btn btn-outline-success';
+        });
+
+        btn.classList.add('active');
+        const st = btn.getAttribute('data-report-status');
+        if (st === 'all') btn.className = 'btn btn-primary active';
+        else if (st === 'Pending') btn.className = 'btn btn-warning active';
+        else if (st === 'In Progress') btn.className = 'btn btn-info active';
+        else if (st === 'Resolved') btn.className = 'btn btn-success active';
+
+        currentReportStatus = st;
+        loadReports();
+      });
+    });
+  }
+
+  // Search input with debounce
+  if (reportsSearchInput) {
+    reportsSearchInput.addEventListener('input', () => {
+      clearTimeout(reportsSearchTimeout);
+      reportsSearchTimeout = setTimeout(() => {
+        currentReportSearch = reportsSearchInput.value.trim();
+        loadReports();
+      }, 300);
+    });
+  }
+
   /* ------------------------------------------------------ init */
 
   document.querySelectorAll('.admin-nav-btn').forEach((btn) => {
@@ -1362,5 +1593,5 @@ setInterval(() => {
     });
   }
 
-  await Promise.all([loadStats(), loadOverviewCounters(), loadReservations(), loadBuildings(), loadRooms(), loadUsers(), loadAdmins(), loadSupportTickets()]);
+  await Promise.all([loadStats(), loadOverviewCounters(), loadReservations(), loadBuildings(), loadRooms(), loadUsers(), loadAdmins(), loadSupportTickets(), loadReports()]);
 })();

@@ -39,6 +39,10 @@
           <button class="admin-nav-btn" type="button" data-target="#pane-support">
             Support
           </button>
+          <button class="admin-nav-btn d-flex align-items-center justify-content-between" type="button" data-target="#pane-reports" id="nav-btn-reports">
+            <span>Issue Reports</span>
+            <span class="badge bg-danger rounded-pill ms-2 d-none" id="reports-pending-badge">0</span>
+          </button>
         </nav>
 
         <div class="admin-sidebar-footer">
@@ -395,6 +399,47 @@
               </thead>
               <tbody id="support-body">
                 <tr><td colspan="9" class="text-center text-muted-sm py-4">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-pane fade" id="pane-reports" role="tabpanel">
+        <div class="card">
+          <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+              <span class="fw-semibold">Laboratory Equipment &amp; Issue Reports</span>
+              <span class="text-muted-sm d-block small">Malfunctions, hardware damage, and equipment reports submitted by users</span>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <div class="input-group input-group-sm" style="max-width: 250px;">
+                <input type="search" class="form-control" id="reports-search" placeholder="Search equipment, room, user..." />
+              </div>
+              <div class="btn-group btn-group-sm" role="group" id="reports-status-filter">
+                <button type="button" class="btn btn-outline-primary active" data-report-status="all">All</button>
+                <button type="button" class="btn btn-outline-warning" data-report-status="Pending">Pending</button>
+                <button type="button" class="btn btn-outline-info" data-report-status="In Progress">In Progress</button>
+                <button type="button" class="btn btn-outline-success" data-report-status="Resolved">Resolved</button>
+              </div>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-portal table-hover mb-0 align-middle">
+              <thead>
+                <tr>
+                  <th style="width: 45px;">#</th>
+                  <th style="width: 80px;">Photo</th>
+                  <th>Laboratory / Room</th>
+                  <th>Equipment / Item</th>
+                  <th>Issue Description</th>
+                  <th>Reported By</th>
+                  <th>Date &amp; Time</th>
+                  <th style="width: 175px;">Status</th>
+                </tr>
+              </thead>
+              <tbody id="reports-body">
+                <tr><td colspan="8" class="text-center text-muted-sm py-4">Loading issue reports...</td></tr>
               </tbody>
             </table>
           </div>
@@ -978,6 +1023,42 @@
         <div class="modal-footer border-0">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
           <button type="button" class="btn btn-primary" onclick="window.print()">Print Ticket</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Report Image Lightbox Modal -->
+  <div class="modal fade" id="report-image-lightbox-modal" tabindex="-1" aria-labelledby="report-lightbox-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content" style="background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(59, 130, 246, 0.35); border-radius: 18px; backdrop-filter: blur(20px);">
+        <div class="modal-header border-bottom border-secondary border-opacity-25">
+          <div>
+            <div class="hornet-brand-header hornet-brand-sm mb-1">
+              <div class="hornet-brand-badge">
+                <img src="/assets/hornet-logo.png" alt="Hornet Laboratory Reservation Logo" class="hornet-brand-logo" onerror="this.onerror=null;this.src='/img/hornet-logo.jpg';" />
+              </div>
+              <div class="hornet-brand-text">
+                <span class="hornet-brand-title">HORNET</span>
+                <span class="hornet-brand-subtitle">Laboratory Reservation</span>
+              </div>
+            </div>
+            <h5 class="modal-title fw-semibold text-white" id="report-lightbox-title">Photo Proof</h5>
+            <p class="text-muted-sm small mb-0" id="report-lightbox-subtitle">Laboratory Equipment Issue</p>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body text-center p-3">
+          <div class="mb-3 d-flex justify-content-center bg-dark bg-opacity-75 rounded p-2">
+            <img id="report-lightbox-img" src="" alt="Full-size issue proof" class="img-fluid rounded shadow" style="max-height: 65vh; object-fit: contain;" />
+          </div>
+          <div class="p-3 rounded bg-dark bg-opacity-50 border border-secondary border-opacity-25 text-start">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="fw-bold text-white fs-6" id="report-lightbox-equipment">Equipment</span>
+              <span class="badge" id="report-lightbox-status">Status</span>
+            </div>
+            <p class="text-muted-sm small mb-0" id="report-lightbox-desc">Description</p>
+          </div>
         </div>
       </div>
     </div>

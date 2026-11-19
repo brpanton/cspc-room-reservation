@@ -58,7 +58,7 @@
     if (!host) return;
     host.innerHTML = `
       <nav class="navbar navbar-expand-lg navbar-dark portal-navbar">
-        <div class="container portal-nav-inner">
+        <div class="container-fluid portal-nav-inner px-3 px-xl-4">
           <a class="navbar-brand navbar-brand-hornet" href="/dashboard.html">
             <span class="brand-text"><span class="brand-title">CSPC Lab & Room Reservation</span></span>
           </a>
@@ -228,6 +228,12 @@
           ? `<a href="/reservation-success.html?id=${r.id}" class="btn btn-sm btn-outline-success fw-semibold me-2" title="View & Print Official Ticket">Print Ticket</a>`
           : `<button type="button" class="btn btn-sm btn-outline-secondary me-2" disabled title="Your reservation request is pending administrator review. Ticket generation will be available once approved.">Ticket Pending</button>`;
 
+        const reportBtnHtml = isApproved ? `
+          <button type="button" class="btn btn-sm btn-outline-warning report-issue-btn me-2" data-id="${r.id}" title="Report malfunctioning equipment in this laboratory">
+            Report Issue
+          </button>
+        ` : '';
+
         const cancelBtnHtml = `
           <button type="button" class="btn btn-sm btn-outline-danger btn-cancel-active" data-id="${r.id}" title="Cancel reservation #${r.id}">
             Cancel Request
@@ -254,7 +260,8 @@
               </div>
               <div class="d-flex justify-content-between align-items-center pt-2 border-top border-secondary-subtle mt-2">
                 <span class="text-muted-small font-monospace">#${r.id}</span>
-                <div class="d-flex align-items-center">
+                <div class="d-flex align-items-center flex-wrap gap-1">
+                  ${reportBtnHtml}
                   ${ticketBtnHtml}
                   ${earlyBtnHtml}
                   ${cancelBtnHtml}
@@ -796,17 +803,29 @@
 
     bodyEl.innerHTML = filtered.map((r, index) => {
       const status = String(r.status || 'Pending');
+      const sUpper = status.toUpperCase();
       const canCancel = status.toLowerCase() === 'pending';
       const canEarlyOut = status === 'Approved' && r.can_early_checkout !== false;
+      const canReportIssue = sUpper === 'APPROVED' || sUpper === 'COMPLETED EARLY' || sUpper === 'TERMINATED BY ADMIN' || ['Active', 'Completed', 'Checked Out Early'].includes(r.session_status);
+
+      const reportBtnHtml = canReportIssue
+        ? '<button type="button" class="btn btn-sm btn-outline-warning report-issue-btn me-1" data-id="' + r.id + '" title="Report malfunctioning equipment in this laboratory">' +
+          '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' +
+          'Report Issue</button>'
+        : '';
 
       let actionBtns = '';
       if (canEarlyOut) {
         actionBtns =
+          '<div class="d-inline-flex align-items-center">' +
+          reportBtnHtml +
           '<button type="button" class="btn btn-sm btn-warning text-dark fw-semibold" data-early-checkout="' + r.id + '" title="Finish session early and free laboratory">' +
           'Check-Out Now' +
-          '</button>';
+          '</button></div>';
       } else if (canCancel) {
         actionBtns = '<button type="button" class="btn btn-sm btn-outline-danger cancel-btn" data-id="' + r.id + '" title="Cancel reservation #' + r.id + '">Cancel</button>';
+      } else if (reportBtnHtml) {
+        actionBtns = reportBtnHtml;
       } else {
         actionBtns = '<span class="text-muted-sm">&mdash;</span>';
       }
@@ -1429,8 +1448,206 @@
     });
   }
 
+  /* -------------------------------------------------------------
+     LABORATORY ISSUE REPORTING
+     ------------------------------------------------------------- */
+  function initIssueReporting() {
+    const modalEl = document.getElementById('report-issue-modal');
+    if (!modalEl) return;
+
+    const bsModal = window.bootstrap ? (bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl)) : null;
+    const form = document.getElementById('report-issue-form');
+    const resIdInput = document.getElementById('report-reservation-id');
+    const roomNameInput = document.getElementById('report-room-name');
+    const bookingDateInput = document.getElementById('report-booking-date');
+    const equipmentInput = document.getElementById('report-equipment-name');
+    const descriptionInput = document.getElementById('report-description');
+    const fileInput = document.getElementById('report-image-file');
+    const previewContainer = document.getElementById('report-preview-container');
+    const previewImg = document.getElementById('report-preview-img');
+    const previewFilename = document.getElementById('report-preview-filename');
+    const previewSize = document.getElementById('report-preview-size');
+    const removeImageBtn = document.getElementById('report-remove-image-btn');
+    const submitBtn = document.getElementById('report-submit-btn');
+    const btnText = submitBtn ? submitBtn.querySelector('.report-btn-text') : null;
+    const btnSpinner = submitBtn ? submitBtn.querySelector('.report-btn-spinner') : null;
+    const alertEl = document.getElementById('report-alert');
+
+    function resetModal() {
+      if (form) form.reset();
+      if (resIdInput) resIdInput.value = '';
+      if (roomNameInput) roomNameInput.value = '';
+      if (bookingDateInput) bookingDateInput.value = '';
+      if (previewContainer) previewContainer.classList.add('d-none');
+      if (previewImg) previewImg.src = '';
+      if (alertEl) {
+        alertEl.classList.add('d-none');
+        alertEl.textContent = '';
+      }
+    }
+
+    // Bind click delegation for report buttons
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('.report-issue-btn');
+      if (!btn) return;
+      e.preventDefault();
+      const id = Number(btn.getAttribute('data-id'));
+      const items = (state && state.items) || [];
+      const reservation = items.find((r) => Number(r.id) === id);
+      if (!reservation) {
+        toastError('Reservation details could not be found.');
+        return;
+      }
+
+      resetModal();
+
+      if (resIdInput) resIdInput.value = reservation.id;
+      if (roomNameInput) {
+        roomNameInput.value = (reservation.room_name || 'Laboratory Room') + (reservation.building_name ? ' — ' + reservation.building_name : '');
+      }
+      if (bookingDateInput) {
+        const tx = reservation.transaction_code ? reservation.transaction_code + ' · ' : '';
+        const d = formatDateShort(reservation.res_date);
+        const t = formatTime(reservation.start_time) + ' – ' + formatTime(reservation.end_time);
+        bookingDateInput.value = `${tx}${d} (${t})`;
+      }
+
+      if (bsModal) bsModal.show();
+    });
+
+    // File selection & live preview
+    if (fileInput) {
+      fileInput.addEventListener('change', () => {
+        const file = fileInput.files && fileInput.files[0];
+        if (!file) {
+          if (previewContainer) previewContainer.classList.add('d-none');
+          return;
+        }
+
+        // Validate max 5MB
+        if (file.size > 5 * 1024 * 1024) {
+          if (alertEl) {
+            alertEl.className = 'alert alert-danger mb-3';
+            alertEl.textContent = 'Selected photo exceeds the 5MB size limit. Please choose a smaller file.';
+            alertEl.classList.remove('d-none');
+          }
+          fileInput.value = '';
+          if (previewContainer) previewContainer.classList.add('d-none');
+          return;
+        }
+
+        // Validate image type
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+          if (alertEl) {
+            alertEl.className = 'alert alert-danger mb-3';
+            alertEl.textContent = 'Invalid file type. Please upload a JPEG, PNG, or WebP photo.';
+            alertEl.classList.remove('d-none');
+          }
+          fileInput.value = '';
+          if (previewContainer) previewContainer.classList.add('d-none');
+          return;
+        }
+
+        if (alertEl) alertEl.classList.add('d-none');
+
+        // Render preview thumbnail
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          if (previewImg) previewImg.src = ev.target.result;
+          if (previewFilename) previewFilename.textContent = file.name;
+          if (previewSize) {
+            const kb = (file.size / 1024).toFixed(1);
+            previewSize.textContent = kb > 1024 ? (file.size / (1024 * 1024)).toFixed(2) + ' MB' : kb + ' KB';
+          }
+          if (previewContainer) previewContainer.classList.remove('d-none');
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // Remove photo
+    if (removeImageBtn) {
+      removeImageBtn.addEventListener('click', () => {
+        if (fileInput) fileInput.value = '';
+        if (previewContainer) previewContainer.classList.add('d-none');
+        if (previewImg) previewImg.src = '';
+      });
+    }
+
+    // Submit form
+    if (form) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const resId = resIdInput ? resIdInput.value.trim() : '';
+        const eqName = equipmentInput ? equipmentInput.value.trim() : '';
+        const desc = descriptionInput ? descriptionInput.value.trim() : '';
+
+        if (!resId) {
+          toastError('Missing reservation reference.');
+          return;
+        }
+
+        if (!eqName || eqName.length < 2) {
+          if (alertEl) {
+            alertEl.className = 'alert alert-danger mb-3';
+            alertEl.textContent = 'Please enter the equipment or device name (at least 2 characters).';
+            alertEl.classList.remove('d-none');
+          }
+          if (equipmentInput) equipmentInput.focus();
+          return;
+        }
+
+        if (!desc || desc.length < 5) {
+          if (alertEl) {
+            alertEl.className = 'alert alert-danger mb-3';
+            alertEl.textContent = 'Please provide a description of the issue (at least 5 characters).';
+            alertEl.classList.remove('d-none');
+          }
+          if (descriptionInput) descriptionInput.focus();
+          return;
+        }
+
+        // Show spinner & disable button
+        if (submitBtn) submitBtn.disabled = true;
+        if (btnText) btnText.classList.add('d-none');
+        if (btnSpinner) btnSpinner.classList.remove('d-none');
+        if (alertEl) alertEl.classList.add('d-none');
+
+        try {
+          const formData = new FormData(form);
+          const response = await fetch('/api/reports', {
+            method: 'POST',
+            body: formData
+          });
+
+          const data = await response.json().catch(() => ({}));
+
+          if (!response.ok) {
+            throw new Error(data.error || 'Failed to submit report. Please try again.');
+          }
+
+          toastOk('Laboratory issue report submitted successfully! Admin has been notified.');
+          if (bsModal) bsModal.hide();
+          resetModal();
+        } catch (err) {
+          if (alertEl) {
+            alertEl.className = 'alert alert-danger mb-3';
+            alertEl.textContent = err.message;
+            alertEl.classList.remove('d-none');
+          }
+          toastError(err.message);
+        } finally {
+          if (submitBtn) submitBtn.disabled = false;
+          if (btnText) btnText.classList.remove('d-none');
+          if (btnSpinner) btnSpinner.classList.add('d-none');
+        }
+      });
+    }
+  }
+
   /* ------------------------------------------------------------- boot --- */
   initFilters();
   initActions();
+  initIssueReporting();
   await loadReservations();
 })();

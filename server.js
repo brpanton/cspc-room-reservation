@@ -41,6 +41,8 @@ const sessionOverrideRoutes = require('./routes/session-override');
 const { ensureSessionOverrideSchema } = require('./routes/session-override');
 const advisoryRoutes = require('./routes/advisory');
 const { ensureAdvisorySchema } = require('./routes/advisory');
+const reportsRoutes = require('./routes/reports');
+const { ensureLabReportsSchema } = require('./routes/reports');
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -95,6 +97,7 @@ app.use('/api/reservations', reservationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api', reportsRoutes);
 // Password recovery ("Forgot password?" -> OTP email -> reset). Separate file
 // for the flow, but same /api/auth prefix as register/login/change-password.
 app.use('/api/auth', passwordResetRoutes);
@@ -107,6 +110,12 @@ app.use('/uploads/avatars', express.static(path.join(__dirname, 'uploads', 'avat
   maxAge: '1d'
 }));
 app.use('/uploads/facilities', express.static(path.join(__dirname, 'uploads', 'facilities'), {
+  fallthrough: false,
+  index: false,
+  dotfiles: 'deny',
+  maxAge: '1d'
+}));
+app.use('/uploads/reports', express.static(path.join(__dirname, 'public', 'uploads', 'reports'), {
   fallthrough: false,
   index: false,
   dotfiles: 'deny',
@@ -243,7 +252,8 @@ async function start() {
     await ensureMaintenanceSchema();
     await ensureSessionOverrideSchema();
     await ensureAdvisorySchema();
-    console.log('[db] PostgreSQL connection established, maintenance, session override & advisory schemas ready.');
+    await ensureLabReportsSchema();
+    console.log('[db] PostgreSQL connection established, maintenance, session override, advisory & lab reports schemas ready.');
   } catch (err) {
     console.error('\n[db] Could not connect to PostgreSQL:', err.message);
     console.error('[db] Check your .env settings and make sure PostgreSQL is running.');
