@@ -368,6 +368,7 @@ body:not(.ticket-body) main.container {
   margin-left: auto;
   flex-wrap: nowrap;
   gap: 0.7rem;
+  padding-right: 1rem; /* keep the ADMIN role-badge from clipping the right edge */
 }
 
 @media (max-width: 575.98px) {
@@ -390,7 +391,7 @@ body:not(.ticket-body) main.container {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding-right: 0;
+  padding-right: 1rem; /* keep the ADMIN role-badge from clipping the right edge */
 }
 
 /* ------------------------------------------------ building search --- */
@@ -5746,6 +5747,128 @@ a,
 
 .modal-title { color: #fff; }
 
+/* ------------------------------------------------------------- contact modal --- */
+.contact-modal .modal-content {
+  background: linear-gradient(180deg, #0b192c, #0f2440);
+  border: 1px solid rgba(37, 117, 252, 0.30);
+  border-radius: 22px;
+  color: var(--cspc-ink);
+  box-shadow: 0 28px 60px -20px rgba(2, 6, 23, 0.98), var(--sheen);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+}
+.contact-modal .modal-header {
+  border-bottom: 1px solid rgba(37, 117, 252, 0.20);
+  padding: 1.05rem 1.25rem 0.85rem;
+}
+.contact-modal-header .contact-modal-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #7cb0ff;
+}
+.contact-modal .modal-title {
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  font-size: 1.35rem;
+}
+.contact-modal .modal-body {
+  padding: 1.05rem 1.25rem 1.1rem;
+}
+.contact-modal .btn-close {
+  filter: invert(1) grayscale(1) brightness(1.15);
+  opacity: 0.65;
+}
+.contact-modal .btn-close:hover { opacity: 1; }
+
+.contact-channel {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.85rem 1rem;
+  margin: 0 0 0.7rem;
+  border: 1px solid rgba(37, 117, 252, 0.14);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+.contact-channel:hover {
+  border-color: rgba(37, 117, 252, 0.45);
+  background: rgba(37, 117, 252, 0.08);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(37, 117, 252, 0.10);
+}
+.contact-channel:active { transform: translateY(0); }
+.contact-channel-icon {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  border-radius: 10px;
+  background: rgba(37, 117, 252, 0.12);
+  border: 1px solid rgba(37, 117, 252, 0.30);
+  color: #2575fc;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+.contact-channel-body { display: flex; flex-direction: column; gap: 0.06rem; min-width: 0; }
+.contact-channel-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #93a4bd;
+}
+.contact-channel-value {
+  color: #e8f0fb;
+  font-weight: 700;
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+.contact-channel-value a.contact-link {
+  color: #2575fc;
+  text-decoration: none;
+  font-weight: 800;
+}
+.contact-channel-value a.contact-link:hover { color: #7cb0ff; text-decoration: underline; }
+.contact-channel-value .office-note {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #93a4bd;
+}
+
+.contact-channel .copy-btn {
+  font-size: 0.7rem;
+  padding: 0.16rem 0.55rem;
+  border: 1px solid rgba(37, 117, 252, 0.42);
+  background: rgba(37, 117, 252, 0.10);
+  color: #7cb0ff;
+  border-radius: 8px;
+  margin-left: auto;
+  white-space: nowrap;
+  line-height: 1.4;
+  transition: all 0.12s ease;
+}
+.contact-channel .copy-btn:hover {
+  background: rgba(37, 117, 252, 0.18);
+  color: #fff;
+  border-color: rgba(37, 117, 252, 0.65);
+}
+.contact-channel .copy-btn.copied {
+  background: rgba(34, 197, 94, 0.14);
+  color: #4ade80;
+  border-color: rgba(34, 197, 94, 0.5);
+}
+
 .modal-body {
   padding: 1.5rem 2rem;
 }
@@ -5847,7 +5970,10 @@ body:not(.modal-open) {
 /* ---------------------------------------------------------------- toasts --- */
 .toast-host {
   position: fixed;
-  top: 1rem;
+  /* Sit below the sticky navbar so toasts never cover the user profile pill
+     or any other top-right navbar control. --navbar-height is measured by
+     app.js when the navbar renders; 72px is the fallback. */
+  top: calc(var(--navbar-height, 72px) + 0.5rem);
   right: 1rem;
   z-index: 1080;
   width: min(360px, calc(100vw - 2rem));
@@ -6141,8 +6267,10 @@ body:not(.modal-open) {
 .profile-pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.45rem 0.75rem 0.45rem 0.55rem;
+  justify-content: center;
+  gap: 0.85rem;
+  padding: 0.5rem 0.95rem 0.5rem 0.7rem;
+  min-width: 135px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 999px;
@@ -6174,9 +6302,9 @@ body:not(.modal-open) {
 }
 
 .avatar-circle {
-  width: 2.1rem;
-  height: 2.1rem;
-  min-width: 2.1rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  min-width: 2.25rem;
   border-radius: 50%;
   background: linear-gradient(135deg, #3b82f6, #1d4ed8);
   color: #fff;
@@ -6184,7 +6312,7 @@ body:not(.modal-open) {
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 1rem;
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
 }
 

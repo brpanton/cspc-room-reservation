@@ -1169,16 +1169,25 @@ function renderNavbar(user, active) {
 
   let navLinks = '';
   if (user) {
-    // Top header keeps only Home + Admin + About Us; the left
-    // Control Panel sidebar owns all per-role page navigation.
-    navLinks += link('/', 'Home', 'home');
-    navLinks += link(isAdmin ? '/admin-dashboard.html' : '/dashboard.html', 'Dashboard', 'dashboard');
-    navLinks += link('/rooms-status.html', 'Room Status', 'rooms');
-    navLinks += '<li class="nav-item"><button class="nav-link nav-link-button" type="button" id="btn-about-us">About Us</button></li>';
+    if (isAdmin) {
+      // Admin top bar keeps only Home + Dashboard. Room Status, About Us and
+      // Contact Us are removed; the left Control Panel sidebar owns all
+      // per-role navigation and the HORNET logo links back to the dashboard.
+      navLinks += link('/', 'Home', 'home');
+      navLinks += link('/admin-dashboard.html', 'Dashboard', 'dashboard');
+    } else {
+      // Authenticated non-admin users keep the full top nav links.
+      navLinks += link('/', 'Home', 'home');
+      navLinks += link('/dashboard.html', 'Dashboard', 'dashboard');
+      navLinks += link('/rooms-status.html', 'Room Status', 'rooms');
+      navLinks += '<li class="nav-item"><button class="nav-link nav-link-button" type="button" id="btn-about-us">About Us</button></li>';
+      navLinks += '<li class="nav-item"><button class="nav-link nav-link-button" type="button" id="btn-contact-us">Contact Us</button></li>';
+    }
   } else {
     // Guest / pre-login navbar: keep it minimal — Home + About Us only.
     navLinks += link('/#overview', 'Home', 'home');
     navLinks += '<li class="nav-item"><button class="nav-link nav-link-button" type="button" id="btn-about-us">About Us</button></li>';
+    navLinks += '<li class="nav-item"><button class="nav-link nav-link-button" type="button" id="btn-contact-us">Contact Us</button></li>';
   }
 
 
@@ -1268,9 +1277,27 @@ function renderNavbar(user, active) {
           </div>
           <div class="navbar-account-area portal-nav-utility ms-lg-auto d-flex align-items-center">${languageControl}${userArea}</div>
         </div>` : `
-        <div class="navbar-account-area portal-nav-utility portal-nav-utility-slim ms-auto d-flex align-items-center">${languageControl}${userArea}</div>`}
+        <div class="d-flex align-items-center gap-3 flex-nowrap">
+          <div class="navbar-search d-flex align-items-center">
+            <div class="search-wrapper position-relative">
+              <input type="search" id="building-search" class="building-search-input" placeholder="Search buildings…" aria-label="Search buildings" autocomplete="off" />
+              <span class="search-icon" aria-hidden="true">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              </span>
+              <div id="building-search-results" class="building-search-dropdown"></div>
+            </div>
+          </div>
+          <div class="navbar-account-area portal-nav-utility portal-nav-utility-slim d-flex align-items-center">${languageControl}${userArea}</div>
+        </div>`}
       </div>
     </nav>`;
+
+  /* Measure the rendered navbar so toasts stack below it instead of
+     overlapping the profile pill and other top-right navbar controls. */
+  const navEl = host.querySelector('.portal-navbar');
+  if (navEl) {
+    document.documentElement.style.setProperty('--navbar-height', `${navEl.offsetHeight}px`);
+  }
 
   // Apply current locale to newly rendered navbar text
   localizeTree();
@@ -1341,6 +1368,103 @@ function renderNavbar(user, active) {
       const modalEl = document.getElementById(MODAL_ID);
       const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
       modal.show();
+    });
+  })();
+
+  /* ------------------------------------------------ Contact Us modal (all pages) --- */
+  (function initContactUs() {
+    const MODAL_ID = 'contact-us-modal';
+    const BTN_ID = 'btn-contact-us';
+    const EMAIL = 'hornet.support@cspc.edu.ph';
+
+    const mailSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>`;
+    const fbSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>`;
+    const xSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"/></svg>`;
+    const officeSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 20v-8l4-4 4 4 4-4 4 4v8"/><path d="M10 20v-6h4v6"/></svg>`;
+
+    const modalHtml = `<!-- Contact Us Modal (injected by app.js when a page lacks it) -->
+<div class="modal fade contact-modal" id="${MODAL_ID}" tabindex="-1" aria-labelledby="contact-us-title" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content contact-modal-content">
+      <div class="modal-header contact-modal-header">
+        <div>
+          <span class="contact-modal-kicker">Contact</span>
+          <h2 class="modal-title fs-5" id="contact-us-title">Contact Us</h2>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body contact-modal-body">
+        <div class="contact-channel">
+          <span class="contact-channel-icon" aria-hidden="true">${mailSvg}</span>
+          <div class="contact-channel-body">
+            <div class="contact-channel-label">Email</div>
+            <div class="contact-channel-value d-flex align-items-center gap-2">
+              <a href="mailto:${EMAIL}" class="contact-link">${EMAIL}</a>
+              <button type="button" class="btn btn-sm copy-btn" data-clipboard="${EMAIL}">Copy</button>
+            </div>
+          </div>
+        </div>
+        <div class="contact-channel">
+          <span class="contact-channel-icon" aria-hidden="true">${fbSvg}</span>
+          <div class="contact-channel-body">
+            <div class="contact-channel-label">Facebook</div>
+            <div class="contact-channel-value"><a href="https://www.facebook.com/HORNETLaboratoryReservation" target="_blank" rel="noopener noreferrer" class="contact-link">@HORNETLaboratoryReservation</a></div>
+          </div>
+        </div>
+        <div class="contact-channel">
+          <span class="contact-channel-icon" aria-hidden="true">${xSvg}</span>
+          <div class="contact-channel-body">
+            <div class="contact-channel-label">Twitter / X</div>
+            <div class="contact-channel-value"><a href="https://x.com/HORNET_CSPC" target="_blank" rel="noopener noreferrer" class="contact-link">@HORNET_CSPC</a></div>
+          </div>
+        </div>
+        <div class="contact-channel">
+          <span class="contact-channel-icon" aria-hidden="true">${officeSvg}</span>
+          <div class="contact-channel-body">
+            <div class="contact-channel-label">Office</div>
+            <div class="contact-channel-value">
+              <div>CSPC Campus Facilities Office</div>
+              <div class="office-note">Mon\u2013Fri, 8:00 AM \u2013 5:00 PM</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>`;
+
+    function ensureModal() {
+      if (!document.getElementById(MODAL_ID)) {
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+      }
+    }
+
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('#' + BTN_ID);
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      ensureModal();
+      if (!window.bootstrap) return;
+      const modalEl = document.getElementById(MODAL_ID);
+      const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl, { backdrop: true, keyboard: true });
+      modal.show();
+    });
+
+    document.addEventListener('click', async (e) => {
+      const btn = e.target.closest('.copy-btn');
+      if (!btn) return;
+      e.preventDefault();
+      const text = btn.getAttribute('data-clipboard') || EMAIL;
+      try {
+        await navigator.clipboard.writeText(text);
+        const original = btn.innerHTML;
+        btn.classList.add('copied');
+        btn.innerHTML = 'Copied!';
+        setTimeout(() => { btn.innerHTML = original; btn.classList.remove('copied'); }, 1600);
+      } catch (err) {
+        console.warn('[contact-us] Clipboard write failed', err);
+      }
     });
   })();
 
